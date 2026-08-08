@@ -111,6 +111,45 @@ button, select, input { font: inherit; color: inherit; }
 
 .empty { color: var(--muted); max-width: 55ch; margin-top: 32px; }
 
+/* ── Local (on-device) folders ───────────────────────────────────────────── */
+.local-panel {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 32px;
+}
+.local-head {
+  display: flex; flex-wrap: wrap; gap: 14px;
+  align-items: flex-start; justify-content: space-between;
+}
+.local-head h2 { margin: 0 0 4px; font-size: 17px; }
+.local-help { margin: 0; color: var(--muted); font-size: 13px; max-width: 60ch; }
+.local-buttons { display: flex; gap: 8px; }
+
+.dropzone {
+  margin-top: 14px; padding: 18px;
+  border: 1px dashed var(--border); border-radius: var(--radius);
+  color: var(--muted); font-size: 13px; text-align: center;
+  transition: border-color .15s ease, background .15s ease, color .15s ease;
+}
+.dropzone.drag-over { border-color: var(--accent); background: rgba(76, 141, 255, .08); color: var(--text); }
+
+.local-status { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+.local-status.err { color: var(--danger); }
+
+#localGrid:not(:empty) { margin-top: 16px; }
+
+.badge {
+  display: inline-block;
+  font-size: 11px; font-weight: 600; letter-spacing: .03em;
+  padding: 2px 7px; border-radius: 999px;
+  background: rgba(76, 141, 255, .16); color: #9dc0ff;
+  border: 1px solid rgba(76, 141, 255, .3);
+}
+
+.section-title { font-size: 17px; margin: 0 0 14px; }
+
 /* ── Player ──────────────────────────────────────────────────────────────── */
 #player {
   position: fixed; inset: 0;
@@ -154,6 +193,8 @@ button, select, input { font: inherit; color: inherit; }
 .meta { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
 .meta strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 30vw; }
 .counter { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.counter-row { display: flex; align-items: center; gap: 8px; }
+.badge-sm { font-size: 10px; padding: 1px 6px; }
 
 .field { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
 .field select {

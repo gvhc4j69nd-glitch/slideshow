@@ -35,11 +35,38 @@
 
     <div class="notice" id="notice" hidden></div>
 
+    <!-- Play straight off the local machine — nothing is uploaded. -->
+    <section class="local-panel" id="localPanel" aria-label="Play from this device">
+      <div class="local-head">
+        <div>
+          <h2>Play from this device</h2>
+          <p class="local-help" id="localHelp">
+            Pick a folder on your own drive and play it right now. The photos stay
+            on your machine — nothing is uploaded, and the selection is forgotten
+            when you close the tab.
+          </p>
+        </div>
+        <div class="local-buttons">
+          <button type="button" class="btn btn-primary" id="chooseLocalBtn">Choose folder…</button>
+          <button type="button" class="btn" id="clearLocalBtn" hidden>Clear</button>
+        </div>
+      </div>
+
+      <div class="dropzone" id="localDrop">Or drag a folder of photos here</div>
+
+      <p class="local-status" id="localStatus" hidden></p>
+
+      <div class="folder-grid" id="localGrid"></div>
+    </section>
+
+    <h2 class="section-title" id="serverTitle">On the server</h2>
+
     <section class="folder-grid" id="folderGrid" aria-label="Photo folders"></section>
 
     <p class="empty" id="emptyState" hidden>
-      No folders yet. Create one above and upload photos, or drop a folder of
-      images into the photo library path shown at the top, then hit Refresh.
+      No folders on the server yet. Create one above and upload photos, or drop a
+      folder of images into the photo library path shown at the top, then hit
+      Refresh. To play photos without uploading them, use “Play from this device”.
     </p>
   </main>
 
@@ -58,7 +85,10 @@
         <button type="button" class="btn btn-icon" id="stopBtn" title="Stop and pick a new folder (Esc)">✕</button>
         <span class="meta">
           <strong id="folderLabel">—</strong>
-          <span id="counter" class="counter">0 / 0</span>
+          <span class="counter-row">
+            <span id="counter" class="counter">0 / 0</span>
+            <span id="sourceTag" class="badge badge-sm" hidden></span>
+          </span>
         </span>
       </div>
 
@@ -95,7 +125,7 @@
       <h2>New folder</h2>
       <p class="dialog-help">Creates a subfolder in your photo library. No slashes or spaces.</p>
       <input type="text" id="folderNameInput" name="name" placeholder="summer-2026" maxlength="120" required
-             pattern="[^\\/\\\\:\\s]+" autocomplete="off">
+             pattern="[^\/\\:\s]+" autocomplete="off">
       <p class="dialog-error" id="folderError" hidden></p>
       <menu>
         <button type="button" class="btn" id="folderCancel">Cancel</button>
@@ -105,6 +135,8 @@
   </dialog>
 
   <input type="file" id="fileInput" accept="image/*" multiple hidden>
+  <!-- Fallback folder picker for browsers without the File System Access API. -->
+  <input type="file" id="localDirInput" webkitdirectory directory multiple hidden>
 
   <script src="/app.js"></script>
 </body>

@@ -3,9 +3,11 @@
 /* ── State ────────────────────────────────────────────────────────────────── */
 
 const state = {
-  folders: [],
-  folder: null,      // relative path of the folder being played
-  photos: [],        // [{name, url, …}] in play order
+  folders: [],       // folders on the server
+  localFolders: [],  // folders picked off this device — never uploaded
+  source: 'server',  // where the folder currently playing came from
+  folder: null,      // label of the folder being played
+  photos: [],        // [{name, url}] for server photos, [{name, file}] for local ones
   index: 0,
   playing: false,
   shuffle: false,
@@ -29,12 +31,16 @@ const el = {
   playBtn: $('playBtn'), prevBtn: $('prevBtn'), nextBtn: $('nextBtn'),
   restartBtn: $('restartBtn'), stopBtn: $('stopBtn'), fullscreenBtn: $('fullscreenBtn'),
   shuffleBtn: $('shuffleBtn'), loopBtn: $('loopBtn'), speedSelect: $('speedSelect'),
-  folderLabel: $('folderLabel'), counter: $('counter'),
+  folderLabel: $('folderLabel'), counter: $('counter'), sourceTag: $('sourceTag'),
   folderDialog: $('folderDialog'), folderForm: $('folderForm'),
   folderNameInput: $('folderNameInput'), folderError: $('folderError'),
   folderCancel: $('folderCancel'), fileInput: $('fileInput'),
   gate: $('gate'), gateForm: $('gateForm'), gateInput: $('gateInput'),
   gateError: $('gateError'), gateSubmit: $('gateSubmit'),
+  localPanel: $('localPanel'), localGrid: $('localGrid'), localDrop: $('localDrop'),
+  localStatus: $('localStatus'), localHelp: $('localHelp'),
+  chooseLocalBtn: $('chooseLocalBtn'), clearLocalBtn: $('clearLocalBtn'),
+  localDirInput: $('localDirInput'), serverTitle: $('serverTitle'),
 };
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
@@ -56,6 +62,49 @@ function showNotice(message, kind) {
 
 const mediaUrl = (relPath) => '/media/' + relPath.split('/').map(encodeURIComponent).join('/');
 
+const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+const IMAGE_EXT = /\.(jpe?g|png|gif|webp|avif|bmp|svg|heic|heif|tiff?)$/i;
+
+/** Some image types (HEIC especially) come through with an empty MIME type. */
+const isImageFile = (file) => file.type.startsWith('image/') || IMAGE_EXT.test(file.name);
+
+/* ── Object URLs for local files ──────────────────────────────────────────── */
+
+/**
+ * Local photos are played straight off disk via object URLs. Minting one per
+ * photo up front would pin the whole folder, so they're created on demand and
+ * the oldest are revoked once we're well past them.
+ */
+const liveUrls = [];
+const MAX_LIVE_URLS = 8;
+
+function photoUrl(photo) {
+  if (photo.url) return photo.url;
+  if (!photo.objectUrl) {
+    photo.objectUrl = URL.createObjectURL(photo.file);
+    liveUrls.push(photo);
+    while (liveUrls.length > MAX_LIVE_URLS) {
+      const stale = liveUrls.shift();
+      if (stale !== photo && stale.objectUrl) {
+        URL.revokeObjectURL(stale.objectUrl);
+        stale.objectUrl = null;
+      }
+    }
+  }
+  return photo.objectUrl;
+}
+
+function releasePlaylistUrls() {
+  for (const photo of liveUrls) {
+    if (photo.objectUrl) {
+      URL.revokeObjectURL(photo.objectUrl);
+      photo.objectUrl = null;
+    }
+  }
+  liveUrls.length = 0;
+}
+
 /* ── Library ──────────────────────────────────────────────────────────────── */
 
 async function loadFolders() {
@@ -65,7 +114,7 @@ async function loadFolders() {
     state.folders = data.folders;
     el.libRoot.textContent = data.root;
     el.notice.hidden = true;
-    renderFolders();
+    renderLibrary();
   } catch (err) {
     showNotice(`Could not load folders: ${err.message}`);
   } finally {
@@ -73,44 +122,25 @@ async function loadFolders() {
   }
 }
 
-function renderFolders() {
+function renderLibrary() {
+  renderServerFolders();
+  renderLocalFolders();
+}
+
+function renderServerFolders() {
   el.folderGrid.replaceChildren();
   el.emptyState.hidden = state.folders.length > 0;
 
   for (const folder of state.folders) {
-    const card = document.createElement('div');
-    card.className = 'folder-card';
+    const card = folderCard({
+      label: folder.path,
+      count: folder.count,
+      coverUrl: folder.cover ? mediaUrl(folder.cover) : null,
+      onPlay: () => startServerSlideshow(folder.path),
+    });
 
-    const cover = document.createElement('button');
-    cover.type = 'button';
-    cover.className = 'folder-cover';
-    cover.title = folder.count ? `Play ${folder.name}` : 'This folder has no photos yet';
-    if (folder.cover) cover.style.backgroundImage = `url("${mediaUrl(folder.cover)}")`;
-    else cover.textContent = '🗂';
-    cover.disabled = folder.count === 0;
-    cover.addEventListener('click', () => startSlideshow(folder.path));
-
-    const body = document.createElement('div');
-    body.className = 'folder-body';
-
-    const name = document.createElement('div');
-    name.className = 'folder-name';
-    name.textContent = folder.path;
-    name.title = folder.path;
-
-    const sub = document.createElement('div');
-    sub.className = 'folder-sub';
-    sub.textContent = folder.count === 1 ? '1 photo' : `${folder.count} photos`;
-
-    const buttons = document.createElement('div');
-    buttons.className = 'folder-buttons';
-
-    const playBtn = document.createElement('button');
-    playBtn.type = 'button';
-    playBtn.className = 'btn btn-primary';
-    playBtn.textContent = 'Play';
-    playBtn.disabled = folder.count === 0;
-    playBtn.addEventListener('click', () => startSlideshow(folder.path));
+    const status = document.createElement('div');
+    status.className = 'upload-status';
 
     const uploadBtn = document.createElement('button');
     uploadBtn.type = 'button';
@@ -118,27 +148,90 @@ function renderFolders() {
     uploadBtn.textContent = 'Add photos';
     uploadBtn.addEventListener('click', () => pickFiles(folder.path, status));
 
-    const status = document.createElement('div');
-    status.className = 'upload-status';
+    card.buttons.append(uploadBtn);
+    card.body.append(status);
 
     // Drag a batch of photos straight onto the card to upload them.
-    card.addEventListener('dragover', (e) => {
+    card.root.addEventListener('dragover', (e) => {
       e.preventDefault();
-      card.classList.add('drag-over');
+      card.root.classList.add('drag-over');
     });
-    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
-    card.addEventListener('drop', (e) => {
+    card.root.addEventListener('dragleave', () => card.root.classList.remove('drag-over'));
+    card.root.addEventListener('drop', (e) => {
       e.preventDefault();
-      card.classList.remove('drag-over');
-      const files = [...e.dataTransfer.files].filter((f) => f.type.startsWith('image/'));
+      card.root.classList.remove('drag-over');
+      const files = [...e.dataTransfer.files].filter(isImageFile);
       if (files.length) uploadFiles(folder.path, files, status);
     });
 
-    buttons.append(playBtn, uploadBtn);
-    body.append(name, sub, buttons, status);
-    card.append(cover, body);
-    el.folderGrid.append(card);
+    el.folderGrid.append(card.root);
   }
+}
+
+function renderLocalFolders() {
+  el.localGrid.replaceChildren();
+  el.clearLocalBtn.hidden = state.localFolders.length === 0;
+
+  for (const folder of state.localFolders) {
+    const card = folderCard({
+      label: folder.label,
+      count: folder.photos.length,
+      coverUrl: folder.coverUrl,
+      badge: 'On this device',
+      onPlay: () => startLocalSlideshow(folder.id),
+    });
+    el.localGrid.append(card.root);
+  }
+}
+
+/** Shared card markup for both server-side and on-device folders. */
+function folderCard({ label, count, coverUrl, badge, onPlay }) {
+  const root = document.createElement('div');
+  root.className = 'folder-card';
+
+  const cover = document.createElement('button');
+  cover.type = 'button';
+  cover.className = 'folder-cover';
+  cover.title = count ? `Play ${label}` : 'This folder has no photos yet';
+  if (coverUrl) cover.style.backgroundImage = `url("${coverUrl}")`;
+  else cover.textContent = '🗂';
+  cover.disabled = count === 0;
+  cover.addEventListener('click', onPlay);
+
+  const body = document.createElement('div');
+  body.className = 'folder-body';
+
+  const name = document.createElement('div');
+  name.className = 'folder-name';
+  name.textContent = label;
+  name.title = label;
+
+  const sub = document.createElement('div');
+  sub.className = 'folder-sub';
+  sub.textContent = count === 1 ? '1 photo' : `${count} photos`;
+
+  const buttons = document.createElement('div');
+  buttons.className = 'folder-buttons';
+
+  const playBtn = document.createElement('button');
+  playBtn.type = 'button';
+  playBtn.className = 'btn btn-primary';
+  playBtn.textContent = 'Play';
+  playBtn.disabled = count === 0;
+  playBtn.addEventListener('click', onPlay);
+  buttons.append(playBtn);
+
+  body.append(name, sub);
+  if (badge) {
+    const tag = document.createElement('div');
+    tag.className = 'badge';
+    tag.textContent = badge;
+    body.append(tag);
+  }
+  body.append(buttons);
+  root.append(cover, body);
+
+  return { root, body, buttons };
 }
 
 function pickFiles(folderPath, status) {
@@ -203,9 +296,220 @@ el.folderForm.addEventListener('submit', async (event) => {
   }
 });
 
+/* ── Local folders (played off this device, never uploaded) ───────────────── */
+
+const MAX_LOCAL_FILES = 20000;
+const MAX_LOCAL_DEPTH = 6;
+let localFolderSeq = 0;
+let localCoverUrls = [];
+
+function setLocalStatus(message, isError) {
+  el.localStatus.textContent = message || '';
+  el.localStatus.classList.toggle('err', Boolean(isError));
+  el.localStatus.hidden = !message;
+}
+
+/** Drop the current on-device selection and free its cover thumbnails. */
+function clearLocalFolders() {
+  for (const url of localCoverUrls) URL.revokeObjectURL(url);
+  localCoverUrls = [];
+  state.localFolders = [];
+  renderLocalFolders();
+  setLocalStatus('');
+}
+
+/**
+ * Group scanned files into one card per directory.
+ * `items` is [{ dir, name, file }] with `dir` relative to the chosen folder.
+ */
+function buildLocalFolders(items, rootName) {
+  const groups = new Map();
+  for (const item of items) {
+    if (!groups.has(item.dir)) groups.set(item.dir, []);
+    groups.get(item.dir).push({ name: item.name, file: item.file });
+  }
+
+  const folders = [];
+  for (const [dir, photos] of groups) {
+    photos.sort((a, b) => collator.compare(a.name, b.name));
+    const coverUrl = URL.createObjectURL(photos[0].file);
+    localCoverUrls.push(coverUrl);
+    folders.push({
+      id: `local-${(localFolderSeq += 1)}`,
+      label: dir ? `${rootName}/${dir}` : rootName,
+      photos,
+      coverUrl,
+    });
+  }
+  folders.sort((a, b) => collator.compare(a.label, b.label));
+  return folders;
+}
+
+function adoptLocalFolders(items, rootName) {
+  if (!items.length) {
+    setLocalStatus(`No photos found in “${rootName}”.`, true);
+    return;
+  }
+  clearLocalFolders();
+  state.localFolders = buildLocalFolders(items, rootName);
+  renderLocalFolders();
+
+  const total = items.length;
+  const folderCount = state.localFolders.length;
+  setLocalStatus(
+    `Ready: ${total} photo${total === 1 ? '' : 's'} in ${folderCount} folder${folderCount === 1 ? '' : 's'}. ` +
+    'These stay on your device — nothing was uploaded.',
+  );
+}
+
+/* Source 1: File System Access API (Chrome, Edge). */
+async function pickLocalViaHandle() {
+  const rootHandle = await window.showDirectoryPicker({ mode: 'read', id: 'slideshow-local' });
+  setLocalStatus(`Scanning “${rootHandle.name}”…`);
+
+  const items = [];
+  let truncated = false;
+
+  const walk = async (dirHandle, relDir, depth) => {
+    for await (const handle of dirHandle.values()) {
+      if (items.length >= MAX_LOCAL_FILES) { truncated = true; return; }
+      if (handle.name.startsWith('.')) continue;
+      if (handle.kind === 'file') {
+        let file;
+        try {
+          file = await handle.getFile();
+        } catch {
+          continue;
+        }
+        if (isImageFile(file)) items.push({ dir: relDir, name: handle.name, file });
+      } else if (handle.kind === 'directory' && depth < MAX_LOCAL_DEPTH) {
+        await walk(handle, relDir ? `${relDir}/${handle.name}` : handle.name, depth + 1);
+      }
+    }
+  };
+
+  await walk(rootHandle, '', 0);
+  adoptLocalFolders(items, rootHandle.name);
+  if (truncated) setLocalStatus(`Stopped at ${MAX_LOCAL_FILES} photos — that folder is very large.`, true);
+}
+
+/* Source 2: <input webkitdirectory> fallback (Safari, Firefox). */
+function pickLocalViaInput() {
+  el.localDirInput.value = '';
+  el.localDirInput.onchange = () => {
+    const files = [...el.localDirInput.files];
+    if (!files.length) return;
+
+    const rootName = (files[0].webkitRelativePath || '').split('/')[0] || 'Selected folder';
+    const items = [];
+    for (const file of files) {
+      if (items.length >= MAX_LOCAL_FILES) break;
+      if (!isImageFile(file)) continue;
+      const parts = (file.webkitRelativePath || file.name).split('/');
+      items.push({ dir: parts.slice(1, -1).join('/'), name: parts[parts.length - 1], file });
+    }
+    adoptLocalFolders(items, rootName);
+  };
+  el.localDirInput.click();
+}
+
+async function chooseLocalFolder() {
+  try {
+    if (typeof window.showDirectoryPicker === 'function') await pickLocalViaHandle();
+    else pickLocalViaInput();
+  } catch (err) {
+    if (err && (err.name === 'AbortError' || err.name === 'NotAllowedError')) return; // user cancelled
+    setLocalStatus(`Could not read that folder: ${err.message}`, true);
+  }
+}
+
+/* Source 3: dragging a folder onto the drop zone. */
+function readEntryBatch(reader) {
+  return new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+}
+
+async function walkDroppedEntry(entry, relDir, items, depth) {
+  if (items.length >= MAX_LOCAL_FILES) return;
+  if (entry.name.startsWith('.')) return;
+
+  if (entry.isFile) {
+    const file = await new Promise((resolve) => entry.file(resolve, () => resolve(null)));
+    if (file && isImageFile(file)) items.push({ dir: relDir, name: entry.name, file });
+    return;
+  }
+  if (entry.isDirectory && depth < MAX_LOCAL_DEPTH) {
+    const reader = entry.createReader();
+    const nextDir = relDir ? `${relDir}/${entry.name}` : entry.name;
+    // readEntries returns at most 100 entries per call, so keep asking.
+    for (;;) {
+      const batch = await readEntryBatch(reader);
+      if (!batch.length) break;
+      for (const child of batch) await walkDroppedEntry(child, nextDir, items, depth + 1);
+    }
+  }
+}
+
+async function handleLocalDrop(dataTransfer) {
+  const roots = [...dataTransfer.items]
+    .map((item) => (item.webkitGetAsEntry ? item.webkitGetAsEntry() : null))
+    .filter(Boolean);
+
+  // A plain batch of image files, no folder involved.
+  if (!roots.length || roots.every((entry) => entry.isFile)) {
+    const files = [...dataTransfer.files].filter(isImageFile);
+    if (!files.length) {
+      setLocalStatus('No images in what you dropped.', true);
+      return;
+    }
+    adoptLocalFolders(files.map((file) => ({ dir: '', name: file.name, file })), 'Dropped photos');
+    return;
+  }
+
+  setLocalStatus('Reading dropped folder…');
+  const items = [];
+  let rootName = 'Dropped photos';
+  for (const entry of roots) {
+    if (entry.isDirectory) {
+      rootName = entry.name;
+      const reader = entry.createReader();
+      for (;;) {
+        const batch = await readEntryBatch(reader);
+        if (!batch.length) break;
+        for (const child of batch) await walkDroppedEntry(child, '', items, 1);
+      }
+    } else {
+      await walkDroppedEntry(entry, '', items, 1);
+    }
+  }
+  adoptLocalFolders(items, rootName);
+}
+
+el.chooseLocalBtn.addEventListener('click', chooseLocalFolder);
+el.clearLocalBtn.addEventListener('click', clearLocalFolders);
+
+// Without this the browser navigates away when a folder is dropped off-target.
+for (const type of ['dragover', 'drop']) {
+  document.addEventListener(type, (event) => {
+    if (!event.target.closest('.dropzone, .folder-card')) event.preventDefault();
+  });
+}
+
+el.localDrop.addEventListener('dragover', (event) => {
+  event.preventDefault();
+  el.localDrop.classList.add('drag-over');
+});
+el.localDrop.addEventListener('dragleave', () => el.localDrop.classList.remove('drag-over'));
+el.localDrop.addEventListener('drop', (event) => {
+  event.preventDefault();
+  el.localDrop.classList.remove('drag-over');
+  handleLocalDrop(event.dataTransfer).catch((err) => {
+    setLocalStatus(`Could not read that folder: ${err.message}`, true);
+  });
+});
+
 /* ── Slideshow ────────────────────────────────────────────────────────────── */
 
-async function startSlideshow(folderPath) {
+async function startServerSlideshow(folderPath) {
   try {
     const data = await api(`/api/photos?folder=${encodeURIComponent(folderPath)}`);
     if (!data.photos.length) {
@@ -213,28 +517,48 @@ async function startSlideshow(folderPath) {
       await loadFolders();
       return;
     }
-    state.folder = data.folder;
-    state.photos = data.photos;
-    state.index = 0;
-    if (state.shuffle) shufflePhotos();
-
-    el.folderLabel.textContent = data.folder;
-    el.library.hidden = true;
-    el.player.hidden = false;
-    el.stageMsg.hidden = true;
-    el.slideA.classList.remove('visible');
-    el.slideB.classList.remove('visible');
-    state.frontIsA = false;
-
-    showPhoto(0);
-    play();
+    beginPlayback(data.folder, data.photos, 'server');
   } catch (err) {
     showNotice(`Could not start the slideshow: ${err.message}`);
   }
 }
 
+function startLocalSlideshow(folderId) {
+  const folder = state.localFolders.find((f) => f.id === folderId);
+  if (!folder || !folder.photos.length) {
+    setLocalStatus('That folder has no photos in it.', true);
+    return;
+  }
+  // Copy the list so shuffling the playlist doesn't reorder the card's photos.
+  beginPlayback(folder.label, folder.photos.map((p) => ({ ...p })), 'local');
+}
+
+function beginPlayback(label, photos, source) {
+  releasePlaylistUrls();
+  state.source = source;
+  state.folder = label;
+  state.photos = photos;
+  state.index = 0;
+  if (state.shuffle) shufflePhotos();
+
+  el.folderLabel.textContent = label;
+  el.sourceTag.textContent = source === 'local' ? 'On this device' : 'Server';
+  el.sourceTag.hidden = false;
+  el.library.hidden = true;
+  el.player.hidden = false;
+  el.stageMsg.hidden = true;
+  el.slideA.classList.remove('visible');
+  el.slideB.classList.remove('visible');
+  state.frontIsA = false;
+
+  showPhoto(0);
+  play();
+}
+
 function stopSlideshow() {
   pause();
+  const wasLocal = state.source === 'local';
+  releasePlaylistUrls();
   state.folder = null;
   state.photos = [];
   state.index = 0;
@@ -244,7 +568,8 @@ function stopSlideshow() {
   el.library.hidden = false;
   el.player.classList.remove('idle');
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-  loadFolders();
+  // On-device folders live only in this tab, so there's nothing to re-fetch.
+  if (!wasLocal) loadFolders();
 }
 
 /** Cross-fade between the two <img> layers so slides don't flash. */
@@ -267,12 +592,12 @@ function showPhoto(index) {
     el.stageMsg.hidden = false;
   };
   incoming.alt = photo.name;
-  incoming.src = photo.url;
+  incoming.src = photoUrl(photo);
 
   // Warm the next image so the transition is instant.
   if (state.photos.length > 1) {
     const next = state.photos[(state.index + 1) % state.photos.length];
-    new Image().src = next.url;
+    new Image().src = photoUrl(next);
   }
 
   updateCounter();

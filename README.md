@@ -1,8 +1,16 @@
 # slideshow
 
-A small web app for playing photo slideshows. Put photos into subfolders of a
-photo library, pick a folder in the browser, and play it — with pause, start
-over, and stop-and-pick-another-folder.
+A small web app for playing photo slideshows, with pause, start over, and
+stop-and-pick-another-folder.
+
+There are two ways to get photos into it:
+
+- **From this device** — pick a folder on your own drive and play it
+  immediately. Nothing is uploaded and nothing is stored; the selection lives
+  only in that browser tab.
+- **From the server library** — photos placed in subfolders of the photo
+  library, either dropped in with Finder or uploaded through the web UI. These
+  persist and are visible to anyone else using the same instance.
 
 No dependencies. It's plain Node plus static HTML/CSS/JS, so there's nothing to
 install.
@@ -14,6 +22,30 @@ npm start
 ```
 
 Then open <http://localhost:4321>.
+
+## Play from this device (no upload)
+
+Click **Choose folder…** in the “Play from this device” panel and pick any
+folder on your drive, or drag a folder onto the drop zone. Subfolders each
+become their own playable card, so a folder of folders works fine.
+
+The files are read directly by the browser and played from in-memory object
+URLs. They are never sent to the server — you can confirm this in the network
+panel, where playback makes no requests at all. The trade-off is that the
+selection is per-tab and per-session: reloading clears it, because browsers
+don't let a page silently re-open a local folder later.
+
+Which mechanism the browser uses depends on support:
+
+- Chrome and Edge use the File System Access API directory picker.
+- Safari and Firefox fall back to a directory `<input>`, which works the same
+  way from your side.
+- Drag-and-drop of a folder works in all of them.
+
+Note that if you set an `ACCESS_CODE` (see below), the code gates the whole UI,
+including this panel — even though local playback itself needs no server.
+
+## The server photo library
 
 Photos live in `./photos`. Any subfolder there shows up in the web UI:
 
@@ -45,7 +77,9 @@ others don't.)
 | Loop | `L` | Wrap around at the end, or stop on the last photo |
 
 Speed is adjustable from 1 to 30 seconds per photo. Clicking the photo toggles
-pause, and the controls fade out while playing until you move the mouse.
+pause, and the controls fade out while playing until you move the mouse. The
+controls behave identically whichever source the photos came from; a badge next
+to the counter shows which one is playing.
 
 ## Configuration
 
@@ -84,6 +118,9 @@ for anything big, consider syncing files onto the volume directly instead.
   existing photo — a name collision becomes `photo (2).jpg`.
 - The access code is compared in constant time and rate-limited to 10 attempts
   per IP per 15 minutes.
+- On-device playback never transmits the files. Object URLs are minted lazily
+  and revoked as playback moves on, so a large folder isn't held in memory all
+  at once.
 
 ## License
 
