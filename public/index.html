@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Slideshow</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖼️</text></svg>">
+</head>
+<body>
+
+  <!-- ── Access gate (only when ACCESS_CODE is set on the server) ─────────── -->
+  <main id="gate" class="screen gate" hidden>
+    <form class="gate-card" id="gateForm">
+      <h1>Slideshow</h1>
+      <p class="dialog-help">Enter the access code to continue.</p>
+      <input type="password" id="gateInput" placeholder="Access code" autocomplete="current-password" required>
+      <p class="dialog-error" id="gateError" hidden></p>
+      <button type="submit" class="btn btn-primary" id="gateSubmit">Unlock</button>
+    </form>
+  </main>
+
+  <!-- ── Library: pick a folder ───────────────────────────────────────────── -->
+  <main id="library" class="screen" hidden>
+    <header class="lib-header">
+      <div>
+        <h1>Slideshow</h1>
+        <p class="lib-root" id="libRoot">Loading photo library…</p>
+      </div>
+      <div class="lib-actions">
+        <button type="button" class="btn" id="newFolderBtn">New folder</button>
+        <button type="button" class="btn" id="refreshBtn">Refresh</button>
+      </div>
+    </header>
+
+    <div class="notice" id="notice" hidden></div>
+
+    <section class="folder-grid" id="folderGrid" aria-label="Photo folders"></section>
+
+    <p class="empty" id="emptyState" hidden>
+      No folders yet. Create one above and upload photos, or drop a folder of
+      images into the photo library path shown at the top, then hit Refresh.
+    </p>
+  </main>
+
+  <!-- ── Slideshow player ─────────────────────────────────────────────────── -->
+  <section id="player" class="screen" hidden aria-label="Slideshow player">
+    <div class="stage" id="stage">
+      <img class="slide" id="slideA" alt="">
+      <img class="slide" id="slideB" alt="">
+      <div class="stage-msg" id="stageMsg" hidden></div>
+    </div>
+
+    <div class="progress" id="progress"><div class="progress-bar" id="progressBar"></div></div>
+
+    <div class="controls" id="controls">
+      <div class="controls-left">
+        <button type="button" class="btn btn-icon" id="stopBtn" title="Stop and pick a new folder (Esc)">✕</button>
+        <span class="meta">
+          <strong id="folderLabel">—</strong>
+          <span id="counter" class="counter">0 / 0</span>
+        </span>
+      </div>
+
+      <div class="controls-center">
+        <button type="button" class="btn btn-icon" id="prevBtn" title="Previous (←)">◀◀</button>
+        <button type="button" class="btn btn-icon btn-primary" id="playBtn" title="Play / Pause (Space)">❚❚</button>
+        <button type="button" class="btn btn-icon" id="nextBtn" title="Next (→)">▶▶</button>
+        <button type="button" class="btn btn-icon" id="restartBtn" title="Start over (R)">↺</button>
+      </div>
+
+      <div class="controls-right">
+        <label class="field">
+          <span>Speed</span>
+          <select id="speedSelect">
+            <option value="1000">1s</option>
+            <option value="2000">2s</option>
+            <option value="3000">3s</option>
+            <option value="5000" selected>5s</option>
+            <option value="8000">8s</option>
+            <option value="15000">15s</option>
+            <option value="30000">30s</option>
+          </select>
+        </label>
+        <button type="button" class="btn btn-toggle" id="shuffleBtn" aria-pressed="false" title="Shuffle (S)">Shuffle</button>
+        <button type="button" class="btn btn-toggle" id="loopBtn" aria-pressed="true" title="Loop (L)">Loop</button>
+        <button type="button" class="btn btn-icon" id="fullscreenBtn" title="Fullscreen (F)">⛶</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── New folder dialog ────────────────────────────────────────────────── -->
+  <dialog id="folderDialog">
+    <form method="dialog" id="folderForm">
+      <h2>New folder</h2>
+      <p class="dialog-help">Creates a subfolder in your photo library. No slashes or spaces.</p>
+      <input type="text" id="folderNameInput" name="name" placeholder="summer-2026" maxlength="120" required
+             pattern="[^\\/\\\\:\\s]+" autocomplete="off">
+      <p class="dialog-error" id="folderError" hidden></p>
+      <menu>
+        <button type="button" class="btn" id="folderCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <input type="file" id="fileInput" accept="image/*" multiple hidden>
+
+  <script src="/app.js"></script>
+</body>
+</html>
