@@ -4,16 +4,20 @@
 /**
  * Slideshow — a zero-dependency photo slideshow server.
  *
- * Photos live in subfolders of PHOTOS_ROOT (default ./photos). The browser UI
- * lists those subfolders, lets you upload into them, and plays a slideshow of
- * whichever one you pick.
+ * Three things live here:
+ *   1. Accounts. Everything except the viewer flow needs a signed-in user.
+ *   2. A server-side photo library (subfolders of PHOTOS_ROOT).
+ *   3. A live relay so a signed-in user can stream a slideshow straight from
+ *      their own machine to other browsers, using a share code and a temporary
+ *      password. Photos in that flow are never written to disk here.
  *
  * Environment:
  *   PORT             port to listen on (Railway injects this)
  *   HOST             bind address (default 0.0.0.0)
- *   PHOTOS_ROOT      photo library path; point this at a mounted volume in prod
- *   ACCESS_CODE      if set, visitors must enter this code before using the app
- *   SESSION_SECRET   extra entropy for session cookies (optional)
+ *   PHOTOS_ROOT      server photo library; point at a mounted volume in prod
+ *   DATA_ROOT        accounts + signing key; also belongs on the volume
+ *   SIGNUP_CODE      if set, required to create an account
+ *   SESSION_SECRET   overrides the generated signing key
  *   MAX_UPLOAD_BYTES per-file upload cap (default 100 MB)
  */
 
@@ -23,21 +27,31 @@ const fsp = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
 
+const {
+  sendJson, sendError, readJsonBody, readRawBody,
+  parseCookies, buildCookie, clientIp, createLimiter,
+} = require('./lib/http');
+const { Store } = require('./lib/store');
+const { Broadcast } = require('./lib/broadcast');
+const auth = require('./lib/auth');
+
 const PORT = Number(process.env.PORT) || 4321;
 const HOST = process.env.HOST || '0.0.0.0';
 const PHOTOS_ROOT = path.resolve(process.env.PHOTOS_ROOT || path.join(__dirname, 'photos'));
+const DATA_ROOT = path.resolve(process.env.DATA_ROOT || path.join(__dirname, 'data'));
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const MAX_UPLOAD_BYTES = Number(process.env.MAX_UPLOAD_BYTES) || 100 * 1024 * 1024;
+const MAX_FRAME_BYTES = Number(process.env.MAX_FRAME_BYTES) || 25 * 1024 * 1024;
 const MAX_SCAN_DEPTH = 6;
 
-const ACCESS_CODE = (process.env.ACCESS_CODE || '').trim();
-const AUTH_REQUIRED = ACCESS_CODE.length > 0;
-const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-const SESSION_COOKIE = 'slideshow_sid';
-const SESSION_KEY = crypto
-  .createHash('sha256')
-  .update(`${ACCESS_CODE}:${process.env.SESSION_SECRET || ''}`)
-  .digest();
+// ACCESS_CODE was the old whole-app gate; accounts replaced it, so it now acts
+// as the signup code if SIGNUP_CODE isn't set.
+const SIGNUP_CODE = (process.env.SIGNUP_CODE || process.env.ACCESS_CODE || '').trim();
+
+const USER_COOKIE = 'slideshow_sid';
+const VIEW_COOKIE = 'slideshow_view';
+const USER_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const VIEW_TTL_MS = 12 * 60 * 60 * 1000;
 
 const IMAGE_TYPES = {
   '.jpg': 'image/jpeg',
@@ -64,16 +78,18 @@ const STATIC_TYPES = {
 };
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
-
 const isImage = (name) => Object.prototype.hasOwnProperty.call(IMAGE_TYPES, path.extname(name).toLowerCase());
 const isHidden = (name) => name.startsWith('.');
 
+const store = new Store(DATA_ROOT);
+let broadcast = null;
+
+const loginLimiter = createLimiter({ max: 10, windowMs: 15 * 60 * 1000 });
+const joinLimiter = createLimiter({ max: 10, windowMs: 15 * 60 * 1000 });
+const registerLimiter = createLimiter({ max: 10, windowMs: 60 * 60 * 1000 });
+
 /* ── Path safety ──────────────────────────────────────────────────────────── */
 
-/**
- * Resolve a client-supplied relative path inside PHOTOS_ROOT.
- * Returns null if it escapes the root (traversal, absolute paths, etc).
- */
 function safeResolve(relPath) {
   const cleaned = String(relPath == null ? '' : relPath).replace(/\\/g, '/').replace(/^\/+/, '');
   if (cleaned.split('/').some((seg) => seg === '..')) return null;
@@ -82,7 +98,6 @@ function safeResolve(relPath) {
   return abs;
 }
 
-/** Reject folder names that would create nesting or escape the root. */
 function validFolderName(name) {
   const n = String(name == null ? '' : name).trim();
   if (!n || n.length > 120) return null;
@@ -92,7 +107,6 @@ function validFolderName(name) {
   return n;
 }
 
-/** Strip any directory component from an uploaded filename. */
 function safeFileName(name) {
   const base = path.basename(String(name == null ? '' : name).replace(/\\/g, '/')).trim();
   if (!base || base === '.' || base === '..' || base.startsWith('.')) return null;
@@ -101,122 +115,80 @@ function safeFileName(name) {
   return base;
 }
 
-/* ── Responses ────────────────────────────────────────────────────────────── */
+/* ── Session helpers ──────────────────────────────────────────────────────── */
 
-function sendJson(res, status, body, extraHeaders) {
-  const payload = JSON.stringify(body);
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Content-Length': Buffer.byteLength(payload),
-    'Cache-Control': 'no-store',
-    ...extraHeaders,
-  });
-  res.end(payload);
+function currentUser(req) {
+  const token = parseCookies(req.headers.cookie)[USER_COOKIE];
+  const payload = auth.readToken(store.secret, token);
+  if (!payload || payload.kind !== 'user') return null;
+  return store.findUserById(payload.uid);
 }
 
-function sendError(res, status, message) {
-  sendJson(res, status, { error: message });
+function userCookie(req, user) {
+  const token = user ? auth.makeToken(store.secret, { kind: 'user', uid: user.id }, USER_TTL_MS) : '';
+  return buildCookie(req, USER_COOKIE, token, Math.floor(USER_TTL_MS / 1000));
 }
 
-/* ── Sessions ─────────────────────────────────────────────────────────────── */
-
-function sign(value) {
-  return crypto.createHmac('sha256', SESSION_KEY).update(value).digest('base64url');
+function viewerFor(req, code) {
+  const token = parseCookies(req.headers.cookie)[VIEW_COOKIE];
+  const payload = auth.readToken(store.secret, token);
+  if (!payload || payload.kind !== 'view') return null;
+  if (payload.code !== code) return null;
+  return payload;
 }
 
-function makeToken() {
-  const expires = String(Date.now() + SESSION_TTL_MS);
-  return `${expires}.${sign(expires)}`;
-}
+const publicUser = (user) => ({ id: user.id, username: user.username });
 
-function tokenIsValid(token) {
-  if (typeof token !== 'string') return false;
-  const dot = token.indexOf('.');
-  if (dot < 1) return false;
-  const expires = token.slice(0, dot);
-  const signature = token.slice(dot + 1);
-  const expected = sign(expires);
-  if (signature.length !== expected.length) return false;
-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return false;
-  return Number(expires) > Date.now();
-}
+/* ── Accounts ─────────────────────────────────────────────────────────────── */
 
-function parseCookies(header) {
-  const out = {};
-  for (const part of String(header || '').split(';')) {
-    const idx = part.indexOf('=');
-    if (idx < 1) continue;
-    out[part.slice(0, idx).trim()] = decodeURIComponent(part.slice(idx + 1).trim());
+async function handleRegister(req, res) {
+  const ip = clientIp(req);
+  if (registerLimiter.hit(ip)) return sendError(res, 429, 'Too many sign-up attempts. Try again later.');
+
+  const body = await readJsonBody(req);
+  if (body === null) return sendError(res, 400, 'Invalid request.');
+
+  if (SIGNUP_CODE) {
+    const supplied = Buffer.from(String(body.signupCode || ''), 'utf8');
+    const expected = Buffer.from(SIGNUP_CODE, 'utf8');
+    const ok = supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected);
+    if (!ok) return sendError(res, 403, 'That sign-up code is not right.');
   }
-  return out;
-}
 
-function isSecureRequest(req) {
-  const proto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
-  return proto === 'https' || Boolean(req.socket.encrypted);
-}
+  const username = auth.validateUsername(body.username);
+  if (username.error) return sendError(res, 400, username.error);
 
-function sessionCookie(req, token) {
-  const parts = [
-    `${SESSION_COOKIE}=${token}`,
-    'Path=/',
-    'HttpOnly',
-    'SameSite=Lax',
-    token ? `Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}` : 'Max-Age=0',
-  ];
-  if (isSecureRequest(req)) parts.push('Secure');
-  return parts.join('; ');
-}
+  const password = auth.validatePassword(body.password);
+  if (password.error) return sendError(res, 400, password.error);
 
-function isAuthed(req) {
-  if (!AUTH_REQUIRED) return true;
-  return tokenIsValid(parseCookies(req.headers.cookie)[SESSION_COOKIE]);
-}
+  if (store.findUser(username.value)) return sendError(res, 409, 'That username is taken.');
 
-// Light brute-force brake on the login endpoint, keyed by client IP.
-const loginAttempts = new Map();
-function loginThrottled(ip) {
-  const now = Date.now();
-  const entry = loginAttempts.get(ip);
-  if (!entry || now - entry.first > 15 * 60 * 1000) {
-    loginAttempts.set(ip, { count: 1, first: now });
-    return false;
-  }
-  entry.count += 1;
-  return entry.count > 10;
-}
-setInterval(() => {
-  const cutoff = Date.now() - 15 * 60 * 1000;
-  for (const [ip, entry] of loginAttempts) if (entry.first < cutoff) loginAttempts.delete(ip);
-}, 5 * 60 * 1000).unref();
+  const passwordHash = await auth.hashPassword(password.value);
+  const user = await store.addUser({ username: username.value, passwordHash });
 
-function clientIp(req) {
-  const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-  return fwd || req.socket.remoteAddress || 'unknown';
+  sendJson(res, 201, { user: publicUser(user) }, { 'Set-Cookie': userCookie(req, user) });
 }
 
 async function handleLogin(req, res) {
-  if (!AUTH_REQUIRED) return sendJson(res, 200, { authed: true, required: false });
+  const ip = clientIp(req);
+  if (loginLimiter.hit(ip)) return sendError(res, 429, 'Too many sign-in attempts. Wait a few minutes.');
 
-  if (loginThrottled(clientIp(req))) {
-    return sendError(res, 429, 'Too many attempts. Wait a few minutes and try again.');
-  }
-
-  const body = await readJsonBody(req, 4 * 1024);
+  const body = await readJsonBody(req);
   if (body === null) return sendError(res, 400, 'Invalid request.');
 
-  const supplied = Buffer.from(String(body.code || ''), 'utf8');
-  const expected = Buffer.from(ACCESS_CODE, 'utf8');
-  const ok = supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected);
-  if (!ok) return sendError(res, 401, 'Incorrect access code.');
+  const user = store.findUser(body.username);
+  // Hash even when the user is unknown, so a miss doesn't return noticeably faster.
+  const stored = user ? user.passwordHash : await auth.hashPassword('placeholder-for-timing');
+  const ok = await auth.verifyPassword(String(body.password || ''), stored);
 
-  loginAttempts.delete(clientIp(req));
-  sendJson(res, 200, { authed: true, required: true }, { 'Set-Cookie': sessionCookie(req, makeToken()) });
+  if (!user || !ok) return sendError(res, 401, 'Wrong username or password.');
+
+  loginLimiter.reset(ip);
+  sendJson(res, 200, { user: publicUser(user) }, { 'Set-Cookie': userCookie(req, user) });
 }
 
 /* ── Folder + photo listing ───────────────────────────────────────────────── */
 
-/** Recursively collect folders under the library root. */
 async function scanFolders(absDir, relDir, depth, out) {
   let entries;
   try {
@@ -235,14 +207,8 @@ async function scanFolders(absDir, relDir, depth, out) {
 
   if (relDir && images.length > 0) {
     images.sort(collator.compare);
-    out.push({
-      path: relDir,
-      name: path.basename(relDir),
-      count: images.length,
-      cover: `${relDir}/${images[0]}`,
-    });
+    out.push({ path: relDir, name: path.basename(relDir), count: images.length, cover: `${relDir}/${images[0]}` });
   } else if (relDir && images.length === 0 && subdirs.length === 0) {
-    // Surface empty folders so a freshly created one is still visible.
     out.push({ path: relDir, name: path.basename(relDir), count: 0, cover: null });
   }
 
@@ -301,7 +267,7 @@ async function handleListPhotos(res, folderParam) {
 }
 
 async function handleCreateFolder(req, res) {
-  const body = await readJsonBody(req, 8 * 1024);
+  const body = await readJsonBody(req);
   if (body === null) return sendError(res, 400, 'Invalid JSON body.');
 
   const name = validFolderName(body.name);
@@ -319,13 +285,9 @@ async function handleCreateFolder(req, res) {
     if (err.code === 'EEXIST') return sendError(res, 409, 'A folder with that name already exists.');
     return sendError(res, 500, `Could not create folder: ${err.code || 'unknown error'}`);
   }
-
   sendJson(res, 201, { folder: path.relative(PHOTOS_ROOT, abs).split(path.sep).join('/') });
 }
 
-/* ── Upload ───────────────────────────────────────────────────────────────── */
-
-/** Upload one image as a raw request body: PUT /api/upload?folder=…&name=… */
 async function handleUpload(req, res, query) {
   const abs = safeResolve(query.get('folder') || '');
   if (!abs) return sendError(res, 400, 'Invalid folder path.');
@@ -346,7 +308,6 @@ async function handleUpload(req, res, query) {
     return sendError(res, 413, 'File is larger than the upload limit.');
   }
 
-  // Never clobber an existing photo — fall back to a "name (2).jpg" style suffix.
   const ext = path.extname(fileName);
   const stem = path.basename(fileName, ext);
   let target = path.join(abs, fileName);
@@ -401,20 +362,158 @@ async function handleUpload(req, res, query) {
   });
 }
 
-async function readJsonBody(req, limit) {
-  const chunks = [];
-  let total = 0;
-  for await (const chunk of req) {
-    total += chunk.length;
-    if (total > limit) return null;
-    chunks.push(chunk);
+/* ── Broadcast: host endpoints ────────────────────────────────────────────── */
+
+async function handleCreateBroadcast(req, res, user) {
+  const body = await readJsonBody(req);
+  if (body === null) return sendError(res, 400, 'Invalid request.');
+
+  const title = String(body.title || 'Slideshow').slice(0, 120);
+  const photoCount = Number(body.photoCount);
+  if (!Number.isInteger(photoCount) || photoCount < 1) {
+    return sendError(res, 400, 'That slideshow has no photos to share.');
   }
-  if (total === 0) return {};
+
+  // One live broadcast per user keeps the mental model simple.
+  for (const existing of broadcast.listForUser(user.id)) broadcast.end(existing.code, 'replaced');
+
+  let created;
   try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  } catch {
+    created = broadcast.create({ userId: user.id, username: user.username, title, photoCount });
+  } catch (err) {
+    return sendError(res, err.status || 500, err.message);
+  }
+
+  sendJson(res, 201, {
+    code: created.session.code,
+    password: created.password,
+    title: created.session.title,
+    photoCount: created.session.photoCount,
+    expiresAt: created.session.expiresAt,
+  });
+}
+
+function requireOwnedSession(req, res, code, user) {
+  const session = broadcast.get(code);
+  if (!session) {
+    sendError(res, 404, 'That slideshow is not running any more.');
     return null;
   }
+  if (session.userId !== user.id) {
+    sendError(res, 403, 'That slideshow belongs to someone else.');
+    return null;
+  }
+  return session;
+}
+
+/** Long-poll: resolves when a viewer asks for a photo, or after a timeout. */
+function handleHostRequests(req, res, session) {
+  let settled = false;
+  const waiter = broadcast.waitForRequests(session, (jobs) => {
+    if (settled) return;
+    settled = true;
+    sendJson(res, 200, { requests: jobs, viewers: session.viewers.size, code: session.code });
+  });
+  res.on('close', () => {
+    if (settled) return;
+    settled = true;
+    broadcast.cancelHostWaiter(session, waiter);
+  });
+}
+
+async function handleHostFrame(req, res, session, reqId) {
+  const buffer = await readRawBody(req, MAX_FRAME_BYTES);
+  if (buffer === null) return sendError(res, 413, 'That photo is too large to stream.');
+  if (!buffer.length) return sendError(res, 400, 'Empty photo body.');
+
+  const contentType = String(req.headers['content-type'] || 'application/octet-stream').split(';')[0].trim();
+  const delivered = broadcast.deliverFrame(session, reqId, buffer, contentType);
+  sendJson(res, delivered ? 200 : 410, delivered ? { ok: true } : { error: 'Nobody was waiting for that photo.' });
+}
+
+/* ── Broadcast: viewer endpoints ──────────────────────────────────────────── */
+
+async function handleWatchJoin(req, res) {
+  const ip = clientIp(req);
+  if (joinLimiter.hit(ip)) return sendError(res, 429, 'Too many attempts. Wait a few minutes.');
+
+  const body = await readJsonBody(req);
+  if (body === null) return sendError(res, 400, 'Invalid request.');
+
+  const code = String(body.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const session = broadcast.get(code);
+  // Same message either way, so a wrong code can't be told from a wrong password.
+  if (!session || !broadcast.verifyPassword(session, body.password)) {
+    return sendError(res, 401, 'That code and password do not match a running slideshow.');
+  }
+
+  joinLimiter.reset(ip);
+  const viewerId = crypto.randomBytes(8).toString('base64url');
+  const token = auth.makeToken(store.secret, {
+    kind: 'view', code: session.code, nonce: session.nonce, vid: viewerId,
+  }, VIEW_TTL_MS);
+
+  broadcast.touchViewer(session, viewerId);
+  sendJson(res, 200, broadcast.publicState(session), {
+    'Set-Cookie': buildCookie(req, VIEW_COOKIE, token, Math.floor(VIEW_TTL_MS / 1000)),
+  });
+}
+
+function requireViewer(req, res, code) {
+  const session = broadcast.get(code);
+  if (!session) {
+    sendJson(res, 404, { error: 'That slideshow has ended.', ended: true });
+    return null;
+  }
+  const viewer = viewerFor(req, session.code);
+  if (!viewer || viewer.nonce !== session.nonce) {
+    sendError(res, 401, 'Enter the code and password again.');
+    return null;
+  }
+  broadcast.touchViewer(session, viewer.vid);
+  return session;
+}
+
+function handleWatchState(req, res, session, sinceParam) {
+  const since = Number(sinceParam);
+  let settled = false;
+  const waiter = broadcast.waitForState(session, Number.isInteger(since) ? since : null, (state) => {
+    if (settled) return;
+    settled = true;
+    sendJson(res, 200, state);
+  });
+  res.on('close', () => {
+    if (settled) return;
+    settled = true;
+    broadcast.cancelStateWaiter(session, waiter);
+  });
+}
+
+function handleWatchPhoto(req, res, session, indexParam) {
+  const index = Number(indexParam);
+  if (!Number.isInteger(index) || index < 0 || index >= session.photoCount) {
+    return sendError(res, 400, 'No such photo in this slideshow.');
+  }
+
+  let settled = false;
+  const cancel = broadcast.requestPhoto(session, index, (result) => {
+    if (settled) return;
+    settled = true;
+    if (result.error) return sendError(res, 504, result.error);
+    res.writeHead(200, {
+      'Content-Type': result.contentType || 'application/octet-stream',
+      'Content-Length': result.buffer.length,
+      // Relayed live from someone's machine — never let a proxy keep a copy.
+      'Cache-Control': 'no-store, private',
+    });
+    res.end(result.buffer);
+  });
+
+  res.on('close', () => {
+    if (settled) return;
+    settled = true;
+    cancel();
+  });
 }
 
 /* ── Static + media ───────────────────────────────────────────────────────── */
@@ -455,10 +554,12 @@ async function serveMedia(req, res, relPath) {
 async function serveStatic(req, res, urlPath) {
   let rel;
   try {
-    rel = urlPath === '/' ? 'index.html' : decodeURIComponent(urlPath).replace(/^\/+/, '');
+    rel = decodeURIComponent(urlPath).replace(/^\/+/, '');
   } catch {
     return sendError(res, 400, 'Invalid path.');
   }
+  if (!rel) rel = 'index.html';
+  if (rel === 'watch') rel = 'watch.html';
   if (rel.split('/').some((seg) => seg === '..')) return sendError(res, 400, 'Invalid path.');
 
   const abs = path.resolve(PUBLIC_DIR, rel);
@@ -492,36 +593,103 @@ const server = http.createServer(async (req, res) => {
   }
   const { pathname } = url;
   const method = req.method || 'GET';
+  const segments = pathname.split('/').filter(Boolean);
 
   try {
-    // Health check for Railway.
     if (pathname === '/healthz') return sendJson(res, 200, { ok: true });
 
-    if (pathname === '/api/session') {
-      if (method === 'GET') return sendJson(res, 200, { required: AUTH_REQUIRED, authed: isAuthed(req) });
-      if (method === 'POST') return await handleLogin(req, res);
-      if (method === 'DELETE') {
-        return sendJson(res, 200, { authed: false }, { 'Set-Cookie': sessionCookie(req, '') });
+    /* Accounts */
+    if (pathname === '/api/auth/me' && method === 'GET') {
+      const user = currentUser(req);
+      return sendJson(res, 200, {
+        user: user ? publicUser(user) : null,
+        signupCodeRequired: Boolean(SIGNUP_CODE),
+      });
+    }
+    if (pathname === '/api/auth/register' && method === 'POST') return await handleRegister(req, res);
+    if (pathname === '/api/auth/login' && method === 'POST') return await handleLogin(req, res);
+    if (pathname === '/api/auth/logout' && method === 'POST') {
+      return sendJson(res, 200, { ok: true }, { 'Set-Cookie': userCookie(req, null) });
+    }
+
+    /* Viewer flow — deliberately open, since viewers have no account. */
+    if (pathname === '/api/watch/join' && method === 'POST') return await handleWatchJoin(req, res);
+
+    if (segments[0] === 'api' && segments[1] === 'watch' && segments.length >= 4) {
+      const code = segments[2].toUpperCase();
+      const session = requireViewer(req, res, code);
+      if (!session) return undefined;
+
+      if (segments[3] === 'state' && method === 'GET') {
+        return handleWatchState(req, res, session, url.searchParams.get('since'));
       }
-      return sendError(res, 405, 'Method not allowed.');
+      if (segments[3] === 'photo' && segments.length === 5 && method === 'GET') {
+        return handleWatchPhoto(req, res, session, segments[4]);
+      }
+      return sendError(res, 404, 'Unknown endpoint.');
     }
 
-    // Everything that touches photos sits behind the access code.
-    const isProtected = pathname.startsWith('/api/') || pathname.startsWith('/media/');
-    if (isProtected && !isAuthed(req)) return sendError(res, 401, 'Access code required.');
+    /* Everything below needs an account. */
+    const user = currentUser(req);
+    if (pathname.startsWith('/api/') || pathname.startsWith('/media/')) {
+      if (!user) return sendError(res, 401, 'Sign in to continue.');
+    }
 
-    if (pathname === '/api/folders' && (method === 'GET' || method === 'HEAD')) {
-      return await handleListFolders(res);
-    }
-    if (pathname === '/api/folders' && method === 'POST') {
-      return await handleCreateFolder(req, res);
-    }
+    if (pathname === '/api/folders' && (method === 'GET' || method === 'HEAD')) return await handleListFolders(res);
+    if (pathname === '/api/folders' && method === 'POST') return await handleCreateFolder(req, res);
     if (pathname === '/api/photos' && (method === 'GET' || method === 'HEAD')) {
       return await handleListPhotos(res, url.searchParams.get('folder') || '');
     }
     if (pathname === '/api/upload' && (method === 'PUT' || method === 'POST')) {
       return await handleUpload(req, res, url.searchParams);
     }
+
+    /* Broadcast host endpoints */
+    if (pathname === '/api/broadcast' && method === 'POST') return await handleCreateBroadcast(req, res, user);
+    if (pathname === '/api/broadcast/mine' && method === 'GET') {
+      return sendJson(res, 200, { sessions: broadcast.listForUser(user.id) });
+    }
+
+    if (segments[0] === 'api' && segments[1] === 'broadcast' && segments.length >= 3) {
+      const code = segments[2].toUpperCase();
+
+      if (segments.length === 3 && method === 'DELETE') {
+        const session = requireOwnedSession(req, res, code, user);
+        if (!session) return undefined;
+        broadcast.end(code, 'ended');
+        return sendJson(res, 200, { ok: true });
+      }
+
+      const session = requireOwnedSession(req, res, code, user);
+      if (!session) return undefined;
+
+      if (segments[3] === 'requests' && method === 'GET') return handleHostRequests(req, res, session);
+
+      // sendBeacon can only POST, so a closing tab ends its broadcast here.
+      if (segments[3] === 'end' && method === 'POST') {
+        broadcast.end(session.code, 'ended');
+        return sendJson(res, 200, { ok: true });
+      }
+
+      if (segments[3] === 'state' && method === 'POST') {
+        const body = await readJsonBody(req);
+        if (body === null) return sendError(res, 400, 'Invalid request.');
+        broadcast.updateState(session, body);
+        return sendJson(res, 200, broadcast.publicState(session));
+      }
+
+      if (segments[3] === 'frame' && segments.length >= 5) {
+        const reqId = decodeURIComponent(segments[4]);
+        if (segments.length === 6 && segments[5] === 'error' && method === 'POST') {
+          const body = await readJsonBody(req);
+          broadcast.failFrame(session, reqId, body && body.message);
+          return sendJson(res, 200, { ok: true });
+        }
+        if (method === 'PUT' || method === 'POST') return await handleHostFrame(req, res, session, reqId);
+      }
+      return sendError(res, 404, 'Unknown endpoint.');
+    }
+
     if (pathname.startsWith('/media/') && (method === 'GET' || method === 'HEAD')) {
       let rel;
       try {
@@ -531,8 +699,8 @@ const server = http.createServer(async (req, res) => {
       }
       return await serveMedia(req, res, rel);
     }
-    if (pathname.startsWith('/api/')) return sendError(res, 404, 'Unknown endpoint.');
 
+    if (pathname.startsWith('/api/')) return sendError(res, 404, 'Unknown endpoint.');
     if (method === 'GET' || method === 'HEAD') return await serveStatic(req, res, pathname);
     return sendError(res, 405, 'Method not allowed.');
   } catch (err) {
@@ -542,26 +710,35 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+// Long-polls are meant to hang; don't let Node time them out underneath us.
+server.requestTimeout = 0;
+server.headersTimeout = 65 * 1000;
+server.keepAliveTimeout = 72 * 1000;
+
 /* ── Startup ──────────────────────────────────────────────────────────────── */
 
-fsp.mkdir(PHOTOS_ROOT, { recursive: true })
-  .then(() => {
-    server.listen(PORT, HOST, () => {
-      console.log('');
-      console.log('  Slideshow is running');
-      console.log(`  →  http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
-      console.log(`  Photo library: ${PHOTOS_ROOT}`);
-      console.log(`  Access code:   ${AUTH_REQUIRED ? 'required' : 'not set (open access)'}`);
-      if (!AUTH_REQUIRED && process.env.RAILWAY_ENVIRONMENT) {
-        console.warn('  WARNING: deployed with no ACCESS_CODE — anyone with the URL can upload.');
-      }
-      console.log('');
-    });
-  })
-  .catch((err) => {
-    console.error(`Could not create photo library at ${PHOTOS_ROOT}:`, err.message);
-    process.exit(1);
+(async () => {
+  await fsp.mkdir(PHOTOS_ROOT, { recursive: true });
+  await store.init();
+  broadcast = new Broadcast({ secret: store.secret });
+
+  server.listen(PORT, HOST, () => {
+    console.log('');
+    console.log('  Slideshow is running');
+    console.log(`  →  http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
+    console.log(`  Photo library: ${PHOTOS_ROOT}`);
+    console.log(`  Account data:  ${DATA_ROOT}`);
+    console.log(`  Accounts:      ${store.userCount}`);
+    console.log(`  Sign-up code:  ${SIGNUP_CODE ? 'required' : 'not set (anyone can register)'}`);
+    if (!SIGNUP_CODE && process.env.RAILWAY_ENVIRONMENT) {
+      console.warn('  WARNING: no SIGNUP_CODE set — anyone with the URL can create an account.');
+    }
+    console.log('');
   });
+})().catch((err) => {
+  console.error('Could not start:', err.message);
+  process.exit(1);
+});
 
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {

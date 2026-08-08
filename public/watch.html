@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Watch a slideshow</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖼️</text></svg>">
+</head>
+<body>
+
+  <!-- ── Join with the code and temporary password ────────────────────────── -->
+  <main id="join" class="screen gate">
+    <form class="gate-card" id="joinForm">
+      <h1>Watch a slideshow</h1>
+      <p class="dialog-help">
+        Enter the share code and temporary password from whoever is presenting.
+        You don't need an account.
+      </p>
+
+      <label class="stack">
+        <span>Share code</span>
+        <input type="text" id="joinCode" autocomplete="off" autocapitalize="characters"
+               spellcheck="false" placeholder="ABC123" required>
+      </label>
+
+      <label class="stack">
+        <span>Temporary password</span>
+        <input type="text" id="joinPass" autocomplete="off" autocapitalize="characters"
+               spellcheck="false" placeholder="ABCD-EFGH-JKMN" required>
+      </label>
+
+      <p class="dialog-error" id="joinError" hidden></p>
+      <button type="submit" class="btn btn-primary" id="joinSubmit">Watch</button>
+
+      <p class="gate-foot">Presenting instead? <a href="/">Sign in</a>.</p>
+    </form>
+  </main>
+
+  <!-- ── Mirror of whatever the presenter is showing ──────────────────────── -->
+  <section id="viewer" class="screen" hidden aria-label="Shared slideshow">
+    <div class="stage" id="stage">
+      <img class="slide" id="slideA" alt="">
+      <img class="slide" id="slideB" alt="">
+      <div class="stage-msg" id="stageMsg">Waiting for the first photo…</div>
+    </div>
+
+    <div class="controls" id="controls">
+      <div class="controls-left">
+        <button type="button" class="btn btn-icon" id="leaveBtn" title="Leave">✕</button>
+        <span class="meta">
+          <strong id="viewTitle">—</strong>
+          <span class="counter-row">
+            <span id="viewCounter" class="counter">0 / 0</span>
+            <span class="badge badge-sm" id="viewStatus">Connecting…</span>
+          </span>
+        </span>
+      </div>
+      <div class="controls-right">
+        <span class="field" id="viewHost"></span>
+        <button type="button" class="btn btn-icon" id="viewFullscreenBtn" title="Fullscreen (F)">⛶</button>
+      </div>
+    </div>
+  </section>
+
+  <script src="/watch.js"></script>
+</body>
+</html>

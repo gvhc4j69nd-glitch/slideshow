@@ -1,10 +1,11 @@
 {
   "name": "slideshow",
   "version": "1.0.0",
-  "description": "Web photo slideshow — pick a folder, play it, pause, restart, or stop and pick another.",
+  "description": "Web photo slideshow with accounts, on-device playback, and live sharing to other browsers via a code and temporary password.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node test/e2e.js"
   },
   "engines": {
     "node": ">=18"

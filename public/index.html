@@ -9,14 +9,40 @@
 </head>
 <body>
 
-  <!-- ── Access gate (only when ACCESS_CODE is set on the server) ─────────── -->
+  <!-- ── Sign in / create account ─────────────────────────────────────────── -->
   <main id="gate" class="screen gate" hidden>
     <form class="gate-card" id="gateForm">
       <h1>Slideshow</h1>
-      <p class="dialog-help">Enter the access code to continue.</p>
-      <input type="password" id="gateInput" placeholder="Access code" autocomplete="current-password" required>
+
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab is-active" id="tabSignIn" role="tab" aria-selected="true">Sign in</button>
+        <button type="button" class="tab" id="tabRegister" role="tab" aria-selected="false">Create account</button>
+      </div>
+
+      <p class="dialog-help" id="gateHelp">Sign in to your account to continue.</p>
+
+      <label class="stack">
+        <span>Username</span>
+        <input type="text" id="gateUser" autocomplete="username" required
+               minlength="3" maxlength="32" pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{2,31}">
+      </label>
+
+      <label class="stack">
+        <span>Password</span>
+        <input type="password" id="gatePass" autocomplete="current-password" required minlength="8">
+      </label>
+
+      <label class="stack" id="signupCodeRow" hidden>
+        <span>Sign-up code</span>
+        <input type="password" id="gateSignupCode" autocomplete="off">
+      </label>
+
       <p class="dialog-error" id="gateError" hidden></p>
-      <button type="submit" class="btn btn-primary" id="gateSubmit">Unlock</button>
+      <button type="submit" class="btn btn-primary" id="gateSubmit">Sign in</button>
+
+      <p class="gate-foot">
+        Just here to watch someone's slideshow? <a href="/watch">Enter a share code</a>.
+      </p>
     </form>
   </main>
 
@@ -28,10 +54,35 @@
         <p class="lib-root" id="libRoot">Loading photo library…</p>
       </div>
       <div class="lib-actions">
+        <span class="who" id="whoami"></span>
         <button type="button" class="btn" id="newFolderBtn">New folder</button>
         <button type="button" class="btn" id="refreshBtn">Refresh</button>
+        <button type="button" class="btn" id="signOutBtn">Sign out</button>
       </div>
     </header>
+
+    <!-- Shown while this tab is streaming a slideshow to other browsers. -->
+    <div class="broadcast-bar" id="broadcastBar" hidden>
+      <div class="bc-main">
+        <span class="live-dot" aria-hidden="true"></span>
+        <div>
+          <strong id="bcTitle">Broadcasting</strong>
+          <div class="bc-sub">
+            Code <code id="bcCode">—</code> · password <code id="bcPass">—</code> ·
+            <span id="bcViewers">0 viewers</span>
+          </div>
+        </div>
+      </div>
+      <div class="bc-actions">
+        <button type="button" class="btn" id="bcShowBtn">Show code</button>
+        <button type="button" class="btn btn-danger" id="bcStopBtn">Stop sharing</button>
+      </div>
+    </div>
+
+    <p class="warn" id="bcWarn" hidden>
+      Keep this tab open and awake — your browser is the source of the photos, so
+      viewers stop receiving slides if this tab closes or the machine sleeps.
+    </p>
 
     <div class="notice" id="notice" hidden></div>
 
@@ -132,6 +183,38 @@
         <button type="submit" class="btn btn-primary">Create</button>
       </menu>
     </form>
+  </dialog>
+
+  <!-- ── Share dialog: the code + temp password to read out ───────────────── -->
+  <dialog id="shareDialog">
+    <div class="share-body">
+      <h2>Slideshow is live</h2>
+      <p class="dialog-help">
+        On the other browser, open <strong id="shareUrl">…/watch</strong> and enter both of these.
+        They work until you stop sharing.
+      </p>
+
+      <div class="credential">
+        <span class="credential-label">Share code</span>
+        <div class="credential-value" id="shareCode">——————</div>
+      </div>
+
+      <div class="credential">
+        <span class="credential-label">Temporary password</span>
+        <div class="credential-value" id="sharePass">————</div>
+      </div>
+
+      <p class="dialog-help" id="shareExpiry"></p>
+      <p class="dialog-help">
+        The photos are streamed live from this browser. They are not uploaded or
+        stored on the server, so this tab has to stay open.
+      </p>
+
+      <menu>
+        <button type="button" class="btn" id="shareCopyBtn">Copy both</button>
+        <button type="button" class="btn btn-primary" id="shareDoneBtn">Done</button>
+      </menu>
+    </div>
   </dialog>
 
   <input type="file" id="fileInput" accept="image/*" multiple hidden>

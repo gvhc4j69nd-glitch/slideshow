@@ -3,6 +3,9 @@
 /* ── State ────────────────────────────────────────────────────────────────── */
 
 const state = {
+  user: null,
+  signupCodeRequired: false,
+  broadcast: null,   // {code, password, folderId, photos, expiresAt} while sharing
   folders: [],       // folders on the server
   localFolders: [],  // folders picked off this device — never uploaded
   source: 'server',  // where the folder currently playing came from
@@ -35,8 +38,16 @@ const el = {
   folderDialog: $('folderDialog'), folderForm: $('folderForm'),
   folderNameInput: $('folderNameInput'), folderError: $('folderError'),
   folderCancel: $('folderCancel'), fileInput: $('fileInput'),
-  gate: $('gate'), gateForm: $('gateForm'), gateInput: $('gateInput'),
+  gate: $('gate'), gateForm: $('gateForm'), gateUser: $('gateUser'), gatePass: $('gatePass'),
+  gateSignupCode: $('gateSignupCode'), signupCodeRow: $('signupCodeRow'), gateHelp: $('gateHelp'),
   gateError: $('gateError'), gateSubmit: $('gateSubmit'),
+  tabSignIn: $('tabSignIn'), tabRegister: $('tabRegister'),
+  whoami: $('whoami'), signOutBtn: $('signOutBtn'),
+  broadcastBar: $('broadcastBar'), bcTitle: $('bcTitle'), bcCode: $('bcCode'), bcPass: $('bcPass'),
+  bcViewers: $('bcViewers'), bcShowBtn: $('bcShowBtn'), bcStopBtn: $('bcStopBtn'), bcWarn: $('bcWarn'),
+  shareDialog: $('shareDialog'), shareCode: $('shareCode'), sharePass: $('sharePass'),
+  shareUrl: $('shareUrl'), shareExpiry: $('shareExpiry'),
+  shareCopyBtn: $('shareCopyBtn'), shareDoneBtn: $('shareDoneBtn'),
   localPanel: $('localPanel'), localGrid: $('localGrid'), localDrop: $('localDrop'),
   localStatus: $('localStatus'), localHelp: $('localHelp'),
   chooseLocalBtn: $('chooseLocalBtn'), clearLocalBtn: $('clearLocalBtn'),
@@ -173,13 +184,26 @@ function renderLocalFolders() {
   el.clearLocalBtn.hidden = state.localFolders.length === 0;
 
   for (const folder of state.localFolders) {
+    const sharing = state.broadcast && state.broadcast.folderId === folder.id;
     const card = folderCard({
       label: folder.label,
       count: folder.photos.length,
       coverUrl: folder.coverUrl,
-      badge: 'On this device',
+      badge: sharing ? 'Sharing live' : 'On this device',
       onPlay: () => startLocalSlideshow(folder.id),
     });
+
+    const shareBtn = document.createElement('button');
+    shareBtn.type = 'button';
+    shareBtn.className = 'btn';
+    shareBtn.textContent = sharing ? 'Stop sharing' : 'Share…';
+    shareBtn.disabled = folder.photos.length === 0;
+    shareBtn.title = sharing
+      ? 'Stop streaming this slideshow'
+      : 'Stream this slideshow to other browsers with a code and temporary password';
+    shareBtn.addEventListener('click', () => (sharing ? stopBroadcast({}) : shareLocalFolder(folder.id)));
+
+    card.buttons.append(shareBtn);
     el.localGrid.append(card.root);
   }
 }
@@ -507,6 +531,173 @@ el.localDrop.addEventListener('drop', (event) => {
   });
 });
 
+/* ── Sharing: stream this device's slideshow to other browsers ────────────── */
+
+/**
+ * While a broadcast is live this tab is the source of the photos. It parks a
+ * long-poll waiting for viewers to ask for a slide, reads that file off disk,
+ * and PUTs the bytes back for the relay to hand on. Nothing is stored server
+ * side, which is exactly why this tab has to stay open.
+ */
+async function shareLocalFolder(folderId) {
+  const folder = state.localFolders.find((f) => f.id === folderId);
+  if (!folder || !folder.photos.length) return;
+
+  try {
+    const info = await api('/api/broadcast', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: folder.label, photoCount: folder.photos.length }),
+    });
+
+    state.broadcast = {
+      code: info.code,
+      password: info.password,
+      folderId,
+      photos: folder.photos,
+      expiresAt: info.expiresAt,
+      viewers: 0,
+      running: true,
+    };
+
+    refreshShareUi();
+    showShareDialog(info);
+    serveRequests();            // background loop, deliberately not awaited
+    startLocalSlideshow(folderId);
+  } catch (err) {
+    showNotice(`Could not start sharing: ${err.message}`);
+  }
+}
+
+/** Starting or stopping a share changes the folder cards too. */
+function refreshShareUi() {
+  renderBroadcastBar();
+  renderLocalFolders();
+}
+
+function renderBroadcastBar() {
+  const bc = state.broadcast;
+  el.broadcastBar.hidden = !bc;
+  el.bcWarn.hidden = !bc;
+  if (!bc) return;
+  const folder = state.localFolders.find((f) => f.id === bc.folderId);
+  el.bcTitle.textContent = `Broadcasting “${folder ? folder.label : 'slideshow'}”`;
+  el.bcCode.textContent = bc.code;
+  el.bcPass.textContent = bc.password;
+  el.bcViewers.textContent = bc.viewers === 1 ? '1 viewer' : `${bc.viewers} viewers`;
+}
+
+function showShareDialog(info) {
+  el.shareCode.textContent = info.code;
+  el.sharePass.textContent = info.password;
+  el.shareUrl.textContent = `${location.host}/watch`;
+  const expires = new Date(info.expiresAt);
+  el.shareExpiry.textContent = `The code stops working when you stop sharing, or at ${expires.toLocaleTimeString()} at the latest.`;
+  el.shareDialog.showModal();
+}
+
+el.bcShowBtn.addEventListener('click', () => {
+  if (state.broadcast) showShareDialog(state.broadcast);
+});
+el.shareDoneBtn.addEventListener('click', () => el.shareDialog.close());
+el.bcStopBtn.addEventListener('click', () => stopBroadcast({}));
+
+el.shareCopyBtn.addEventListener('click', async () => {
+  const bc = state.broadcast;
+  if (!bc) return;
+  const text = `Watch my slideshow at ${location.origin}/watch\nCode: ${bc.code}\nPassword: ${bc.password}`;
+  try {
+    await navigator.clipboard.writeText(text);
+    el.shareCopyBtn.textContent = 'Copied';
+    setTimeout(() => { el.shareCopyBtn.textContent = 'Copy both'; }, 2000);
+  } catch {
+    el.shareCopyBtn.textContent = 'Copy failed';
+    setTimeout(() => { el.shareCopyBtn.textContent = 'Copy both'; }, 2000);
+  }
+});
+
+async function stopBroadcast({ silent } = {}) {
+  const bc = state.broadcast;
+  if (!bc) return;
+  bc.running = false;
+  state.broadcast = null;
+  refreshShareUi();
+  try {
+    await api(`/api/broadcast/${bc.code}`, { method: 'DELETE' });
+  } catch {
+    // The session may already have expired server side; nothing to undo.
+  }
+  if (!silent) showNotice('Stopped sharing. That code and password no longer work.', 'ok');
+}
+
+/** Long-poll for viewer requests and answer them with file bytes. */
+async function serveRequests() {
+  const bc = state.broadcast;
+  while (bc && bc.running && state.broadcast === bc) {
+    try {
+      const batch = await api(`/api/broadcast/${bc.code}/requests`);
+      if (!bc.running) return;
+
+      if (bc.viewers !== batch.viewers) {
+        bc.viewers = batch.viewers;
+        renderBroadcastBar();
+      }
+      for (const job of batch.requests) sendFrame(bc, job);
+    } catch (err) {
+      if (!bc.running) return;
+      if (err.status === 404 || err.status === 403) {
+        // Server no longer knows about this broadcast — stop cleanly.
+        state.broadcast = null;
+        refreshShareUi();
+        showNotice('Sharing ended.', 'ok');
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+}
+
+async function sendFrame(bc, job) {
+  const photo = bc.photos[job.index];
+  if (!photo) return;
+  try {
+    await fetch(`/api/broadcast/${bc.code}/frame/${encodeURIComponent(job.reqId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': photo.file.type || 'application/octet-stream' },
+      body: photo.file,
+    });
+  } catch {
+    fetch(`/api/broadcast/${bc.code}/frame/${encodeURIComponent(job.reqId)}/error`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'The presenter could not read that photo.' }),
+    }).catch(() => {});
+  }
+}
+
+/** Tell viewers which slide to show. */
+function pushBroadcastState() {
+  const bc = state.broadcast;
+  if (!bc || !bc.running || state.source !== 'local') return;
+  api(`/api/broadcast/${bc.code}/state`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      index: state.index,
+      playing: state.playing,
+      photoCount: state.photos.length,
+      gen: bc.gen || 0,
+    }),
+  }).catch(() => {});
+}
+
+// A closing tab should take its broadcast down with it rather than leaving the
+// code alive until the host timeout notices.
+window.addEventListener('pagehide', () => {
+  const bc = state.broadcast;
+  if (bc && navigator.sendBeacon) navigator.sendBeacon(`/api/broadcast/${bc.code}/end`, new Blob([], { type: 'text/plain' }));
+});
+
 /* ── Slideshow ────────────────────────────────────────────────────────────── */
 
 async function startServerSlideshow(folderPath) {
@@ -550,6 +741,13 @@ function beginPlayback(label, photos, source) {
   el.slideA.classList.remove('visible');
   el.slideB.classList.remove('visible');
   state.frontIsA = false;
+
+  // Point the broadcast at the exact array the player walks, so a later
+  // shuffle keeps host and viewers referring to the same photo per index.
+  if (state.broadcast && source === 'local') {
+    state.broadcast.photos = state.photos;
+    state.broadcast.gen = (state.broadcast.gen || 0) + 1;
+  }
 
   showPhoto(0);
   play();
@@ -602,6 +800,7 @@ function showPhoto(index) {
 
   updateCounter();
   resetTick();
+  pushBroadcastState();
 }
 
 function updateCounter() {
@@ -629,6 +828,7 @@ function play() {
   el.playBtn.textContent = '❚❚';
   el.playBtn.title = 'Pause (Space)';
   resetTick();
+  pushBroadcastState();
 }
 
 function pause() {
@@ -638,6 +838,7 @@ function pause() {
   clearTimeout(state.timer);
   state.timer = null;
   cancelAnimationFrame(state.rafId);
+  pushBroadcastState();
 }
 
 function togglePlay() {
@@ -676,6 +877,10 @@ function shufflePhotos() {
     const j = Math.floor(Math.random() * (i + 1));
     [state.photos[i], state.photos[j]] = [state.photos[j], state.photos[i]];
   }
+  // Reordering changes what each index means, so viewers must drop their cache.
+  // The swap above is in place, which keeps the broadcast's view of the
+  // playlist pointing at the same array the player is using.
+  if (state.broadcast) state.broadcast.gen = (state.broadcast.gen || 0) + 1;
 }
 
 /* ── Player controls ──────────────────────────────────────────────────────── */
@@ -746,31 +951,51 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-// Don't burn through slides in a hidden tab.
+// Don't burn through slides in a hidden tab — unless we're presenting, in
+// which case pausing here would freeze every viewer's screen.
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && state.playing) pause();
+  if (document.hidden && state.playing && !state.broadcast) pause();
 });
 
-/* ── Access gate ──────────────────────────────────────────────────────────── */
+/* ── Accounts ─────────────────────────────────────────────────────────────── */
 
-function enterApp() {
-  el.gate.hidden = true;
-  el.library.hidden = false;
-  loadFolders();
+let authMode = 'login';   // or 'register'
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const registering = mode === 'register';
+  el.tabSignIn.classList.toggle('is-active', !registering);
+  el.tabRegister.classList.toggle('is-active', registering);
+  el.tabSignIn.setAttribute('aria-selected', String(!registering));
+  el.tabRegister.setAttribute('aria-selected', String(registering));
+  el.gateSubmit.textContent = registering ? 'Create account' : 'Sign in';
+  el.gateHelp.textContent = registering
+    ? 'Pick a username and a password of at least 8 characters.'
+    : 'Sign in to your account to continue.';
+  el.gatePass.autocomplete = registering ? 'new-password' : 'current-password';
+  el.signupCodeRow.hidden = !(registering && state.signupCodeRequired);
+  el.gateError.hidden = true;
 }
+
+el.tabSignIn.addEventListener('click', () => setAuthMode('login'));
+el.tabRegister.addEventListener('click', () => setAuthMode('register'));
 
 el.gateForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   el.gateError.hidden = true;
   el.gateSubmit.disabled = true;
   try {
-    await api('/api/session', {
+    const payload = { username: el.gateUser.value.trim(), password: el.gatePass.value };
+    if (authMode === 'register' && state.signupCodeRequired) payload.signupCode = el.gateSignupCode.value;
+
+    const result = await api(authMode === 'register' ? '/api/auth/register' : '/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: el.gateInput.value }),
+      body: JSON.stringify(payload),
     });
-    el.gateInput.value = '';
-    enterApp();
+    el.gatePass.value = '';
+    el.gateSignupCode.value = '';
+    enterApp(result.user);
   } catch (err) {
     el.gateError.textContent = err.message;
     el.gateError.hidden = false;
@@ -779,20 +1004,45 @@ el.gateForm.addEventListener('submit', async (event) => {
   }
 });
 
+el.signOutBtn.addEventListener('click', async () => {
+  await stopBroadcast({ silent: true });
+  try {
+    await api('/api/auth/logout', { method: 'POST' });
+  } catch {
+    // Signing out locally matters more than the round trip succeeding.
+  }
+  clearLocalFolders();
+  state.user = null;
+  el.library.hidden = true;
+  el.gate.hidden = false;
+  setAuthMode('login');
+  el.gateUser.focus();
+});
+
+function enterApp(user) {
+  state.user = user;
+  el.whoami.textContent = user ? `Signed in as ${user.username}` : '';
+  el.gate.hidden = true;
+  el.library.hidden = false;
+  loadFolders();
+}
+
 /* ── Boot ─────────────────────────────────────────────────────────────────── */
 
 state.interval = Number(el.speedSelect.value);
 
 (async function boot() {
+  let me = null;
   try {
-    const session = await api('/api/session');
-    if (session.required && !session.authed) {
-      el.gate.hidden = false;
-      el.gateInput.focus();
-      return;
-    }
+    me = await api('/api/auth/me');
+    state.signupCodeRequired = Boolean(me.signupCodeRequired);
   } catch {
-    // If the session probe fails, fall through and let the library show the error.
+    // Server unreachable; show the sign-in screen and let the attempt report it.
   }
-  enterApp();
+  setAuthMode('login');
+  if (me && me.user) enterApp(me.user);
+  else {
+    el.gate.hidden = false;
+    el.gateUser.focus();
+  }
 })();

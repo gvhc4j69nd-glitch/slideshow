@@ -151,7 +151,7 @@ button, select, input { font: inherit; color: inherit; }
 .section-title { font-size: 17px; margin: 0 0 14px; }
 
 /* ── Player ──────────────────────────────────────────────────────────────── */
-#player {
+#player, #viewer {
   position: fixed; inset: 0;
   background: #000;
   display: flex; flex-direction: column;
@@ -219,6 +219,73 @@ button, select, input { font: inherit; color: inherit; }
   width: 100%; padding: 10px 12px;
   background: var(--bg); border: 1px solid var(--border);
   border-radius: var(--radius);
+}
+
+.gate-card .tabs { display: flex; gap: 4px; background: var(--bg); padding: 4px; border-radius: var(--radius); }
+.tab {
+  flex: 1; background: none; border: 0; padding: 8px;
+  border-radius: 7px; color: var(--muted); cursor: pointer; font-size: 14px;
+}
+.tab.is-active { background: var(--surface-2); color: var(--text); font-weight: 600; }
+.stack { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--muted); }
+.gate-foot { margin: 4px 0 0; font-size: 13px; color: var(--muted); text-align: center; }
+.gate-foot a, .lib-root a { color: var(--accent); }
+.who { color: var(--muted); font-size: 13px; align-self: center; margin-right: 4px; }
+
+.btn-danger { background: rgba(255, 107, 107, .15); border-color: rgba(255, 107, 107, .4); color: #ffb3b3; }
+.btn-danger:hover:not(:disabled) { background: rgba(255, 107, 107, .25); border-color: rgba(255, 107, 107, .6); }
+
+/* ── Broadcast bar ───────────────────────────────────────────────────────── */
+.broadcast-bar {
+  display: flex; flex-wrap: wrap; gap: 14px;
+  align-items: center; justify-content: space-between;
+  padding: 12px 16px; margin-bottom: 14px;
+  border: 1px solid rgba(76, 141, 255, .45);
+  background: rgba(76, 141, 255, .1);
+  border-radius: var(--radius);
+}
+.bc-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.bc-sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.bc-sub code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--bg); padding: 1px 6px; border-radius: 5px;
+  color: var(--text); letter-spacing: .06em;
+}
+.bc-actions { display: flex; gap: 8px; }
+
+.live-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #ff5f56; flex: 0 0 auto;
+  box-shadow: 0 0 0 0 rgba(255, 95, 86, .7);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  70% { box-shadow: 0 0 0 9px rgba(255, 95, 86, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 95, 86, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+
+.warn {
+  margin: 0 0 22px; padding: 10px 14px;
+  border-radius: var(--radius); font-size: 13px;
+  border: 1px solid rgba(230, 180, 60, .35);
+  background: rgba(230, 180, 60, .1);
+  color: #f0d79a;
+}
+
+.badge-bad { background: rgba(255, 107, 107, .16); color: #ffb3b3; border-color: rgba(255, 107, 107, .35); }
+
+/* ── Share dialog ────────────────────────────────────────────────────────── */
+.share-body { display: flex; flex-direction: column; gap: 12px; }
+.credential {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 14px; background: var(--bg);
+}
+.credential-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.credential-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 26px; letter-spacing: .12em;
+  user-select: all;
 }
 
 /* ── Dialog ──────────────────────────────────────────────────────────────── */
