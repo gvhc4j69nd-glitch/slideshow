@@ -108,6 +108,20 @@ function viewerFor(req, code) {
 
 const publicUser = (user) => ({ id: user.id, username: user.username });
 
+/**
+ * The origin a television should load. A Cast device fetches the URL itself, so
+ * it has to be the public one — not whatever host the presenter happens to be
+ * using. SITE_URL wins; otherwise trust the proxy headers Railway sets.
+ */
+function publicOrigin(req) {
+  const configured = (process.env.SITE_URL || '').trim().replace(/\/+$/, '');
+  if (configured) return configured;
+  const proto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim()
+    || (req.socket.encrypted ? 'https' : 'http');
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || 'localhost').split(',')[0].trim();
+  return `${proto}://${host}`;
+}
+
 /* ── Accounts ─────────────────────────────────────────────────────────────── */
 
 async function handleRegister(req, res) {
@@ -261,6 +275,30 @@ async function handleWatchJoin(req, res) {
   });
 }
 
+async function handleWatchRedeem(req, res) {
+  const ip = clientIp(req);
+  if (joinLimiter.hit(ip)) return sendError(res, 429, 'Too many attempts. Wait a few minutes.');
+
+  const body = await readJsonBody(req);
+  if (body === null) return sendError(res, 400, 'Invalid request.');
+
+  const session = broadcast.redeemTicket(body.ticket);
+  if (!session) {
+    return sendError(res, 401, 'That link has already been used or has expired. Ask for a new one.');
+  }
+
+  joinLimiter.reset(ip);
+  const viewerId = crypto.randomBytes(8).toString('base64url');
+  const token = auth.makeToken(store.secret, {
+    kind: 'view', code: session.code, nonce: session.nonce, vid: viewerId,
+  }, VIEW_TTL_MS);
+
+  broadcast.touchViewer(session, viewerId);
+  sendJson(res, 200, broadcast.publicState(session), {
+    'Set-Cookie': buildCookie(req, VIEW_COOKIE, token, Math.floor(VIEW_TTL_MS / 1000)),
+  });
+}
+
 function requireViewer(req, res, code) {
   const session = broadcast.get(code);
   if (!session) {
@@ -390,6 +428,7 @@ const server = http.createServer(async (req, res) => {
 
     /* Viewer flow — deliberately open, since viewers have no account. */
     if (pathname === '/api/watch/join' && method === 'POST') return await handleWatchJoin(req, res);
+    if (pathname === '/api/watch/redeem' && method === 'POST') return await handleWatchRedeem(req, res);
 
     if (segments[0] === 'api' && segments[1] === 'watch' && segments.length >= 4) {
       const code = segments[2].toUpperCase();
@@ -429,6 +468,14 @@ const server = http.createServer(async (req, res) => {
 
       const session = requireOwnedSession(req, res, code, user);
       if (!session) return undefined;
+
+      if (segments[3] === 'cast-ticket' && method === 'POST') {
+        const { ticket, expiresAt } = broadcast.createTicket(session);
+        return sendJson(res, 201, {
+          url: `${publicOrigin(req)}/watch?ticket=${encodeURIComponent(ticket)}`,
+          expiresAt,
+        });
+      }
 
       if (segments[3] === 'requests' && method === 'GET') return handleHostRequests(req, res, session);
 

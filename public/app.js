@@ -47,7 +47,7 @@ const el = {
   chooseLocalBtn: $('chooseLocalBtn'), choosePhotosBtn: $('choosePhotosBtn'),
   chooseDeckBtn: $('chooseDeckBtn'), clearLocalBtn: $('clearLocalBtn'),
   localDirInput: $('localDirInput'), photoInput: $('photoInput'), deckInput: $('deckInput'),
-  shareNowBtn: $('shareNowBtn'),
+  shareNowBtn: $('shareNowBtn'), castBtn: $('castBtn'),
   howToBtn: $('howToBtn'), howToMenu: $('howToMenu'), howToSteps: $('howToSteps'),
   libraryHowto: $('libraryHowto'),
 };
@@ -894,6 +894,74 @@ window.addEventListener('pagehide', () => {
   if (bc && navigator.sendBeacon) navigator.sendBeacon(`/api/broadcast/${bc.code}/end`, new Blob([], { type: 'text/plain' }));
 });
 
+/* ── Casting to a television ──────────────────────────────────────────────── */
+
+/**
+ * Cast by sending the *viewer page* to the television, not the pictures.
+ *
+ * The obvious route — Google's default media receiver — can't work here: it
+ * fetches media by URL, and these photos are blob: URLs that exist only inside
+ * this tab. Handing the TV /watch instead makes it an ordinary viewer, pulling
+ * each slide through the same relay as everyone else, and it keeps following
+ * along when you press next.
+ *
+ * The URL carries a one-time ticket rather than the password, so nothing
+ * reusable ends up in a television's address bar or history.
+ */
+const canCast = typeof window.PresentationRequest === 'function';
+
+async function castTicketUrl() {
+  if (!state.broadcast) {
+    await shareCurrentShow();
+    if (!state.broadcast) return null;
+  }
+  const { url } = await api(`/api/broadcast/${state.broadcast.code}/cast-ticket`, { method: 'POST' });
+  return url;
+}
+
+async function castToTelevision() {
+  el.castBtn.disabled = true;
+  try {
+    const url = await castTicketUrl();
+    if (!url) return;
+
+    if (!canCast) {
+      // No Presentation API here (Safari, Firefox, most phones). The link still
+      // works on anything with a browser, so hand it over instead of failing.
+      await offerCastLink(url);
+      return;
+    }
+
+    const request = new PresentationRequest([url]);
+    const connection = await request.start();   // opens Chrome's device picker
+    connection.onclose = () => showNotice('The TV stopped showing the slideshow.', 'ok');
+    showNotice('Sent to your TV. It will follow along as you present.', 'ok');
+  } catch (err) {
+    // Dismissing the device picker is a choice, not a failure.
+    if (err && (err.name === 'NotAllowedError' || err.name === 'AbortError')) return;
+    if (err && err.name === 'NotFoundError') {
+      showNotice('No cast devices found on this network. Check the TV is on the same Wi-Fi.');
+      return;
+    }
+    showNotice(`Could not cast: ${err.message}`);
+  } finally {
+    el.castBtn.disabled = false;
+  }
+}
+
+/** Fallback: give the user a one-time link to open on the TV however they like. */
+async function offerCastLink(url) {
+  try {
+    await navigator.clipboard.writeText(url);
+    showNotice('One-time TV link copied. Open it on the television — it works once, '
+      + 'and only for the next few minutes.', 'ok');
+  } catch {
+    window.prompt('Open this on your TV. It works once, for the next few minutes:', url);
+  }
+}
+
+el.castBtn.addEventListener('click', castToTelevision);
+
 /* ── Slideshow ────────────────────────────────────────────────────────────── */
 
 function beginPlayback(label, photos) {
@@ -908,6 +976,10 @@ function beginPlayback(label, photos) {
   el.sourceTag.hidden = false;
   el.shareNowBtn.hidden = !isShareable();
   el.shareNowBtn.textContent = state.broadcast ? 'Stop sharing' : 'Share…';
+  el.castBtn.hidden = !isShareable();
+  el.castBtn.title = canCast
+    ? 'Send this slideshow to a TV'
+    : 'Copy a one-time link to open on a TV';
   el.library.hidden = true;
   el.player.hidden = false;
   el.stageMsg.hidden = true;

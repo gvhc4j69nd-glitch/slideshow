@@ -252,7 +252,41 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !document.fullscreenElement) el.leaveBtn.click();
 });
 
-// Deep link: /watch?code=ABC123 prefills the code.
+/* ── Arriving by link ─────────────────────────────────────────────────────── */
+
 const params = new URLSearchParams(location.search);
-if (params.get('code')) el.joinCode.value = params.get('code').toUpperCase();
-el.joinCode.focus();
+
+/**
+ * A cast or shared link carries a one-time ticket instead of the password, so a
+ * television can join without anyone typing on it. The ticket is spent here;
+ * from then on this screen holds an ordinary viewer session.
+ */
+async function redeemTicket(ticket) {
+  el.joinError.hidden = true;
+  el.joinSubmit.disabled = true;
+  try {
+    const info = await api('/api/watch/redeem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticket }),
+    });
+    state.code = info.code;
+    // Don't leave a spent ticket sitting in the address bar or in history.
+    history.replaceState(null, '', '/watch');
+    startViewing(info);
+  } catch (err) {
+    el.joinError.textContent = err.message;
+    el.joinError.hidden = false;
+    history.replaceState(null, '', '/watch');
+  } finally {
+    el.joinSubmit.disabled = false;
+  }
+}
+
+if (params.get('ticket')) {
+  redeemTicket(params.get('ticket'));
+} else {
+  // /watch?code=ABC123 just prefills the code; the password is still needed.
+  if (params.get('code')) el.joinCode.value = params.get('code').toUpperCase();
+  el.joinCode.focus();
+}

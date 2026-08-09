@@ -108,6 +108,33 @@ Both credentials are needed, wrong guesses are rate-limited to 10 per IP per 15
 minutes, and the failure message is identical for a bad code and a bad
 password, so neither can be probed independently.
 
+## Casting to a television
+
+The player has a **Cast** button. It sends the *viewer page* to the television
+rather than the pictures, so the TV becomes an ordinary viewer pulling each
+slide through the relay and following along as you present.
+
+That indirection is the whole trick. Google's default media receiver loads media
+by URL, and these photos are `blob:` URLs that exist only inside the presenting
+tab — a Cast device can never fetch them. Handing it `/watch` sidesteps the
+problem entirely and costs nothing: no receiver app to register, no media to
+upload.
+
+The URL carries a **single-use ticket** instead of the password. It is good for
+three minutes, dies the moment it is redeemed, and is stripped from the address
+bar afterwards, so nothing reusable is left sitting in a television's history.
+
+Support depends on the browser, so the button adapts:
+
+- **Chrome and Edge on desktop** get the Presentation API and a device picker.
+- **Everywhere else** — Safari, Firefox, phones — the button copies the one-time
+  link instead. Open it on the TV's own browser, or send it to whoever is next
+  to the screen. It works on anything that can open a URL.
+
+Older Chromecasts run a limited receiver; a Chromecast with Google TV, or any
+smart TV with a browser, handles the viewer page comfortably. If a device gives
+trouble, the copied link opened in the TV's browser always works.
+
 ## Play from this device (no upload)
 
 The “Play from this device” panel has three ways in:

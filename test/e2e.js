@@ -187,6 +187,32 @@ async function guardTargetServer() {
   const waited = Date.now() - started;
   ok('long-poll wakes on host change', woke.body.index === 1 && waited < 5000, `index=${woke.body.index} after ${waited}ms`);
 
+  console.log('\n— casting to a television —');
+
+  r = await call(host, `/api/broadcast/${share.code}/cast-ticket`, { method: 'POST' });
+  ok('owner can mint a cast link', r.res.status === 201 && /\/watch\?ticket=/.test(r.body.url), JSON.stringify(r.body));
+  const castUrl = r.body.url;
+  const ticket = new URL(castUrl).searchParams.get('ticket');
+  ok('the link carries a ticket, not the password',
+    !castUrl.includes(share.password) && ticket.length >= 20, castUrl);
+
+  r = await call(anon, `/api/broadcast/${share.code}/cast-ticket`, { method: 'POST' });
+  ok('a stranger cannot mint one', r.res.status === 401, r.res.status);
+
+  const tv = jar();
+  r = await call(tv, '/api/watch/redeem', { method: 'POST', json: { ticket } });
+  ok('a television joins with the ticket alone', r.res.status === 200 && r.body.code === share.code, JSON.stringify(r.body));
+
+  got = await call(tv, `/api/watch/${share.code}/photo/0`, { raw: true });
+  ok('and then streams photos like any viewer', got.res.status === 200 && got.buf.equals(PHOTOS[0]), got.res.status);
+
+  const replay = jar();
+  r = await call(replay, '/api/watch/redeem', { method: 'POST', json: { ticket } });
+  ok('the same ticket cannot be used twice', r.res.status === 401, r.res.status);
+
+  r = await call(jar(), '/api/watch/redeem', { method: 'POST', json: { ticket: 'not-a-real-ticket' } });
+  ok('a made-up ticket is refused', r.res.status === 401, r.res.status);
+
   console.log('\n— ownership + shutdown —');
   const intruder = jar();
   await call(intruder, '/api/auth/register', { method: 'POST', json: { username: 'intruder', password: 'correct-horse' } });
