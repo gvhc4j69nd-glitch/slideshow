@@ -496,6 +496,9 @@ a { color: var(--coral-ink); }
   border-radius: var(--radius); font-size: 13px; color: var(--amber-ink);
 }
 
+/* The signed-in page opens on the instructions, so give them a little room. */
+.library-howto { max-width: 62ch; margin-top: 4px; }
+
 /* ── Header dropdown ─────────────────────────────────────────────────────── */
 .menu { position: relative; }
 .caret { font-size: 10px; opacity: .6; }

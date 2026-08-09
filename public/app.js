@@ -49,6 +49,7 @@ const el = {
   localDirInput: $('localDirInput'), photoInput: $('photoInput'), deckInput: $('deckInput'),
   shareNowBtn: $('shareNowBtn'),
   howToBtn: $('howToBtn'), howToMenu: $('howToMenu'), howToSteps: $('howToSteps'),
+  libraryHowto: $('libraryHowto'),
 };
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
@@ -347,6 +348,7 @@ function renderLocalBrowser() {
   const root = state.localRoot;
   el.clearLocalBtn.hidden = !root;
   el.localCrumbs.hidden = !root;
+  if (el.libraryHowto) el.libraryHowto.hidden = Boolean(root);
 
   if (!root) return;
 
@@ -1134,7 +1136,7 @@ document.addEventListener('visibilitychange', () => {
 function mountHowTo() {
   const template = $('howToSteps');
   if (!template) return;
-  for (const id of ['howToLanding', 'howToMenuBody']) {
+  for (const id of ['howToLanding', 'howToMenuBody', 'howToLibrary']) {
     const host = $(id);
     if (host && !host.childElementCount) host.append(template.content.cloneNode(true));
   }
