@@ -97,8 +97,10 @@ a { color: var(--coral-ink); }
   box-shadow: var(--shadow-sm);
   transition: transform .12s ease, box-shadow .15s ease, background .15s ease, border-color .15s ease;
 }
-.btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-md); }
-.btn:active:not(:disabled) { transform: translateY(0); }
+@media (hover: hover) {
+  .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+}
+.btn:active:not(:disabled) { transform: translateY(0); box-shadow: var(--shadow-sm); }
 .btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
 .btn:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
 
@@ -158,7 +160,9 @@ a { color: var(--coral-ink); }
   box-shadow: var(--shadow-sm);
   transition: transform .15s ease, box-shadow .18s ease, border-color .15s ease;
 }
-.folder-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+@media (hover: hover) {
+  .folder-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+}
 .folder-card.drag-over { border-color: var(--coral); box-shadow: 0 0 0 4px var(--coral-soft); }
 
 .folder-cover {
@@ -183,8 +187,6 @@ a { color: var(--coral-ink); }
 .folder-buttons { display: flex; gap: 8px; }
 .folder-buttons .btn { flex: 1; padding: 8px 12px; font-size: 14px; }
 
-.upload-status { font-size: 12px; color: var(--ink-soft); min-height: 16px; }
-.upload-status.err { color: var(--coral-ink); }
 
 .empty { color: var(--ink-soft); max-width: 55ch; margin-top: 28px; }
 
@@ -248,6 +250,8 @@ a { color: var(--coral-ink); }
 /* ── Player and viewer (dark on purpose: photos read best on near-black) ─── */
 #player, #viewer {
   position: fixed; inset: 0;
+  height: 100vh;          /* fallback for browsers without dvh */
+  height: 100dvh;
   background: var(--stage);
   color: var(--stage-text);
   display: flex; flex-direction: column;
@@ -281,6 +285,9 @@ a { color: var(--coral-ink); }
   display: flex; align-items: center; justify-content: space-between;
   gap: 16px; flex-wrap: wrap;
   padding: 14px 18px;
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
+  padding-left: max(18px, env(safe-area-inset-left));
+  padding-right: max(18px, env(safe-area-inset-right));
   background: var(--stage-bar);
   border-top: 1px solid var(--stage-line);
   transition: opacity .3s ease;
@@ -315,12 +322,16 @@ a { color: var(--coral-ink); }
   border-radius: 999px; padding: 7px 10px;
 }
 
-/* Hide the chrome while playing until the mouse moves. */
-#player.idle .controls, #player.idle .progress { opacity: 0; pointer-events: none; }
-#player.idle { cursor: none; }
+/* Hide the chrome while playing until something happens. */
+#player.idle .controls, #player.idle .progress,
+#viewer.idle .controls { opacity: 0; pointer-events: none; }
+#player.idle, #viewer.idle { cursor: none; }
 
 /* ── Sign in / watch gate ────────────────────────────────────────────────── */
-.gate { display: flex; align-items: center; justify-content: center; padding: 28px; min-height: 100vh; }
+.gate {
+  display: flex; align-items: center; justify-content: center;
+  padding: 28px; min-height: 100vh; min-height: 100dvh;
+}
 .gate-card {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -567,14 +578,96 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; margin: 20px 0
   user-select: all;
 }
 
-/* ── Responsive ──────────────────────────────────────────────────────────── */
+/* ── Adapting to the device ──────────────────────────────────────────────── */
+
+/*
+ * Touch input. Fingers need bigger targets than a cursor, and the things that
+ * only make sense with a mouse — dragging files, hover hints — are removed
+ * rather than left to sit there doing nothing.
+ */
+.is-touch .btn { min-height: 44px; padding: 11px 18px; }
+.is-touch .btn-icon { min-width: 52px; }
+.is-touch .folder-buttons .btn { min-height: 44px; }
+.is-touch .tab { min-height: 44px; }
+.is-touch .crumb { min-height: 40px; padding: 8px 12px; }
+.is-touch .gate-card input,
+.is-touch dialog input[type="text"] {
+  /* Anything under 16px makes iOS zoom the page when the field is focused. */
+  font-size: 16px; padding: 13px 14px;
+}
+.is-touch .dropzone { display: none; }
+.is-touch .local-help .pointer-only { display: none; }
+
+/* No pointer means no drag-and-drop story to tell. */
+.is-pointer .touch-only { display: none; }
+
+/* iOS can't pick a folder, so the button that would do it isn't offered. */
+.is-ios .folder-picker-only { display: none; }
+
+/* ── Small screens ───────────────────────────────────────────────────────── */
 @media (max-width: 720px) {
-  #library { padding: 22px 16px 56px; }
-  .brand-logo { height: 42px; }
-  .controls { justify-content: center; }
-  .controls-left, .controls-right { flex: 1 1 100%; justify-content: center; }
-  .meta strong { max-width: 55vw; }
-  .credential-value { font-size: 23px; }
+  #library { padding: 20px 14px 56px; }
+  .brand-logo { height: 40px; }
+  .lib-header { gap: 12px; }
+  .local-panel { padding: 16px; }
+  .local-head h2 { font-size: 18px; }
+  .folder-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+  .folder-body { padding: 12px; }
+  .meta strong { max-width: 52vw; }
+  .credential-value { font-size: 22px; letter-spacing: .06em; }
+  .menu-panel { position: fixed; left: 12px; right: 12px; width: auto; top: 72px; }
+
+  /* Controls are stacked: identity on top, transport below, extras last. */
+  .controls { gap: 10px; padding: 10px 12px; justify-content: center; }
+  .controls-left, .controls-center, .controls-right { flex: 1 1 100%; justify-content: center; }
+  .controls-right { flex-wrap: wrap; gap: 6px; }
+  .field span { display: none; }             /* the select speaks for itself */
+  .controls .btn { padding: 10px 14px; }
+}
+
+@media (max-width: 420px) {
+  .tagline { font-size: 17px; }
+  .landing { padding: 26px 14px 56px; }
+  .folder-grid { grid-template-columns: 1fr 1fr; }
+  .use-cases { grid-template-columns: 1fr; }
+}
+
+/*
+ * A phone held sideways is the normal way to watch a slideshow, and there the
+ * vertical space belongs to the photo. The controls stop taking layout space
+ * and float over the bottom of the picture instead, fading out with the rest
+ * of the chrome while it plays.
+ */
+@media (orientation: landscape) and (max-height: 560px) {
+  .controls {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 5;
+    background: linear-gradient(to top, rgba(18, 16, 28, .94), rgba(18, 16, 28, .72) 70%, transparent);
+    border-top: 0;
+    padding: 10px 14px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    gap: 8px;
+  }
+  .controls-left, .controls-center, .controls-right { flex: 0 1 auto; }
+  .controls .btn { padding: 8px 12px; min-height: 40px; }
+  .progress { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; }
+  .meta strong { max-width: 26vw; font-size: 14px; }
+  .field span { display: none; }
+}
+
+/* ── Big screens: living-room televisions ────────────────────────────────── */
+@media (min-width: 1800px) {
+  html { font-size: 17px; }
+  #viewer .controls { padding: 20px 28px; }
+  #viewer .meta strong { font-size: 20px; }
+  #viewer .counter, #viewer .field { font-size: 16px; }
+  #viewer .btn { padding: 12px 22px; font-size: 17px; }
+  .landing { max-width: 1400px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide { transition: none; }
+  .live-dot { animation: none; }
+  .btn:hover:not(:disabled), .folder-card:hover { transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -6,12 +6,11 @@ const state = {
   user: null,
   signupCodeRequired: false,
   broadcast: null,   // {code, password, folderId, photos, expiresAt} while sharing
-  folders: [],       // folders on the server
   localRoot: null,   // tree of folders picked off this device — never uploaded
   localPath: [],     // where we are in that tree
-  source: 'server',  // where the folder currently playing came from
+  source: 'local',   // everything plays from this device now
   folder: null,      // label of the folder being played
-  photos: [],        // [{name, url}] for server photos, [{name, file}] for local ones
+  photos: [],        // [{name, file}] — the show currently loaded
   index: 0,
   playing: false,
   shuffle: false,
@@ -26,19 +25,13 @@ const state = {
 const $ = (id) => document.getElementById(id);
 
 const el = {
-  library: $('library'), player: $('player'),
-  libRoot: $('libRoot'), notice: $('notice'),
-  folderGrid: $('folderGrid'), emptyState: $('emptyState'),
-  newFolderBtn: $('newFolderBtn'), refreshBtn: $('refreshBtn'),
+  library: $('library'), player: $('player'), notice: $('notice'),
   stage: $('stage'), slideA: $('slideA'), slideB: $('slideB'), stageMsg: $('stageMsg'),
   progressBar: $('progressBar'),
   playBtn: $('playBtn'), prevBtn: $('prevBtn'), nextBtn: $('nextBtn'),
   restartBtn: $('restartBtn'), stopBtn: $('stopBtn'), fullscreenBtn: $('fullscreenBtn'),
   shuffleBtn: $('shuffleBtn'), loopBtn: $('loopBtn'), speedSelect: $('speedSelect'),
   folderLabel: $('folderLabel'), counter: $('counter'), sourceTag: $('sourceTag'),
-  folderDialog: $('folderDialog'), folderForm: $('folderForm'),
-  folderNameInput: $('folderNameInput'), folderError: $('folderError'),
-  folderCancel: $('folderCancel'), fileInput: $('fileInput'),
   gate: $('gate'), gateForm: $('gateForm'), gateUser: $('gateUser'), gatePass: $('gatePass'),
   gateSignupCode: $('gateSignupCode'), signupCodeRow: $('signupCodeRow'), gateHelp: $('gateHelp'),
   gateError: $('gateError'), gateSubmit: $('gateSubmit'),
@@ -54,7 +47,7 @@ const el = {
   chooseLocalBtn: $('chooseLocalBtn'), choosePhotosBtn: $('choosePhotosBtn'),
   chooseDeckBtn: $('chooseDeckBtn'), clearLocalBtn: $('clearLocalBtn'),
   localDirInput: $('localDirInput'), photoInput: $('photoInput'), deckInput: $('deckInput'),
-  serverTitle: $('serverTitle'), shareNowBtn: $('shareNowBtn'),
+  shareNowBtn: $('shareNowBtn'),
   howToBtn: $('howToBtn'), howToMenu: $('howToMenu'), howToSteps: $('howToSteps'),
 };
 
@@ -75,8 +68,6 @@ function showNotice(message, kind) {
   if (kind === 'ok') setTimeout(() => { el.notice.hidden = true; }, 4000);
 }
 
-const mediaUrl = (relPath) => '/media/' + relPath.split('/').map(encodeURIComponent).join('/');
-
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
 const IMAGE_EXT = /\.(jpe?g|png|gif|webp|avif|bmp|svg|heic|heif|tiff?)$/i;
@@ -90,7 +81,7 @@ const isDeckFile = (file) => DECK_EXT.test(file.name);
 /* ── Object URLs for local files ──────────────────────────────────────────── */
 
 /**
- * Local photos are played straight off disk via object URLs. Minting one per
+ * Photos are played straight off the device via object URLs. Minting one per
  * photo up front would pin the whole folder, so they're created on demand and
  * the oldest are revoked once we're well past them.
  */
@@ -98,7 +89,6 @@ const liveUrls = [];
 const MAX_LIVE_URLS = 8;
 
 function photoUrl(photo) {
-  if (photo.url) return photo.url;
   if (!photo.objectUrl) {
     photo.objectUrl = URL.createObjectURL(photo.file);
     liveUrls.push(photo);
@@ -123,106 +113,7 @@ function releasePlaylistUrls() {
   liveUrls.length = 0;
 }
 
-/* ── Library ──────────────────────────────────────────────────────────────── */
-
-async function loadFolders() {
-  el.refreshBtn.disabled = true;
-  try {
-    const data = await api('/api/folders');
-    state.folders = data.folders;
-    el.libRoot.textContent = data.root;
-    el.notice.hidden = true;
-    renderLibrary();
-  } catch (err) {
-    showNotice(`Could not load folders: ${err.message}`);
-  } finally {
-    el.refreshBtn.disabled = false;
-  }
-}
-
-function renderLibrary() {
-  renderServerFolders();
-  renderLocalBrowser();
-}
-
-function renderServerFolders() {
-  el.folderGrid.replaceChildren();
-  el.emptyState.hidden = state.folders.length > 0;
-
-  for (const folder of state.folders) {
-    const photoLabel = folder.count === 1 ? '1 photo' : `${folder.count} photos`;
-    const deckLabel = folder.decks ? ` · ${folder.decks} presentation${folder.decks === 1 ? '' : 's'}` : '';
-    const card = folderCard({
-      label: folder.path,
-      count: folder.count,
-      countLabel: photoLabel + deckLabel,
-      coverUrl: folder.cover ? mediaUrl(folder.cover) : null,
-      onPlay: () => startServerSlideshow(folder.path),
-    });
-
-    const status = document.createElement('div');
-    status.className = 'upload-status';
-
-    const uploadBtn = document.createElement('button');
-    uploadBtn.type = 'button';
-    uploadBtn.className = 'btn';
-    uploadBtn.textContent = 'Add files';
-    uploadBtn.addEventListener('click', () => pickFiles(folder.path, status));
-
-    card.buttons.append(uploadBtn);
-    card.body.append(status);
-
-    // Drag a batch of photos straight onto the card to upload them.
-    card.root.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      card.root.classList.add('drag-over');
-    });
-    card.root.addEventListener('dragleave', () => card.root.classList.remove('drag-over'));
-    card.root.addEventListener('drop', (e) => {
-      e.preventDefault();
-      card.root.classList.remove('drag-over');
-      const files = [...e.dataTransfer.files].filter(isImageFile);
-      if (files.length) uploadFiles(folder.path, files, status);
-    });
-
-    el.folderGrid.append(card.root);
-
-    // Presentations in the library get their own card next to their folder.
-    for (const deckName of folder.deckNames || []) {
-      const deckPath = `${folder.path}/${deckName}`;
-      const deckCard = folderCard({
-        label: deckName,
-        count: 1,
-        icon: '📊',
-        countLabel: 'PowerPoint',
-        badge: 'Presentation',
-        badgeClass: 'badge-deck',
-        onPlay: () => playServerDeck(deckPath, deckName),
-      });
-      el.folderGrid.append(deckCard.root);
-    }
-  }
-}
-
-/** Fetch a .pptx from the library and convert it here in the browser. */
-async function playServerDeck(relPath, name) {
-  showNotice(`Opening “${name}”…`, 'ok');
-  try {
-    const res = await fetch(mediaUrl(relPath));
-    if (!res.ok) throw new Error(`could not download it (${res.status})`);
-    const rendered = await Pptx.render(await res.arrayBuffer(), { measureText });
-    const slides = rendered.slides.map((slide, i) => ({
-      name: slide.title ? `${i + 1}. ${slide.title}` : `Slide ${i + 1}`,
-      file: new Blob([slide.svg], { type: 'image/svg+xml' }),
-    }));
-    el.notice.hidden = true;
-    beginPlayback(name, slides, 'server');
-  } catch (err) {
-    showNotice(`Could not open “${name}”: ${err.message}`);
-  }
-}
-
-/** Shared card markup for both server-side and on-device folders. */
+/** Card markup for a folder, a whole branch, or a presentation. */
 function folderCard({ label, count, coverUrl, badge, badgeClass, onPlay, onOpen, icon, countLabel }) {
   const root = document.createElement('div');
   root.className = 'folder-card';
@@ -272,68 +163,6 @@ function folderCard({ label, count, coverUrl, badge, badgeClass, onPlay, onOpen,
 
   return { root, body, buttons };
 }
-
-function pickFiles(folderPath, status) {
-  el.fileInput.value = '';
-  el.fileInput.onchange = () => {
-    const files = [...el.fileInput.files];
-    if (files.length) uploadFiles(folderPath, files, status);
-  };
-  el.fileInput.click();
-}
-
-async function uploadFiles(folderPath, files, status) {
-  let done = 0;
-  let failed = 0;
-  status.classList.remove('err');
-
-  for (const file of files) {
-    status.textContent = `Uploading ${done + failed + 1} of ${files.length}…`;
-    try {
-      await api(
-        `/api/upload?folder=${encodeURIComponent(folderPath)}&name=${encodeURIComponent(file.name)}`,
-        { method: 'PUT', body: file, headers: { 'Content-Type': 'application/octet-stream' } },
-      );
-      done += 1;
-    } catch (err) {
-      failed += 1;
-      status.classList.add('err');
-      status.textContent = `${file.name}: ${err.message}`;
-    }
-  }
-
-  if (!failed) status.textContent = `Uploaded ${done} photo${done === 1 ? '' : 's'}.`;
-  else status.textContent = `Uploaded ${done}, ${failed} failed.`;
-  await loadFolders();
-}
-
-/* ── New folder dialog ────────────────────────────────────────────────────── */
-
-el.newFolderBtn.addEventListener('click', () => {
-  el.folderNameInput.value = '';
-  el.folderError.hidden = true;
-  el.folderDialog.showModal();
-});
-el.folderCancel.addEventListener('click', () => el.folderDialog.close());
-
-el.folderForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const name = el.folderNameInput.value.trim();
-  if (!name) return;
-  try {
-    await api('/api/folders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    });
-    el.folderDialog.close();
-    await loadFolders();
-    showNotice(`Created “${name}”. Use “Add photos” to fill it.`, 'ok');
-  } catch (err) {
-    el.folderError.textContent = err.message;
-    el.folderError.hidden = false;
-  }
-});
 
 /* ── On-device sources: folders, phone photo libraries, PowerPoint ─────────── */
 
@@ -642,7 +471,7 @@ function playLocalFolder(node) {
   }
   const label = [state.localRoot.name, ...state.localPath].join('/');
   beginPlayback(node === state.localRoot ? label : `${label}/${node.name}`.replace(/\/+/g, '/'),
-    photos.map((p) => ({ ...p })), 'local');
+    photos.map((p) => ({ ...p })));
 }
 
 /** Convert a .pptx to slides the first time it's played, then cache them. */
@@ -666,7 +495,7 @@ async function playDeck(deck) {
   try {
     const slides = await loadDeck(deck);
     renderLocalBrowser();
-    beginPlayback(deck.name, slides.map((s) => ({ ...s })), 'local');
+    beginPlayback(deck.name, slides.map((s) => ({ ...s })));
   } catch (err) {
     setLocalStatus(`Could not open “${deck.name}”: ${err.message}`, true);
   }
@@ -1065,30 +894,15 @@ window.addEventListener('pagehide', () => {
 
 /* ── Slideshow ────────────────────────────────────────────────────────────── */
 
-async function startServerSlideshow(folderPath) {
-  try {
-    const data = await api(`/api/photos?folder=${encodeURIComponent(folderPath)}`);
-    if (!data.photos.length) {
-      showNotice('That folder has no photos in it.');
-      await loadFolders();
-      return;
-    }
-    beginPlayback(data.folder, data.photos, 'server');
-  } catch (err) {
-    showNotice(`Could not start the slideshow: ${err.message}`);
-  }
-}
-
-function beginPlayback(label, photos, source) {
+function beginPlayback(label, photos) {
   releasePlaylistUrls();
-  state.source = source;
   state.folder = label;
   state.photos = photos;
   state.index = 0;
   if (state.shuffle) shufflePhotos();
 
   el.folderLabel.textContent = label;
-  el.sourceTag.textContent = source === 'local' ? 'On this device' : 'Server';
+  el.sourceTag.textContent = 'On this device';
   el.sourceTag.hidden = false;
   el.shareNowBtn.hidden = !isShareable();
   el.shareNowBtn.textContent = state.broadcast ? 'Stop sharing' : 'Share…';
@@ -1112,7 +926,6 @@ function beginPlayback(label, photos, source) {
 
 function stopSlideshow() {
   pause();
-  const wasLocal = state.source === 'local';
   releasePlaylistUrls();
   state.folder = null;
   state.photos = [];
@@ -1123,8 +936,6 @@ function stopSlideshow() {
   el.library.hidden = false;
   el.player.classList.remove('idle');
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-  // On-device folders live only in this tab, so there's nothing to re-fetch.
-  if (!wasLocal) loadFolders();
 }
 
 /** Cross-fade between the two <img> layers so slides don't flash. */
@@ -1247,7 +1058,6 @@ el.nextBtn.addEventListener('click', () => next(false));
 el.prevBtn.addEventListener('click', prev);
 el.restartBtn.addEventListener('click', restart);
 el.stopBtn.addEventListener('click', stopSlideshow);
-el.refreshBtn.addEventListener('click', loadFolders);
 
 el.speedSelect.addEventListener('change', () => {
   state.interval = Number(el.speedSelect.value);
@@ -1523,7 +1333,7 @@ function enterApp(user) {
   el.whoami.textContent = user ? `Signed in as ${user.username}` : '';
   el.gate.hidden = true;
   el.library.hidden = false;
-  loadFolders();
+  renderLocalBrowser();
 }
 
 /* ── Boot ─────────────────────────────────────────────────────────────────── */

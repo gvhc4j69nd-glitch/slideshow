@@ -63,8 +63,8 @@ async function guardTargetServer() {
   console.log(`\nserver at ${BASE} using database ${database}`);
 
   console.log('\n— accounts —');
-  let r = await call(anon, '/api/folders');
-  ok('library requires an account', r.res.status === 401, r.res.status);
+  let r = await call(anon, '/api/broadcast/mine');
+  ok('the api requires an account', r.res.status === 401, r.res.status);
 
   r = await call(host, '/api/auth/register', { method: 'POST', json: { username: 'ab', password: 'longenough1' } });
   if (r.res.status === 429) {
@@ -85,8 +85,8 @@ async function guardTargetServer() {
   r = await call(anon, '/api/auth/register', { method: 'POST', json: { username: 'PRESENTER', password: 'another-one' } });
   ok('username uniqueness is case-insensitive', r.res.status === 409, JSON.stringify(r.body));
 
-  r = await call(host, '/api/folders');
-  ok('signed-in user reaches the library', r.res.status === 200, r.res.status);
+  r = await call(host, '/api/broadcast/mine');
+  ok('a signed-in user reaches the api', r.res.status === 200, r.res.status);
 
   const other = jar();
   r = await call(other, '/api/auth/login', { method: 'POST', json: { username: 'presenter', password: 'wrong-password' } });

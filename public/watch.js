@@ -75,6 +75,7 @@ function startViewing(info) {
   state.running = true;
   state.version = null;
   applyState(info);
+  markActive();
   pollState();
 }
 
@@ -216,6 +217,23 @@ el.viewFullscreenBtn.addEventListener('click', () => {
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   else el.viewer.requestFullscreen().catch(() => {});
 });
+
+/*
+ * A television or a spare laptop is left showing this for the whole party, so
+ * the chrome gets out of the way once nothing has happened for a few seconds.
+ * Any movement, tap or key brings it back.
+ */
+let idleTimer = null;
+function markActive() {
+  el.viewer.classList.remove('idle');
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    if (state.running && !el.viewer.hidden) el.viewer.classList.add('idle');
+  }, 3500);
+}
+for (const type of ['mousemove', 'keydown', 'touchstart', 'click']) {
+  el.viewer.addEventListener(type, markActive, { passive: true });
+}
 
 el.leaveBtn.addEventListener('click', () => {
   state.running = false;

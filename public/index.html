@@ -6,6 +6,7 @@
   <title>Vinboo</title>
   <meta name="theme-color" content="#FFFAF5">
   <meta name="description" content="Vinboo — play your photos and presentations, and share them live to any screen.">
+  <script src="/device.js"></script>
   <link rel="stylesheet" href="/styles.css">
   <link rel="icon" href="/brand/icon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="/brand/icon-180.png">
@@ -260,8 +261,6 @@
           </div>
         </div>
 
-        <button type="button" class="btn" id="newFolderBtn">New folder</button>
-        <button type="button" class="btn" id="refreshBtn">Refresh</button>
         <button type="button" class="btn" id="signOutBtn">Sign out</button>
       </div>
     </header>
@@ -297,14 +296,15 @@
         <div>
           <h2>Play from this device</h2>
           <p class="local-help" id="localHelp">
-            Photos and PowerPoint files stay on your machine — nothing is uploaded,
-            and the selection is forgotten when you close the tab. On a phone, use
-            <strong>Photos…</strong> to pick from your camera roll.
+            Photos and PowerPoint files stay on your device — nothing is ever
+            uploaded, and the selection is forgotten when you close the tab.
+            <span class="touch-only">Tap <strong>Photos…</strong> to pick from your camera roll.</span>
+            <span class="pointer-only">Drag a folder in, or use the buttons.</span>
           </p>
         </div>
         <div class="local-buttons">
           <button type="button" class="btn btn-primary" id="choosePhotosBtn">Photos…</button>
-          <button type="button" class="btn" id="chooseLocalBtn">Folder…</button>
+          <button type="button" class="btn folder-picker-only" id="chooseLocalBtn">Folder…</button>
           <button type="button" class="btn" id="chooseDeckBtn">PowerPoint…</button>
           <button type="button" class="btn" id="clearLocalBtn" hidden>Clear</button>
         </div>
@@ -319,16 +319,6 @@
       <div class="folder-grid" id="localGrid"></div>
     </section>
 
-    <h2 class="section-title" id="serverTitle">On the server</h2>
-    <p class="lib-root" id="libRoot">Loading photo library…</p>
-
-    <section class="folder-grid" id="folderGrid" aria-label="Photo folders"></section>
-
-    <p class="empty" id="emptyState" hidden>
-      No folders on the server yet. Create one above and upload photos, or drop a
-      folder of images into the photo library path shown at the top, then hit
-      Refresh. To play photos without uploading them, use “Play from this device”.
-    </p>
   </main>
 
   <!-- ── Slideshow player ─────────────────────────────────────────────────── -->
@@ -381,21 +371,6 @@
     </div>
   </section>
 
-  <!-- ── New folder dialog ────────────────────────────────────────────────── -->
-  <dialog id="folderDialog">
-    <form method="dialog" id="folderForm">
-      <h2>New folder</h2>
-      <p class="dialog-help">Creates a subfolder in your photo library. No slashes or spaces.</p>
-      <input type="text" id="folderNameInput" name="name" placeholder="summer-2026" maxlength="120" required
-             pattern="[^\/\\:\s]+" autocomplete="off">
-      <p class="dialog-error" id="folderError" hidden></p>
-      <menu>
-        <button type="button" class="btn" id="folderCancel">Cancel</button>
-        <button type="submit" class="btn btn-primary">Create</button>
-      </menu>
-    </form>
-  </dialog>
-
   <!-- ── Share dialog: the code + temp password to read out ───────────────── -->
   <dialog id="shareDialog">
     <div class="share-body">
@@ -428,7 +403,6 @@
     </div>
   </dialog>
 
-  <input type="file" id="fileInput" accept="image/*,.heic,.heif,.pptx" multiple hidden>
   <!-- Fallback folder picker for browsers without the File System Access API. -->
   <input type="file" id="localDirInput" webkitdirectory directory multiple hidden>
   <!-- The system photo picker: the only route into a phone's camera roll. -->

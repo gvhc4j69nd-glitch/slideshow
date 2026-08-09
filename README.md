@@ -7,17 +7,12 @@ other browsers with a code and a temporary password.
 You need an account to present. **Viewers don't** — a share code and temporary
 password are all they need.
 
-It plays photos and PowerPoint decks, from a computer, a phone, or the server.
+Everything plays from **your own device** — there is no server-side library and
+nothing is ever uploaded.
 
-- **From this device** — pick a folder on your own drive and play it
-  immediately. Nothing is uploaded and nothing is stored; the selection lives
-  only in that browser tab.
-- **From a phone** — pick straight from the iOS or Android photo library.
-- **PowerPoint** — a `.pptx` is rendered into slides in the browser and plays
-  like any other show.
-- **From the server library** — files placed in subfolders of the photo
-  library, either dropped in with Finder or uploaded through the web UI. These
-  persist and are visible to anyone else signed in to the same instance.
+- **A folder** on your drive, subfolders and all.
+- **Your phone's camera roll**, on iOS or Android.
+- **A PowerPoint** `.pptx`, rendered into slides in the browser.
 
 The front end is plain HTML/CSS/JS with no build step and no framework. The
 server has one dependency, `pg`, for Postgres.
@@ -195,28 +190,6 @@ sits below it.
 Only `.pptx` works. The older binary `.ppt` is a completely different format;
 open it in PowerPoint and save it as `.pptx`.
 
-## The server photo library
-
-Photos live in `./photos`. Any subfolder there shows up in the web UI:
-
-```
-photos/
-  vacation-2026/     → "vacation-2026" in the picker
-  wedding/
-  family/reunion/    → nested folders work too
-```
-
-You can drop folders in with Finder and hit **Refresh**, or create folders and
-upload photos from the web UI itself (drag a batch of images onto any folder
-card).
-
-Supported formats: JPEG, PNG, GIF, WebP, AVIF, BMP, SVG, TIFF, HEIC/HEIF, and
-`.pptx` presentations. (HEIC and TIFF only render in browsers that support them
-— Safari does, most others don't.)
-
-Presentations in the library appear as their own card next to their folder, and
-are converted in the browser when played.
-
 ## Playback controls
 
 | Control | Keyboard | What it does |
@@ -286,11 +259,9 @@ All optional, all via environment variables:
 | `DATABASE_POOL_MAX` | `10` | Maximum pooled connections |
 | `PORT` | `4321` | Port to listen on |
 | `HOST` | `0.0.0.0` | Bind address |
-| `PHOTOS_ROOT` | `./photos` | Where the server photo library lives |
 | `DATA_ROOT` | `./data` | Legacy accounts file, imported once on first boot |
 | `SIGNUP_CODE` | *(unset)* | If set, required to create an account |
 | `SESSION_SECRET` | *(unset)* | Overrides the signing key kept in the database |
-| `MAX_UPLOAD_BYTES` | `104857600` | Per-file upload cap (100 MB) |
 | `MAX_FRAME_BYTES` | `26214400` | Largest photo that can be streamed live (25 MB) |
 
 ## Deploying to Railway
@@ -325,11 +296,8 @@ All optional, all via environment variables:
      the literal `${{ … }}`, meaning the service name inside it doesn't match
      any service in the project. Copy the exact name from the database service's
      card; Railway autocompletes it once you type `${{`.
-3. **Attach a volume for photos** and set `PHOTOS_ROOT` to its mount path (e.g.
-   mount `/data`, set `PHOTOS_ROOT=/data/photos`). Accounts no longer need one —
-   they're in Postgres — but uploaded photos still do, since Railway's
-   filesystem is ephemeral. Skip the volume entirely if you only ever play from
-   your own device.
+3. **No volume is needed.** Accounts live in Postgres and slideshows live on
+   the presenter's device, so this process stores nothing on disk.
 4. **Set `SIGNUP_CODE`** to something only your people know, or anyone who finds
    the URL can register.
 5. Don't set `PORT` — Railway injects it.
@@ -343,8 +311,28 @@ Live sharing holds requests open for up to 30 seconds at a time, which Railway's
 proxy handles fine. Broadcast state is kept in memory, so a redeploy ends any
 slideshow in progress — presenters just hit Share again for a fresh code.
 
-Uploading a large photo library through the browser over the network is slow;
-for anything big, consider syncing files onto the volume directly instead.
+## Adapting to the device
+
+The layout follows what the device can actually do rather than what its user
+agent claims, using `pointer`, `hover` and size queries:
+
+- **Touch**: 44px minimum targets, 16px form fields (anything smaller makes iOS
+  zoom on focus), no hover effects — a hover lift sticks after a tap and reads
+  as a stuck button — and the drag-and-drop zone is hidden, since there is
+  nothing to drag with.
+- **Phones in landscape**, which is how slideshows are actually watched: the
+  controls stop taking layout space and float over the bottom of the photo, so
+  the picture gets the full height instead of losing a third of it.
+- **Viewport height** uses `dvh`, because `100vh` on a phone is measured against
+  the browser chrome being hidden and pushes the controls below the fold. Safe
+  area insets keep them clear of the home indicator and notch.
+- **Televisions** (very wide viewports) scale the viewer's type and controls up,
+  and the chrome fades out after a few seconds so a screen left running all
+  evening shows only the photo.
+- **iOS** is the one thing named rather than feature-detected: Safari exposes
+  `webkitdirectory` on file inputs but ignores it, so whole-folder picking can't
+  be detected and the Folder button is simply not offered there. Photos and
+  PowerPoint still are.
 
 ## Look and feel
 
@@ -381,11 +369,8 @@ derived from the source logo.
 
 ## Notes on safety
 
-- Every client-supplied path is resolved and checked against the library root,
-  so `../` traversal can't reach outside it.
-- Only image extensions are served or accepted for upload.
-- Uploads write to a temp file and rename on success, and never overwrite an
-  existing photo — a name collision becomes `photo (2).jpg`.
+- The server never reads or writes slideshow files, so there is no upload path
+  and no file-serving path to get wrong.
 - Sign-ins, sign-ups, and share-code attempts are each rate-limited per IP.
 - Every query is parameterised, so account data can't be reached by injection,
   and username uniqueness is enforced by a database index rather than by a

@@ -5,9 +5,6 @@ node_modules/
 .env.*
 !.env.example
 
-# The photo library itself stays out of git — only the folder placeholder is tracked.
-photos/*
-!photos/.gitkeep
 
 # Accounts and the signing key never belong in the repo.
 data/
