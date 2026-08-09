@@ -3,9 +3,52 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Vinboo</title>
+  <title>Vinboo — one slideshow on every screen, anywhere</title>
+  <meta name="description" content="Play your photos or a PowerPoint from your own phone or laptop and show them on every screen at once — TVs, laptops, phones. No app, no uploads, just a code.">
+  <link rel="canonical" href="https://vinboo.com/">
+  <meta name="robots" content="index, follow, max-image-preview:large">
   <meta name="theme-color" content="#FFFAF5">
-  <meta name="description" content="Vinboo — play your photos and presentations, and share them live to any screen.">
+
+  <!-- How the link looks when someone shares it, which for this app is the
+       main way anyone arrives. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Vinboo">
+  <meta property="og:url" content="https://vinboo.com/">
+  <meta property="og:title" content="Vinboo — one slideshow on every screen, anywhere">
+  <meta property="og:description" content="Play your photos or a PowerPoint from your own device and put them on every screen at once. No app to install, nothing uploaded, just a code.">
+  <meta property="og:image" content="https://vinboo.com/brand/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Vinboo — one slideshow. Every screen. Anywhere.">
+  <meta property="og:locale" content="en_US">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Vinboo — one slideshow on every screen, anywhere">
+  <meta name="twitter:description" content="Play your photos or a PowerPoint from your own device and put them on every screen at once. No app to install, nothing uploaded, just a code.">
+  <meta name="twitter:image" content="https://vinboo.com/brand/og-image.png">
+  <meta name="twitter:image:alt" content="Vinboo — one slideshow. Every screen. Anywhere.">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Vinboo",
+    "url": "https://vinboo.com/",
+    "description": "Play photos or a PowerPoint from your own phone or laptop and show them on every screen at once. Viewers join with a code and need no account.",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "Any device with a web browser",
+    "browserRequirements": "Requires JavaScript",
+    "image": "https://vinboo.com/brand/og-image.png",
+    "featureList": [
+      "Play a folder of photos from your own device",
+      "Play photos straight from a phone camera roll",
+      "Show a PowerPoint presentation without uploading it",
+      "Share a slideshow live to many screens with a code and temporary password",
+      "Viewers need no account and no app"
+    ]
+  }
+  </script>
+
   <script src="/device.js"></script>
   <link rel="stylesheet" href="/styles.css">
   <link rel="icon" href="/brand/icon-32.png" sizes="32x32">
@@ -18,8 +61,8 @@
    <div class="landing">
 
     <header class="landing-head">
-      <img class="landing-logo" src="/brand/wordmark.png" alt="Vinboo">
-      <p class="tagline">One slideshow. Every screen. Anywhere.</p>
+      <img class="landing-logo" src="/brand/wordmark.png" alt="Vinboo" width="900" height="309">
+      <h1 class="tagline">One slideshow. Every screen. Anywhere.</h1>
     </header>
 
     <div class="landing-grid">
@@ -169,7 +212,7 @@
 
       <aside class="landing-aside">
     <form class="gate-card" id="gateForm">
-      <img class="gate-logo" src="/brand/wordmark.png" alt="Vinboo">
+      <img class="gate-logo" src="/brand/wordmark.png" alt="Vinboo" width="900" height="309">
 
       <div class="tabs" role="tablist">
         <button type="button" class="tab is-active" id="tabSignIn" role="tab" aria-selected="true">Sign in</button>
@@ -245,7 +288,7 @@
   <main id="library" class="screen" hidden>
     <header class="lib-header">
       <div class="brand">
-        <img class="brand-logo" src="/brand/wordmark.png" alt="Vinboo">
+        <img class="brand-logo" src="/brand/wordmark.png" alt="Vinboo" width="900" height="309">
       </div>
       <div class="lib-actions">
         <span class="who" id="whoami"></span>

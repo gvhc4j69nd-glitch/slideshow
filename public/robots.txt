@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Nothing behind these is useful to a crawler, and the watch endpoints need a
+# code anyway.
+Disallow: /api/
+
+Sitemap: https://vinboo.com/sitemap.xml

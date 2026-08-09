@@ -334,6 +334,22 @@ agent claims, using `pointer`, `hover` and size queries:
   be detected and the Folder button is simply not offered there. Photos and
   PowerPoint still are.
 
+## SEO and link previews
+
+Both public pages carry a title, meta description, canonical URL, robots
+directive, Open Graph and Twitter card tags, and the landing page adds
+`WebApplication` JSON-LD. `public/robots.txt` and `public/sitemap.xml` are
+served as static files.
+
+The share card at `public/brand/og-image.png` (1200×630) is what appears when
+someone pastes a link into a message or a post — which, for an app people invite
+each other to, is a more common first impression than a search result.
+
+All the absolute URLs point at `https://vinboo.com`. If the site ever moves,
+those are the strings to change: the canonical and `og:url` tags in
+`public/index.html` and `public/watch.html`, plus `robots.txt` and
+`sitemap.xml`.
+
 ## Look and feel
 
 The visual system comes from the logo, and the palette is sampled from the
