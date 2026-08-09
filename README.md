@@ -265,6 +265,16 @@ sleep 2 && npm run test:e2e
 `npm test` runs all three; it expects `DATABASE_URL` to point at a `_test`
 database and a server already listening on 4399.
 
+Both suites that touch data refuse to run against anything that isn't a `_test`
+database — the end-to-end suite asks the server which database it is using via
+`/healthz` and stops if the answer looks like a real one. That matters because a
+stray server left holding port 4399 will happily answer, and it may be pointed
+somewhere you did not intend. If a run reports the wrong database:
+
+```bash
+lsof -ti:4399 | xargs kill -9
+```
+
 ## Configuration
 
 All optional, all via environment variables:
@@ -288,8 +298,22 @@ All optional, all via environment variables:
 1. Create a Railway project from this GitHub repo. Nixpacks detects Node, runs
    `npm install` and then `npm start`; `railway.json` sets the health check to
    `/healthz`, which reports unhealthy if the database is unreachable.
-2. **Add a Postgres service.** Railway injects `DATABASE_URL`; nothing else is
-   needed, and the schema is created on the first boot.
+2. **Add a Postgres service, then reference it from the app.** This is the step
+   that catches people out: adding a database to the project does *not* share
+   its variables with your app service. In the **app** service go to
+   *Variables → New Variable* and add:
+
+   | Name | Value |
+   | --- | --- |
+   | `DATABASE_URL` | `${{ Postgres.DATABASE_URL }}` |
+
+   Use your database service's actual name in place of `Postgres`. Redeploy, and
+   the schema is created on the first boot.
+
+   If it's missing, the app exits immediately with instructions rather than
+   starting up broken. It also accepts `DATABASE_PRIVATE_URL`, `POSTGRES_URL`,
+   or the discrete `PGHOST`/`PGUSER`/`PGPASSWORD`/`PGDATABASE` variables, so
+   whichever way you wire the reference, it will find it.
 3. **Attach a volume for photos** and set `PHOTOS_ROOT` to its mount path (e.g.
    mount `/data`, set `PHOTOS_ROOT=/data/photos`). Accounts no longer need one —
    they're in Postgres — but uploaded photos still do, since Railway's

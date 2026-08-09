@@ -81,6 +81,52 @@ const wipe = () => db.query('TRUNCATE users, app_settings RESTART IDENTITY');
     assert.strictEqual(db.sslFor('postgres://u:p@db.example.com:5432/x?sslmode=disable'), false);
   });
 
+  console.log('\n— finding the connection string —');
+
+  await check('prefers DATABASE_URL', () => {
+    const got = db.resolveConnectionString({ DATABASE_URL: 'postgres://a/x', POSTGRES_URL: 'postgres://b/y' });
+    assert.strictEqual(got.url, 'postgres://a/x');
+    assert.strictEqual(got.source, 'DATABASE_URL');
+  });
+
+  await check('accepts the other common spellings', () => {
+    for (const name of ['DATABASE_PRIVATE_URL', 'POSTGRES_URL', 'POSTGRESQL_URL', 'PG_URL', 'DATABASE_PUBLIC_URL']) {
+      const got = db.resolveConnectionString({ [name]: 'postgres://h/db' });
+      assert.ok(got, `${name} should be accepted`);
+      assert.strictEqual(got.source, name);
+    }
+  });
+
+  await check('prefers the private URL over the public one', () => {
+    const got = db.resolveConnectionString({
+      DATABASE_PRIVATE_URL: 'postgres://internal/x',
+      DATABASE_PUBLIC_URL: 'postgres://public/x',
+    });
+    assert.strictEqual(got.source, 'DATABASE_PRIVATE_URL');
+  });
+
+  await check('assembles a URL from discrete PG* variables', () => {
+    const got = db.resolveConnectionString({
+      PGHOST: 'db.internal', PGUSER: 'me', PGPASSWORD: 'p@ss word', PGDATABASE: 'vinboo', PGPORT: '5433',
+    });
+    assert.strictEqual(got.url, 'postgres://me:p%40ss%20word@db.internal:5433/vinboo');
+
+    // A password with an @ or a space has to survive being put in a URL and
+    // parsed back out by pg, or the connection fails with a confusing error.
+    const parsed = require('pg-connection-string').parse(got.url);
+    assert.strictEqual(parsed.password, 'p@ss word');
+    assert.strictEqual(parsed.user, 'me');
+    assert.strictEqual(parsed.host, 'db.internal');
+    assert.strictEqual(parsed.port, '5433');
+    assert.strictEqual(parsed.database, 'vinboo');
+  });
+
+  await check('returns null when nothing is configured', () => {
+    assert.strictEqual(db.resolveConnectionString({}), null);
+    assert.strictEqual(db.resolveConnectionString({ DATABASE_URL: '   ' }), null);
+    assert.strictEqual(db.resolveConnectionString({ PGHOST: 'h' }), null, 'a partial PG* set is not enough');
+  });
+
   console.log('\n— migrations —');
 
   await check('applies migrations and records them', async () => {

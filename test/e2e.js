@@ -36,8 +36,31 @@ async function call(j, path, { method = 'GET', json, body, headers = {}, raw = f
   return { res, body: ct.includes('json') ? await res.json() : await res.text() };
 }
 
+async function guardTargetServer() {
+  let health;
+  try {
+    health = await (await fetch(`${BASE}/healthz`)).json();
+  } catch (err) {
+    console.error(`\nNo server answering at ${BASE} — start one first:`
+      + '\n  DATABASE_URL=postgres://localhost/vinboo_test PORT=4399 node server.js\n');
+    process.exit(1);
+  }
+  // This suite registers accounts and ends broadcasts. If a stray server from
+  // another run is holding the port, its database is not ours to churn.
+  if (!health.database || !health.database.endsWith('_test')) {
+    console.error(`\nThe server on ${BASE} is using database "${health.database}".`
+      + '\nThese tests create and delete accounts, so they only run against a'
+      + ' database whose name ends in _test.'
+      + '\nSomething else may be holding the port:  lsof -ti:4399\n');
+    process.exit(1);
+  }
+  return health.database;
+}
+
 (async () => {
   const host = jar(), viewer = jar(), anon = jar();
+  const database = await guardTargetServer();
+  console.log(`\nserver at ${BASE} using database ${database}`);
 
   console.log('\n— accounts —');
   let r = await call(anon, '/api/folders');

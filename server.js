@@ -28,6 +28,14 @@ const fsp = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
 
+// Load .env for local development. In production the real environment is
+// already populated and there is no file, which is not an error.
+try {
+  if (typeof process.loadEnvFile === 'function') process.loadEnvFile(path.join(__dirname, '.env'));
+} catch {
+  // No .env here — expected on Railway.
+}
+
 const {
   sendJson, sendError, readJsonBody, readRawBody,
   parseCookies, buildCookie, clientIp, createLimiter,
@@ -629,8 +637,8 @@ const server = http.createServer(async (req, res) => {
   try {
     if (pathname === '/healthz') {
       try {
-        await dbase.query('SELECT 1');
-        return sendJson(res, 200, { ok: true, db: 'up' });
+        const { rows } = await dbase.query('SELECT current_database() AS db');
+        return sendJson(res, 200, { ok: true, db: 'up', database: rows[0].db });
       } catch (err) {
         return sendJson(res, 503, { ok: false, db: 'down', error: err.message });
       }
@@ -781,7 +789,7 @@ server.keepAliveTimeout = 72 * 1000;
     console.log('');
   });
 })().catch((err) => {
-  console.error('Could not start:', err.message);
+  console.error(err.missingUrl ? `\n${err.message}\n` : `Could not start: ${err.message}`);
   process.exit(1);
 });
 
