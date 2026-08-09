@@ -195,6 +195,7 @@ function renderServerFolders() {
         icon: '📊',
         countLabel: 'PowerPoint',
         badge: 'Presentation',
+        badgeClass: 'badge-deck',
         onPlay: () => playServerDeck(deckPath, deckName),
       });
       el.folderGrid.append(deckCard.root);
@@ -221,7 +222,7 @@ async function playServerDeck(relPath, name) {
 }
 
 /** Shared card markup for both server-side and on-device folders. */
-function folderCard({ label, count, coverUrl, badge, onPlay, onOpen, icon, countLabel }) {
+function folderCard({ label, count, coverUrl, badge, badgeClass, onPlay, onOpen, icon, countLabel }) {
   const root = document.createElement('div');
   root.className = 'folder-card';
 
@@ -261,7 +262,7 @@ function folderCard({ label, count, coverUrl, badge, onPlay, onOpen, icon, count
   body.append(name, sub);
   if (badge) {
     const tag = document.createElement('div');
-    tag.className = 'badge';
+    tag.className = badgeClass ? `badge ${badgeClass}` : 'badge';
     tag.textContent = badge;
     body.append(tag);
   }
@@ -568,6 +569,7 @@ function renderLocalBrowser() {
       count: counts.photos,
       coverUrl: coverFor(child),
       badge: counts.decks ? `${counts.decks} presentation${counts.decks === 1 ? '' : 's'}` : null,
+      badgeClass: counts.decks ? 'badge-deck' : null,
       onPlay: () => playLocalFolder(child),
       onOpen: () => {
         state.localPath = state.localPath.concat(name);
@@ -595,6 +597,7 @@ function renderLocalBrowser() {
       icon: '📊',
       countLabel: deck.slides ? `${deck.slides.length} slides` : 'PowerPoint',
       badge: 'Presentation',
+      badgeClass: 'badge-deck',
       onPlay: () => playDeck(deck),
     });
     card.buttons.append(shareButton(() => playDeck(deck)));

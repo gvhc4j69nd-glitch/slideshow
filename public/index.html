@@ -3,16 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Slideshow</title>
+  <title>Vinboo</title>
+  <meta name="theme-color" content="#FFFAF5">
+  <meta name="description" content="Vinboo — play your photos and presentations, and share them live to any screen.">
   <link rel="stylesheet" href="/styles.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖼️</text></svg>">
+  <link rel="icon" href="/brand/icon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/brand/icon-180.png">
 </head>
 <body>
 
   <!-- ── Sign in / create account ─────────────────────────────────────────── -->
   <main id="gate" class="screen gate" hidden>
     <form class="gate-card" id="gateForm">
-      <h1>Slideshow</h1>
+      <img class="gate-logo" src="/brand/wordmark.png" alt="Vinboo">
 
       <div class="tabs" role="tablist">
         <button type="button" class="tab is-active" id="tabSignIn" role="tab" aria-selected="true">Sign in</button>
@@ -40,18 +43,16 @@
       <p class="dialog-error" id="gateError" hidden></p>
       <button type="submit" class="btn btn-primary" id="gateSubmit">Sign in</button>
 
-      <p class="gate-foot">
-        Just here to watch someone's slideshow? <a href="/watch">Enter a share code</a>.
-      </p>
+      <p class="gate-foot">Just watching? <a href="/watch">Enter a share code</a>.</p>
+      <p class="gate-foot">vinboo.com</p>
     </form>
   </main>
 
   <!-- ── Library: pick a folder ───────────────────────────────────────────── -->
   <main id="library" class="screen" hidden>
     <header class="lib-header">
-      <div>
-        <h1>Slideshow</h1>
-        <p class="lib-root" id="libRoot">Loading photo library…</p>
+      <div class="brand">
+        <img class="brand-logo" src="/brand/wordmark.png" alt="Vinboo">
       </div>
       <div class="lib-actions">
         <span class="who" id="whoami"></span>
@@ -115,6 +116,7 @@
     </section>
 
     <h2 class="section-title" id="serverTitle">On the server</h2>
+    <p class="lib-root" id="libRoot">Loading photo library…</p>
 
     <section class="folder-grid" id="folderGrid" aria-label="Photo folders"></section>
 

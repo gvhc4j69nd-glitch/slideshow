@@ -2,7 +2,7 @@
 'use strict';
 
 /**
- * Slideshow — a zero-dependency photo slideshow server.
+ * Vinboo (vinboo.com) — a zero-dependency photo slideshow server.
  *
  * Three things live here:
  *   1. Accounts. Everything except the viewer flow needs a signed-in user.
@@ -744,7 +744,7 @@ server.keepAliveTimeout = 72 * 1000;
 
   server.listen(PORT, HOST, () => {
     console.log('');
-    console.log('  Slideshow is running');
+    console.log('  Vinboo is running');
     console.log(`  →  http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
     console.log(`  Photo library: ${PHOTOS_ROOT}`);
     console.log(`  Account data:  ${DATA_ROOT}`);

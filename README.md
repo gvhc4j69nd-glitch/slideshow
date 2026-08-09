@@ -1,7 +1,7 @@
-# slideshow
+# Vinboo
 
-A small web app for playing photo slideshows, with pause, start over, and
-stop-and-pick-another-folder — plus the ability to share a slideshow live to
+**vinboo.com** — a web app for playing photo slideshows, with pause, start over,
+and stop-and-pick-another-folder — plus the ability to share a slideshow live to
 other browsers with a code and a temporary password.
 
 You need an account to present. **Viewers don't** — a share code and temporary
@@ -246,6 +246,39 @@ slideshow in progress — presenters just hit Share again for a fresh code.
 
 Uploading a large photo library through the browser over the network is slow;
 for anything big, consider syncing files onto the volume directly instead.
+
+## Look and feel
+
+The visual system comes from the logo, and the palette is sampled from the
+artwork rather than eyeballed:
+
+| Role | Colour | |
+| --- | --- | --- |
+| Coral | `#FF8382` | primary actions, live indicators |
+| Cyan | `#51D1E3` | toggles, badges, focus rings |
+| Amber | `#FDCA5C` | presentations, cautions |
+| Paper | `#FFFAF5` | page |
+| Ink | `#2A2440` | text |
+
+The pastels are used at full strength as **fills, paired with deep ink text**
+rather than white. That was a deliberate call: darkening the coral far enough to
+carry white text at 4.5:1 turns it into a plain red and loses the brand. Ink on
+brand coral measures 6.2:1, on cyan 8.1:1, and on amber 9.7:1 — so the exact
+logo colours survive and the contrast is comfortably past AA. Deepened variants
+(`#C8362F`, `#1F7884`, `#936A10`) carry links and small text on paper.
+
+Everything is pill-shaped or generously rounded to echo the logo's letterforms,
+with soft warm shadows instead of hard borders. On Apple devices the type uses
+`ui-rounded` (SF Pro Rounded), which is close to the logo's face and costs no
+web font download; elsewhere it falls back through Nunito to the system stack.
+
+**The player stays dark.** Photos and slides read best against near-black, so
+the stage keeps a `#12101C` chrome and takes the brand in as accents — the coral
+play button, the cyan toggles, a coral-to-amber progress bar. Chrome is styling;
+the viewing surface is function.
+
+Brand assets live in `public/brand/` (wordmark, square mark, and favicons),
+derived from the source logo.
 
 ## Notes on safety
 
