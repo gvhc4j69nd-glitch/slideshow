@@ -310,10 +310,21 @@ All optional, all via environment variables:
    Use your database service's actual name in place of `Postgres`. Redeploy, and
    the schema is created on the first boot.
 
-   If it's missing, the app exits immediately with instructions rather than
-   starting up broken. It also accepts `DATABASE_PRIVATE_URL`, `POSTGRES_URL`,
-   or the discrete `PGHOST`/`PGUSER`/`PGPASSWORD`/`PGDATABASE` variables, so
-   whichever way you wire the reference, it will find it.
+   **The name doesn't actually matter.** Any variable whose value starts with
+   `postgres://` is used, whatever it's called, and the discrete
+   `PGHOST`/`PGUSER`/`PGPASSWORD`/`PGDATABASE` set works too. `DATABASE_URL` is
+   just the convention.
+
+   If nothing is found the app exits immediately with instructions rather than
+   starting up broken, and prints the names of the database-related variables it
+   can actually see (names only — never values). Two failures look different:
+
+   - *"none of them database related"* — the reference was never added, or was
+     added to the database service instead of the app service.
+   - *"unresolved Railway reference"* — the variable exists but still contains
+     the literal `${{ … }}`, meaning the service name inside it doesn't match
+     any service in the project. Copy the exact name from the database service's
+     card; Railway autocompletes it once you type `${{`.
 3. **Attach a volume for photos** and set `PHOTOS_ROOT` to its mount path (e.g.
    mount `/data`, set `PHOTOS_ROOT=/data/photos`). Accounts no longer need one —
    they're in Postgres — but uploaded photos still do, since Railway's

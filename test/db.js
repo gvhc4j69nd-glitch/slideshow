@@ -127,6 +127,61 @@ const wipe = () => db.query('TRUNCATE users, app_settings RESTART IDENTITY');
     assert.strictEqual(db.resolveConnectionString({ PGHOST: 'h' }), null, 'a partial PG* set is not enough');
   });
 
+  await check('finds a Postgres URL under any variable name', () => {
+    // Someone naming their reference DB_URL or MY_PG should still just work.
+    for (const name of ['DB_URL', 'MY_PG', 'SUPABASE_CONN', 'x']) {
+      const got = db.resolveConnectionString({ [name]: 'postgres://u:p@h:5432/db' });
+      assert.ok(got, `${name} should be found by its value`);
+      assert.strictEqual(got.source, name);
+    }
+    assert.ok(db.resolveConnectionString({ Q: 'postgresql://u@h/db' }), 'postgresql:// scheme too');
+  });
+
+  await check('a known name still wins over an arbitrary one', () => {
+    const got = db.resolveConnectionString({ ZZZ: 'postgres://custom/x', DATABASE_URL: 'postgres://known/x' });
+    assert.strictEqual(got.url, 'postgres://known/x');
+  });
+
+  await check('ignores a Railway reference that did not resolve', () => {
+    // Passing "${{ Postgres.DATABASE_URL }}" to pg fails with a baffling error;
+    // treating it as absent lets the startup message explain the real problem.
+    assert.strictEqual(db.resolveConnectionString({ DATABASE_URL: '${{ Postgres.DATABASE_URL }}' }), null);
+  });
+
+  await check('ignores values that are not connection strings', () => {
+    assert.strictEqual(db.resolveConnectionString({ DATABASE_URL: 'true' }), null);
+    assert.strictEqual(db.resolveConnectionString({ SOME_FLAG: 'postgres' }), null);
+  });
+
+  console.log('\n— the startup diagnostic —');
+
+  await check('lists database-ish variable names it can see', () => {
+    const msg = db.missingUrlMessage({ PORT: '8080', PGHOST: 'h', DATABASE_SSL: 'require' });
+    assert.match(msg, /PGHOST/);
+    assert.match(msg, /DATABASE_SSL/);
+  });
+
+  await check('never prints a value, only names', () => {
+    const secret = 'postgres://user:sup3r-s3cret@db.internal:5432/prod';
+    // A value that is a URL would have been used, so use one that is not.
+    const msg = db.missingUrlMessage({ DATABASE_PASSWORD: 'sup3r-s3cret', PGUSER: 'admin', OTHER: secret });
+    assert.ok(!msg.includes('sup3r-s3cret'), 'credentials must never reach the log');
+    assert.ok(!msg.includes('admin'), 'values must never reach the log');
+    assert.match(msg, /DATABASE_PASSWORD/, 'but the name is useful');
+  });
+
+  await check('calls out an unresolved reference specifically', () => {
+    const msg = db.missingUrlMessage({ DATABASE_URL: '${{ Postgres.DATABASE_URL }}' });
+    assert.match(msg, /unresolved Railway reference: DATABASE_URL/);
+    assert.match(msg, /does not match any service/);
+  });
+
+  await check('otherwise explains how to add the reference', () => {
+    const msg = db.missingUrlMessage({ PORT: '8080' });
+    assert.match(msg, /Variables\s+->\s+New Variable/);
+    assert.match(msg, /none of them database related/);
+  });
+
   console.log('\n— migrations —');
 
   await check('applies migrations and records them', async () => {
