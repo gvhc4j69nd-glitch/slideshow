@@ -7,7 +7,8 @@ const state = {
   signupCodeRequired: false,
   broadcast: null,   // {code, password, folderId, photos, expiresAt} while sharing
   folders: [],       // folders on the server
-  localFolders: [],  // folders picked off this device — never uploaded
+  localRoot: null,   // tree of folders picked off this device — never uploaded
+  localPath: [],     // where we are in that tree
   source: 'server',  // where the folder currently playing came from
   folder: null,      // label of the folder being played
   photos: [],        // [{name, url}] for server photos, [{name, file}] for local ones
@@ -49,9 +50,11 @@ const el = {
   shareUrl: $('shareUrl'), shareExpiry: $('shareExpiry'),
   shareCopyBtn: $('shareCopyBtn'), shareDoneBtn: $('shareDoneBtn'),
   localPanel: $('localPanel'), localGrid: $('localGrid'), localDrop: $('localDrop'),
-  localStatus: $('localStatus'), localHelp: $('localHelp'),
-  chooseLocalBtn: $('chooseLocalBtn'), clearLocalBtn: $('clearLocalBtn'),
-  localDirInput: $('localDirInput'), serverTitle: $('serverTitle'),
+  localStatus: $('localStatus'), localHelp: $('localHelp'), localCrumbs: $('localCrumbs'),
+  chooseLocalBtn: $('chooseLocalBtn'), choosePhotosBtn: $('choosePhotosBtn'),
+  chooseDeckBtn: $('chooseDeckBtn'), clearLocalBtn: $('clearLocalBtn'),
+  localDirInput: $('localDirInput'), photoInput: $('photoInput'), deckInput: $('deckInput'),
+  serverTitle: $('serverTitle'), shareNowBtn: $('shareNowBtn'),
 };
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
@@ -79,6 +82,9 @@ const IMAGE_EXT = /\.(jpe?g|png|gif|webp|avif|bmp|svg|heic|heif|tiff?)$/i;
 
 /** Some image types (HEIC especially) come through with an empty MIME type. */
 const isImageFile = (file) => file.type.startsWith('image/') || IMAGE_EXT.test(file.name);
+
+const DECK_EXT = /\.pptx$/i;
+const isDeckFile = (file) => DECK_EXT.test(file.name);
 
 /* ── Object URLs for local files ──────────────────────────────────────────── */
 
@@ -135,7 +141,7 @@ async function loadFolders() {
 
 function renderLibrary() {
   renderServerFolders();
-  renderLocalFolders();
+  renderLocalBrowser();
 }
 
 function renderServerFolders() {
@@ -143,9 +149,12 @@ function renderServerFolders() {
   el.emptyState.hidden = state.folders.length > 0;
 
   for (const folder of state.folders) {
+    const photoLabel = folder.count === 1 ? '1 photo' : `${folder.count} photos`;
+    const deckLabel = folder.decks ? ` · ${folder.decks} presentation${folder.decks === 1 ? '' : 's'}` : '';
     const card = folderCard({
       label: folder.path,
       count: folder.count,
+      countLabel: photoLabel + deckLabel,
       coverUrl: folder.cover ? mediaUrl(folder.cover) : null,
       onPlay: () => startServerSlideshow(folder.path),
     });
@@ -156,7 +165,7 @@ function renderServerFolders() {
     const uploadBtn = document.createElement('button');
     uploadBtn.type = 'button';
     uploadBtn.className = 'btn';
-    uploadBtn.textContent = 'Add photos';
+    uploadBtn.textContent = 'Add files';
     uploadBtn.addEventListener('click', () => pickFiles(folder.path, status));
 
     card.buttons.append(uploadBtn);
@@ -176,51 +185,55 @@ function renderServerFolders() {
     });
 
     el.folderGrid.append(card.root);
+
+    // Presentations in the library get their own card next to their folder.
+    for (const deckName of folder.deckNames || []) {
+      const deckPath = `${folder.path}/${deckName}`;
+      const deckCard = folderCard({
+        label: deckName,
+        count: 1,
+        icon: '📊',
+        countLabel: 'PowerPoint',
+        badge: 'Presentation',
+        onPlay: () => playServerDeck(deckPath, deckName),
+      });
+      el.folderGrid.append(deckCard.root);
+    }
   }
 }
 
-function renderLocalFolders() {
-  el.localGrid.replaceChildren();
-  el.clearLocalBtn.hidden = state.localFolders.length === 0;
-
-  for (const folder of state.localFolders) {
-    const sharing = state.broadcast && state.broadcast.folderId === folder.id;
-    const card = folderCard({
-      label: folder.label,
-      count: folder.photos.length,
-      coverUrl: folder.coverUrl,
-      badge: sharing ? 'Sharing live' : 'On this device',
-      onPlay: () => startLocalSlideshow(folder.id),
-    });
-
-    const shareBtn = document.createElement('button');
-    shareBtn.type = 'button';
-    shareBtn.className = 'btn';
-    shareBtn.textContent = sharing ? 'Stop sharing' : 'Share…';
-    shareBtn.disabled = folder.photos.length === 0;
-    shareBtn.title = sharing
-      ? 'Stop streaming this slideshow'
-      : 'Stream this slideshow to other browsers with a code and temporary password';
-    shareBtn.addEventListener('click', () => (sharing ? stopBroadcast({}) : shareLocalFolder(folder.id)));
-
-    card.buttons.append(shareBtn);
-    el.localGrid.append(card.root);
+/** Fetch a .pptx from the library and convert it here in the browser. */
+async function playServerDeck(relPath, name) {
+  showNotice(`Opening “${name}”…`, 'ok');
+  try {
+    const res = await fetch(mediaUrl(relPath));
+    if (!res.ok) throw new Error(`could not download it (${res.status})`);
+    const rendered = await Pptx.render(await res.arrayBuffer(), { measureText });
+    const slides = rendered.slides.map((slide, i) => ({
+      name: slide.title ? `${i + 1}. ${slide.title}` : `Slide ${i + 1}`,
+      file: new Blob([slide.svg], { type: 'image/svg+xml' }),
+    }));
+    el.notice.hidden = true;
+    beginPlayback(name, slides, 'server');
+  } catch (err) {
+    showNotice(`Could not open “${name}”: ${err.message}`);
   }
 }
 
 /** Shared card markup for both server-side and on-device folders. */
-function folderCard({ label, count, coverUrl, badge, onPlay }) {
+function folderCard({ label, count, coverUrl, badge, onPlay, onOpen, icon, countLabel }) {
   const root = document.createElement('div');
   root.className = 'folder-card';
 
   const cover = document.createElement('button');
   cover.type = 'button';
   cover.className = 'folder-cover';
-  cover.title = count ? `Play ${label}` : 'This folder has no photos yet';
+  cover.title = onOpen ? `Open ${label}` : (count ? `Play ${label}` : 'This folder has no photos yet');
   if (coverUrl) cover.style.backgroundImage = `url("${coverUrl}")`;
-  else cover.textContent = '🗂';
-  cover.disabled = count === 0;
-  cover.addEventListener('click', onPlay);
+  else cover.textContent = icon || '🗂';
+  cover.disabled = !onOpen && count === 0;
+  // Clicking a folder's cover browses into it; a show's cover plays it.
+  cover.addEventListener('click', onOpen || onPlay);
 
   const body = document.createElement('div');
   body.className = 'folder-body';
@@ -232,7 +245,7 @@ function folderCard({ label, count, coverUrl, badge, onPlay }) {
 
   const sub = document.createElement('div');
   sub.className = 'folder-sub';
-  sub.textContent = count === 1 ? '1 photo' : `${count} photos`;
+  sub.textContent = countLabel || (count === 1 ? '1 photo' : `${count} photos`);
 
   const buttons = document.createElement('div');
   buttons.className = 'folder-buttons';
@@ -320,12 +333,19 @@ el.folderForm.addEventListener('submit', async (event) => {
   }
 });
 
-/* ── Local folders (played off this device, never uploaded) ───────────────── */
+/* ── On-device sources: folders, phone photo libraries, PowerPoint ─────────── */
 
 const MAX_LOCAL_FILES = 20000;
 const MAX_LOCAL_DEPTH = 6;
-let localFolderSeq = 0;
 let localCoverUrls = [];
+
+/** Measure text with a real canvas so deck text wraps where PowerPoint wraps it. */
+const measureCanvas = document.createElement('canvas').getContext('2d');
+function measureText(text, style) {
+  measureCanvas.font = `${style.italic ? 'italic ' : ''}${style.bold ? 'bold ' : ''}`
+    + `${style.size}px ${style.font || 'Helvetica'}`;
+  return measureCanvas.measureText(text).width;
+}
 
 function setLocalStatus(message, isError) {
   el.localStatus.textContent = message || '';
@@ -333,60 +353,326 @@ function setLocalStatus(message, isError) {
   el.localStatus.hidden = !message;
 }
 
-/** Drop the current on-device selection and free its cover thumbnails. */
-function clearLocalFolders() {
-  for (const url of localCoverUrls) URL.revokeObjectURL(url);
-  localCoverUrls = [];
-  state.localFolders = [];
-  renderLocalFolders();
-  setLocalStatus('');
+/* ── The tree ─────────────────────────────────────────────────────────────── */
+
+function newNode(name) {
+  // Month folders must sort chronologically, not alphabetically, or a phone's
+  // photo library lists August before July.
+  const month = MONTHS.indexOf(name);
+  return {
+    name,
+    sortKey: month >= 0 ? String(month).padStart(2, '0') : name,
+    folders: new Map(),
+    photos: [],
+    decks: [],
+    coverUrl: null,
+  };
+}
+
+/** Child folder names in display order. */
+const sortedFolders = (node) => [...node.folders.values()]
+  .sort((a, b) => collator.compare(a.sortKey, b.sortKey))
+  .map((child) => child.name);
+
+/** Every photo at or below a node, parents before children, each folder sorted. */
+function deepPhotos(node, out = []) {
+  for (const photo of node.photos) out.push(photo);
+  for (const name of sortedFolders(node)) deepPhotos(node.folders.get(name), out);
+  return out;
+}
+
+function deepCounts(node) {
+  let photos = node.photos.length;
+  let decks = node.decks.length;
+  for (const child of node.folders.values()) {
+    const sub = deepCounts(child);
+    photos += sub.photos;
+    decks += sub.decks;
+  }
+  return { photos, decks };
+}
+
+function coverFor(node) {
+  if (node.coverUrl) return node.coverUrl;
+  const first = deepPhotos(node)[0];
+  if (!first) return null;
+  node.coverUrl = URL.createObjectURL(first.file);
+  localCoverUrls.push(node.coverUrl);
+  return node.coverUrl;
+}
+
+/** Walk to the node the breadcrumb currently points at. */
+function nodeAtPath(path) {
+  let node = state.localRoot;
+  for (const name of path) {
+    if (!node) return null;
+    node = node.folders.get(name);
+  }
+  return node || null;
 }
 
 /**
- * Group scanned files into one card per directory.
- * `items` is [{ dir, name, file }] with `dir` relative to the chosen folder.
+ * Build the tree from scanned items.
+ * `items` is [{dir, name, file, kind}] with `dir` relative to the chosen root.
  */
-function buildLocalFolders(items, rootName) {
-  const groups = new Map();
+function buildLocalTree(items, rootName) {
+  const root = newNode(rootName);
+  let deckSeq = 0;
+
   for (const item of items) {
-    if (!groups.has(item.dir)) groups.set(item.dir, []);
-    groups.get(item.dir).push({ name: item.name, file: item.file });
+    let node = root;
+    for (const segment of item.dir.split('/').filter(Boolean)) {
+      if (!node.folders.has(segment)) node.folders.set(segment, newNode(segment));
+      node = node.folders.get(segment);
+    }
+    if (item.kind === 'deck') {
+      node.decks.push({ id: `deck-${(deckSeq += 1)}`, name: item.name, file: item.file, slides: null });
+    } else {
+      node.photos.push({ name: item.name, file: item.file });
+    }
   }
 
-  const folders = [];
-  for (const [dir, photos] of groups) {
-    photos.sort((a, b) => collator.compare(a.name, b.name));
-    const coverUrl = URL.createObjectURL(photos[0].file);
-    localCoverUrls.push(coverUrl);
-    folders.push({
-      id: `local-${(localFolderSeq += 1)}`,
-      label: dir ? `${rootName}/${dir}` : rootName,
-      photos,
-      coverUrl,
-    });
+  const sortNode = (node) => {
+    node.photos.sort((a, b) => collator.compare(a.name, b.name));
+    node.decks.sort((a, b) => collator.compare(a.name, b.name));
+    for (const child of node.folders.values()) sortNode(child);
+  };
+  sortNode(root);
+
+  // Collapse chains of single folders that hold nothing themselves, so a pick
+  // of "Pictures" doesn't open onto one lone "DCIM" the user must click through.
+  let node = root;
+  while (!node.photos.length && !node.decks.length && node.folders.size === 1) {
+    const only = node.folders.values().next().value;
+    only.name = `${node.name}/${only.name}`;
+    node = only;
   }
-  folders.sort((a, b) => collator.compare(a.label, b.label));
-  return folders;
+  return node;
+}
+
+/** Drop the current on-device selection and free its thumbnails. */
+function clearLocalFolders() {
+  for (const url of localCoverUrls) URL.revokeObjectURL(url);
+  localCoverUrls = [];
+  state.localRoot = null;
+  state.localPath = [];
+  renderLocalBrowser();
+  setLocalStatus('');
 }
 
 function adoptLocalFolders(items, rootName) {
+  const photos = items.filter((i) => i.kind !== 'deck').length;
+  const decks = items.length - photos;
   if (!items.length) {
-    setLocalStatus(`No photos found in “${rootName}”.`, true);
+    setLocalStatus(`No photos or presentations found in “${rootName}”.`, true);
     return;
   }
-  clearLocalFolders();
-  state.localFolders = buildLocalFolders(items, rootName);
-  renderLocalFolders();
 
-  const total = items.length;
-  const folderCount = state.localFolders.length;
-  setLocalStatus(
-    `Ready: ${total} photo${total === 1 ? '' : 's'} in ${folderCount} folder${folderCount === 1 ? '' : 's'}. ` +
-    'These stay on your device — nothing was uploaded.',
-  );
+  clearLocalFolders();
+  state.localRoot = buildLocalTree(items, rootName);
+  state.localPath = [];
+  renderLocalBrowser();
+
+  const parts = [];
+  if (photos) parts.push(`${photos} photo${photos === 1 ? '' : 's'}`);
+  if (decks) parts.push(`${decks} presentation${decks === 1 ? '' : 's'}`);
+  setLocalStatus(`Ready: ${parts.join(' and ')}. These stay on your device — nothing was uploaded.`);
+
+  warnIfUndecodable(items);
 }
 
-/* Source 1: File System Access API (Chrome, Edge). */
+/**
+ * iPhones shoot HEIC. Safari can display it; most other browsers cannot, and
+ * they fail silently per image. Probe one and say so up front instead.
+ */
+async function warnIfUndecodable(items) {
+  const heic = items.filter((i) => /\.hei[cf]$/i.test(i.name));
+  if (!heic.length) return;
+
+  const url = URL.createObjectURL(heic[0].file);
+  const decodes = await new Promise((resolve) => {
+    const probe = new Image();
+    probe.onload = () => resolve(probe.naturalWidth > 0);
+    probe.onerror = () => resolve(false);
+    probe.src = url;
+  });
+  URL.revokeObjectURL(url);
+
+  if (!decodes) {
+    setLocalStatus(
+      `${heic.length} of these are HEIC photos, which this browser can't display. `
+      + 'Safari shows them, or set your iPhone to transfer as JPEG '
+      + '(Settings › Photos › Transfer to Mac or PC › Automatic).',
+      true,
+    );
+  }
+}
+
+/* ── Browsing the hierarchy ───────────────────────────────────────────────── */
+
+function renderLocalBrowser() {
+  el.localGrid.replaceChildren();
+  el.localCrumbs.replaceChildren();
+  const root = state.localRoot;
+  el.clearLocalBtn.hidden = !root;
+  el.localCrumbs.hidden = !root;
+
+  if (!root) return;
+
+  const node = nodeAtPath(state.localPath) || root;
+
+  // Breadcrumb: root, then one entry per level, each clickable.
+  const trail = [{ name: root.name, depth: 0 }].concat(
+    state.localPath.map((name, i) => ({ name, depth: i + 1 })),
+  );
+  trail.forEach((entry, i) => {
+    if (i > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'crumb-sep';
+      sep.textContent = '›';
+      el.localCrumbs.append(sep);
+    }
+    const crumb = document.createElement('button');
+    crumb.type = 'button';
+    crumb.className = 'crumb';
+    crumb.textContent = entry.name;
+    crumb.disabled = i === trail.length - 1;
+    crumb.addEventListener('click', () => {
+      state.localPath = state.localPath.slice(0, entry.depth);
+      renderLocalBrowser();
+    });
+    el.localCrumbs.append(crumb);
+  });
+
+  const totals = deepCounts(node);
+
+  // Playing the folder you're standing in, including everything beneath it.
+  if (totals.photos > 0) {
+    const label = state.localPath.length ? state.localPath[state.localPath.length - 1] : root.name;
+    const card = folderCard({
+      label: `All of “${label}”`,
+      count: totals.photos,
+      coverUrl: coverFor(node),
+      badge: node.folders.size ? 'Includes subfolders' : 'On this device',
+      onPlay: () => playLocalFolder(node),
+    });
+    card.buttons.append(shareButton(() => playLocalFolder(node)));
+    el.localGrid.append(card.root);
+  }
+
+  for (const name of sortedFolders(node)) {
+    const child = node.folders.get(name);
+    const counts = deepCounts(child);
+    const card = folderCard({
+      label: name,
+      count: counts.photos,
+      coverUrl: coverFor(child),
+      badge: counts.decks ? `${counts.decks} presentation${counts.decks === 1 ? '' : 's'}` : null,
+      onPlay: () => playLocalFolder(child),
+      onOpen: () => {
+        state.localPath = state.localPath.concat(name);
+        renderLocalBrowser();
+      },
+    });
+
+    const openBtn = document.createElement('button');
+    openBtn.type = 'button';
+    openBtn.className = 'btn';
+    openBtn.textContent = 'Open';
+    openBtn.addEventListener('click', () => {
+      state.localPath = state.localPath.concat(name);
+      renderLocalBrowser();
+    });
+    card.buttons.append(openBtn);
+    el.localGrid.append(card.root);
+  }
+
+  for (const deck of node.decks) {
+    const card = folderCard({
+      label: deck.name,
+      count: deck.slides ? deck.slides.length : 1,
+      coverUrl: null,
+      icon: '📊',
+      countLabel: deck.slides ? `${deck.slides.length} slides` : 'PowerPoint',
+      badge: 'Presentation',
+      onPlay: () => playDeck(deck),
+    });
+    card.buttons.append(shareButton(() => playDeck(deck)));
+    el.localGrid.append(card.root);
+  }
+
+  if (!el.localGrid.children.length) {
+    const empty = document.createElement('p');
+    empty.className = 'empty';
+    empty.textContent = 'Nothing to play in this folder.';
+    el.localGrid.append(empty);
+  }
+}
+
+/** A Share button that starts the show, then puts it live. */
+function shareButton(startShow) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'btn';
+  button.textContent = 'Share…';
+  button.title = 'Stream this to other browsers with a code and temporary password';
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    try {
+      await startShow();
+      await shareCurrentShow();
+    } finally {
+      button.disabled = false;
+    }
+  });
+  return button;
+}
+
+/* ── Playing local shows ──────────────────────────────────────────────────── */
+
+function playLocalFolder(node) {
+  const photos = deepPhotos(node);
+  if (!photos.length) {
+    setLocalStatus('That folder has no photos in it.', true);
+    return;
+  }
+  const label = [state.localRoot.name, ...state.localPath].join('/');
+  beginPlayback(node === state.localRoot ? label : `${label}/${node.name}`.replace(/\/+/g, '/'),
+    photos.map((p) => ({ ...p })), 'local');
+}
+
+/** Convert a .pptx to slides the first time it's played, then cache them. */
+async function loadDeck(deck) {
+  if (deck.slides) return deck.slides;
+  setLocalStatus(`Opening “${deck.name}”…`);
+  const buffer = await deck.file.arrayBuffer();
+  const rendered = await Pptx.render(buffer, { measureText });
+
+  // Each slide becomes an SVG blob, so decks flow through the player and the
+  // live relay as ordinary images.
+  deck.slides = rendered.slides.map((slide, i) => ({
+    name: slide.title ? `${i + 1}. ${slide.title}` : `Slide ${i + 1}`,
+    file: new Blob([slide.svg], { type: 'image/svg+xml' }),
+  }));
+  setLocalStatus(`“${deck.name}” — ${deck.slides.length} slides, converted in your browser.`);
+  return deck.slides;
+}
+
+async function playDeck(deck) {
+  try {
+    const slides = await loadDeck(deck);
+    renderLocalBrowser();
+    beginPlayback(deck.name, slides.map((s) => ({ ...s })), 'local');
+  } catch (err) {
+    setLocalStatus(`Could not open “${deck.name}”: ${err.message}`, true);
+  }
+}
+
+/* ── Picking sources ──────────────────────────────────────────────────────── */
+
+const classify = (file) => (isDeckFile(file) ? 'deck' : isImageFile(file) ? 'photo' : null);
+
+/* Source 1: File System Access API directory picker (Chrome, Edge). */
 async function pickLocalViaHandle() {
   const rootHandle = await window.showDirectoryPicker({ mode: 'read', id: 'slideshow-local' });
   setLocalStatus(`Scanning “${rootHandle.name}”…`);
@@ -405,7 +691,8 @@ async function pickLocalViaHandle() {
         } catch {
           continue;
         }
-        if (isImageFile(file)) items.push({ dir: relDir, name: handle.name, file });
+        const kind = classify(file);
+        if (kind) items.push({ dir: relDir, name: handle.name, file, kind });
       } else if (handle.kind === 'directory' && depth < MAX_LOCAL_DEPTH) {
         await walk(handle, relDir ? `${relDir}/${handle.name}` : handle.name, depth + 1);
       }
@@ -414,10 +701,10 @@ async function pickLocalViaHandle() {
 
   await walk(rootHandle, '', 0);
   adoptLocalFolders(items, rootHandle.name);
-  if (truncated) setLocalStatus(`Stopped at ${MAX_LOCAL_FILES} photos — that folder is very large.`, true);
+  if (truncated) setLocalStatus(`Stopped at ${MAX_LOCAL_FILES} files — that folder is very large.`, true);
 }
 
-/* Source 2: <input webkitdirectory> fallback (Safari, Firefox). */
+/* Source 2: <input webkitdirectory> fallback (Firefox, and Android file manager). */
 function pickLocalViaInput() {
   el.localDirInput.value = '';
   el.localDirInput.onchange = () => {
@@ -428,9 +715,10 @@ function pickLocalViaInput() {
     const items = [];
     for (const file of files) {
       if (items.length >= MAX_LOCAL_FILES) break;
-      if (!isImageFile(file)) continue;
+      const kind = classify(file);
+      if (!kind) continue;
       const parts = (file.webkitRelativePath || file.name).split('/');
-      items.push({ dir: parts.slice(1, -1).join('/'), name: parts[parts.length - 1], file });
+      items.push({ dir: parts.slice(1, -1).join('/'), name: parts[parts.length - 1], file, kind });
     }
     adoptLocalFolders(items, rootName);
   };
@@ -447,7 +735,67 @@ async function chooseLocalFolder() {
   }
 }
 
-/* Source 3: dragging a folder onto the drop zone. */
+/*
+ * Source 3: the phone photo library.
+ *
+ * iOS and Android expose photos through the system picker, not as a folder
+ * tree — there is no web API for albums. So the hierarchy is rebuilt from each
+ * photo's own date, giving a Year › Month structure to browse.
+ */
+function pickPhotoLibrary() {
+  el.photoInput.value = '';
+  el.photoInput.onchange = () => {
+    const files = [...el.photoInput.files];
+    if (!files.length) return;
+
+    const items = [];
+    for (const file of files) {
+      const kind = classify(file);
+      if (!kind) continue;
+      // Android's picker can supply a relative path; iOS never does.
+      const relative = file.webkitRelativePath || '';
+      const dir = relative.includes('/')
+        ? relative.split('/').slice(0, -1).join('/')
+        : dateFolder(file);
+      items.push({ dir, name: file.name, file, kind });
+    }
+    adoptLocalFolders(items, 'Photo library');
+  };
+  el.photoInput.click();
+}
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+
+function dateFolder(file) {
+  const stamp = Number(file.lastModified);
+  if (!Number.isFinite(stamp) || stamp <= 0) return 'Undated';
+  const date = new Date(stamp);
+  if (Number.isNaN(date.getTime())) return 'Undated';
+  return `${date.getFullYear()}/${MONTHS[date.getMonth()]}`;
+}
+
+/* Source 4: a single PowerPoint file. */
+function pickDeck() {
+  el.deckInput.value = '';
+  el.deckInput.onchange = () => {
+    const files = [...el.deckInput.files].filter(isDeckFile);
+    if (!files.length) {
+      const picked = el.deckInput.files[0];
+      setLocalStatus(picked && /\.ppt$/i.test(picked.name)
+        ? 'That is an older .ppt file. Save it as .pptx in PowerPoint and try again.'
+        : 'Pick a .pptx PowerPoint file.', true);
+      return;
+    }
+    adoptLocalFolders(
+      files.map((file) => ({ dir: '', name: file.name, file, kind: 'deck' })),
+      files.length === 1 ? files[0].name.replace(/\.pptx$/i, '') : 'Presentations',
+    );
+  };
+  el.deckInput.click();
+}
+
+/* Source 5: dragging a folder onto the drop zone. */
 function readEntryBatch(reader) {
   return new Promise((resolve, reject) => reader.readEntries(resolve, reject));
 }
@@ -458,7 +806,8 @@ async function walkDroppedEntry(entry, relDir, items, depth) {
 
   if (entry.isFile) {
     const file = await new Promise((resolve) => entry.file(resolve, () => resolve(null)));
-    if (file && isImageFile(file)) items.push({ dir: relDir, name: entry.name, file });
+    const kind = file && classify(file);
+    if (kind) items.push({ dir: relDir, name: entry.name, file, kind });
     return;
   }
   if (entry.isDirectory && depth < MAX_LOCAL_DEPTH) {
@@ -478,20 +827,23 @@ async function handleLocalDrop(dataTransfer) {
     .map((item) => (item.webkitGetAsEntry ? item.webkitGetAsEntry() : null))
     .filter(Boolean);
 
-  // A plain batch of image files, no folder involved.
+  // A plain batch of files, no folder involved.
   if (!roots.length || roots.every((entry) => entry.isFile)) {
-    const files = [...dataTransfer.files].filter(isImageFile);
+    const files = [...dataTransfer.files].filter((f) => classify(f));
     if (!files.length) {
-      setLocalStatus('No images in what you dropped.', true);
+      setLocalStatus('No photos or presentations in what you dropped.', true);
       return;
     }
-    adoptLocalFolders(files.map((file) => ({ dir: '', name: file.name, file })), 'Dropped photos');
+    adoptLocalFolders(
+      files.map((file) => ({ dir: '', name: file.name, file, kind: classify(file) })),
+      'Dropped files',
+    );
     return;
   }
 
   setLocalStatus('Reading dropped folder…');
   const items = [];
-  let rootName = 'Dropped photos';
+  let rootName = 'Dropped files';
   for (const entry of roots) {
     if (entry.isDirectory) {
       rootName = entry.name;
@@ -509,6 +861,8 @@ async function handleLocalDrop(dataTransfer) {
 }
 
 el.chooseLocalBtn.addEventListener('click', chooseLocalFolder);
+el.choosePhotosBtn.addEventListener('click', pickPhotoLibrary);
+el.chooseDeckBtn.addEventListener('click', pickDeck);
 el.clearLocalBtn.addEventListener('click', clearLocalFolders);
 
 // Without this the browser navigates away when a folder is dropped off-target.
@@ -539,22 +893,29 @@ el.localDrop.addEventListener('drop', (event) => {
  * and PUTs the bytes back for the relay to hand on. Nothing is stored server
  * side, which is exactly why this tab has to stay open.
  */
-async function shareLocalFolder(folderId) {
-  const folder = state.localFolders.find((f) => f.id === folderId);
-  if (!folder || !folder.photos.length) return;
+const isShareable = () => state.photos.length > 0 && state.photos.every((photo) => photo.file);
+
+async function shareCurrentShow() {
+  // Whatever is playing is what gets shared — a folder, a subtree, or a deck.
+  if (!isShareable()) {
+    showNotice('Start playing something from this device first, then share it.');
+    return;
+  }
+  if (state.broadcast) await stopBroadcast({ silent: true });
 
   try {
     const info = await api('/api/broadcast', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: folder.label, photoCount: folder.photos.length }),
+      body: JSON.stringify({ title: state.folder, photoCount: state.photos.length }),
     });
 
     state.broadcast = {
       code: info.code,
       password: info.password,
-      folderId,
-      photos: folder.photos,
+      title: state.folder,
+      photos: state.photos,     // the live playlist, so a reshuffle stays in step
+      gen: 0,
       expiresAt: info.expiresAt,
       viewers: 0,
       running: true,
@@ -563,7 +924,7 @@ async function shareLocalFolder(folderId) {
     refreshShareUi();
     showShareDialog(info);
     serveRequests();            // background loop, deliberately not awaited
-    startLocalSlideshow(folderId);
+    pushBroadcastState();
   } catch (err) {
     showNotice(`Could not start sharing: ${err.message}`);
   }
@@ -572,16 +933,16 @@ async function shareLocalFolder(folderId) {
 /** Starting or stopping a share changes the folder cards too. */
 function refreshShareUi() {
   renderBroadcastBar();
-  renderLocalFolders();
+  renderLocalBrowser();
 }
 
 function renderBroadcastBar() {
   const bc = state.broadcast;
   el.broadcastBar.hidden = !bc;
   el.bcWarn.hidden = !bc;
+  el.shareNowBtn.textContent = bc ? 'Stop sharing' : 'Share…';
   if (!bc) return;
-  const folder = state.localFolders.find((f) => f.id === bc.folderId);
-  el.bcTitle.textContent = `Broadcasting “${folder ? folder.label : 'slideshow'}”`;
+  el.bcTitle.textContent = `Broadcasting “${bc.title || 'slideshow'}”`;
   el.bcCode.textContent = bc.code;
   el.bcPass.textContent = bc.password;
   el.bcViewers.textContent = bc.viewers === 1 ? '1 viewer' : `${bc.viewers} viewers`;
@@ -678,7 +1039,7 @@ async function sendFrame(bc, job) {
 /** Tell viewers which slide to show. */
 function pushBroadcastState() {
   const bc = state.broadcast;
-  if (!bc || !bc.running || state.source !== 'local') return;
+  if (!bc || !bc.running) return;
   api(`/api/broadcast/${bc.code}/state`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -714,16 +1075,6 @@ async function startServerSlideshow(folderPath) {
   }
 }
 
-function startLocalSlideshow(folderId) {
-  const folder = state.localFolders.find((f) => f.id === folderId);
-  if (!folder || !folder.photos.length) {
-    setLocalStatus('That folder has no photos in it.', true);
-    return;
-  }
-  // Copy the list so shuffling the playlist doesn't reorder the card's photos.
-  beginPlayback(folder.label, folder.photos.map((p) => ({ ...p })), 'local');
-}
-
 function beginPlayback(label, photos, source) {
   releasePlaylistUrls();
   state.source = source;
@@ -735,6 +1086,8 @@ function beginPlayback(label, photos, source) {
   el.folderLabel.textContent = label;
   el.sourceTag.textContent = source === 'local' ? 'On this device' : 'Server';
   el.sourceTag.hidden = false;
+  el.shareNowBtn.hidden = !isShareable();
+  el.shareNowBtn.textContent = state.broadcast ? 'Stop sharing' : 'Share…';
   el.library.hidden = true;
   el.player.hidden = false;
   el.stageMsg.hidden = true;
@@ -744,7 +1097,7 @@ function beginPlayback(label, photos, source) {
 
   // Point the broadcast at the exact array the player walks, so a later
   // shuffle keeps host and viewers referring to the same photo per index.
-  if (state.broadcast && source === 'local') {
+  if (state.broadcast && isShareable()) {
     state.broadcast.photos = state.photos;
     state.broadcast.gen = (state.broadcast.gen || 0) + 1;
   }
@@ -911,6 +1264,11 @@ el.shuffleBtn.addEventListener('click', () => {
 el.loopBtn.addEventListener('click', () => {
   state.loop = !state.loop;
   el.loopBtn.setAttribute('aria-pressed', String(state.loop));
+});
+
+el.shareNowBtn.addEventListener('click', () => {
+  if (state.broadcast) stopBroadcast({});
+  else shareCurrentShow();
 });
 
 el.fullscreenBtn.addEventListener('click', () => {

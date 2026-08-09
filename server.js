@@ -68,6 +68,10 @@ const IMAGE_TYPES = {
   '.tiff': 'image/tiff',
 };
 
+const DECK_TYPES = {
+  '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+};
+
 const STATIC_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -79,6 +83,8 @@ const STATIC_TYPES = {
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 const isImage = (name) => Object.prototype.hasOwnProperty.call(IMAGE_TYPES, path.extname(name).toLowerCase());
+const isDeck = (name) => Object.prototype.hasOwnProperty.call(DECK_TYPES, path.extname(name).toLowerCase());
+const isPlayable = (name) => isImage(name) || isDeck(name);
 const isHidden = (name) => name.startsWith('.');
 
 const store = new Store(DATA_ROOT);
@@ -111,7 +117,7 @@ function safeFileName(name) {
   const base = path.basename(String(name == null ? '' : name).replace(/\\/g, '/')).trim();
   if (!base || base === '.' || base === '..' || base.startsWith('.')) return null;
   if (base.length > 200) return null;
-  if (!isImage(base)) return null;
+  if (!isPlayable(base)) return null;
   return base;
 }
 
@@ -198,18 +204,28 @@ async function scanFolders(absDir, relDir, depth, out) {
   }
 
   const images = [];
+  const decks = [];
   const subdirs = [];
   for (const entry of entries) {
     if (isHidden(entry.name)) continue;
     if (entry.isDirectory()) subdirs.push(entry.name);
     else if (entry.isFile() && isImage(entry.name)) images.push(entry.name);
+    else if (entry.isFile() && isDeck(entry.name)) decks.push(entry.name);
   }
 
-  if (relDir && images.length > 0) {
+  if (relDir && (images.length > 0 || decks.length > 0)) {
     images.sort(collator.compare);
-    out.push({ path: relDir, name: path.basename(relDir), count: images.length, cover: `${relDir}/${images[0]}` });
-  } else if (relDir && images.length === 0 && subdirs.length === 0) {
-    out.push({ path: relDir, name: path.basename(relDir), count: 0, cover: null });
+    decks.sort(collator.compare);
+    out.push({
+      path: relDir,
+      name: path.basename(relDir),
+      count: images.length,
+      decks: decks.length,
+      deckNames: decks,
+      cover: images.length ? `${relDir}/${images[0]}` : null,
+    });
+  } else if (relDir && subdirs.length === 0) {
+    out.push({ path: relDir, name: path.basename(relDir), count: 0, decks: 0, deckNames: [], cover: null });
   }
 
   if (depth < MAX_SCAN_DEPTH) {
@@ -243,9 +259,10 @@ async function handleListPhotos(res, folderParam) {
   const rel = path.relative(PHOTOS_ROOT, abs).split(path.sep).join('/');
   const entries = await fsp.readdir(abs, { withFileTypes: true });
   const photos = [];
+  const decks = [];
 
   for (const entry of entries) {
-    if (!entry.isFile() || isHidden(entry.name) || !isImage(entry.name)) continue;
+    if (!entry.isFile() || isHidden(entry.name) || !isPlayable(entry.name)) continue;
     let info;
     try {
       info = await fsp.stat(path.join(abs, entry.name));
@@ -253,17 +270,19 @@ async function handleListPhotos(res, folderParam) {
       continue;
     }
     const relPath = rel ? `${rel}/${entry.name}` : entry.name;
-    photos.push({
+    const item = {
       name: entry.name,
       path: relPath,
       url: `/media/${relPath.split('/').map(encodeURIComponent).join('/')}`,
       size: info.size,
       mtime: info.mtimeMs,
-    });
+    };
+    (isDeck(entry.name) ? decks : photos).push(item);
   }
 
   photos.sort((a, b) => collator.compare(a.name, b.name));
-  sendJson(res, 200, { folder: rel, count: photos.length, photos });
+  decks.sort((a, b) => collator.compare(a.name, b.name));
+  sendJson(res, 200, { folder: rel, count: photos.length, photos, decks });
 }
 
 async function handleCreateFolder(req, res) {
@@ -293,7 +312,7 @@ async function handleUpload(req, res, query) {
   if (!abs) return sendError(res, 400, 'Invalid folder path.');
 
   const fileName = safeFileName(query.get('name'));
-  if (!fileName) return sendError(res, 400, 'Unsupported or invalid file name. Images only.');
+  if (!fileName) return sendError(res, 400, 'Unsupported file name. Images and .pptx only.');
 
   let stat;
   try {
@@ -521,7 +540,7 @@ function handleWatchPhoto(req, res, session, indexParam) {
 async function serveMedia(req, res, relPath) {
   const abs = safeResolve(relPath);
   if (!abs || abs === PHOTOS_ROOT) return sendError(res, 400, 'Invalid path.');
-  if (!isImage(abs)) return sendError(res, 403, 'Not an image.');
+  if (!isPlayable(abs)) return sendError(res, 403, 'Not a photo or presentation.');
 
   let stat;
   try {
@@ -537,8 +556,9 @@ async function serveMedia(req, res, relPath) {
     return res.end();
   }
 
+  const ext = path.extname(abs).toLowerCase();
   res.writeHead(200, {
-    'Content-Type': IMAGE_TYPES[path.extname(abs).toLowerCase()] || 'application/octet-stream',
+    'Content-Type': IMAGE_TYPES[ext] || DECK_TYPES[ext] || 'application/octet-stream',
     'Content-Length': stat.size,
     'Cache-Control': 'private, max-age=300',
     ETag: etag,

@@ -1,11 +1,12 @@
 {
   "name": "slideshow",
   "version": "1.0.0",
-  "description": "Web photo slideshow with accounts, on-device playback, and live sharing to other browsers via a code and temporary password.",
+  "description": "Web photo slideshow with accounts, on-device and phone photo playback, PowerPoint rendering, and live sharing to other browsers.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/e2e.js"
+    "test": "node test/deck.js && node test/e2e.js",
+    "test:deck": "node test/deck.js"
   },
   "engines": {
     "node": ">=18"

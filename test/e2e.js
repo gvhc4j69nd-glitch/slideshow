@@ -44,6 +44,13 @@ async function call(j, path, { method = 'GET', json, body, headers = {}, raw = f
   ok('library requires an account', r.res.status === 401, r.res.status);
 
   r = await call(host, '/api/auth/register', { method: 'POST', json: { username: 'ab', password: 'longenough1' } });
+  if (r.res.status === 429) {
+    // Sign-ups are rate limited per IP, so a re-used server poisons the run.
+    console.error('\nThis server has already used its sign-up allowance.'
+      + '\nStart a fresh one with an empty DATA_ROOT and run again:'
+      + '\n  PORT=4399 DATA_ROOT=$(mktemp -d) node server.js\n');
+    process.exit(1);
+  }
   ok('rejects short username', r.res.status === 400, JSON.stringify(r.body));
 
   r = await call(host, '/api/auth/register', { method: 'POST', json: { username: 'presenter', password: 'short' } });

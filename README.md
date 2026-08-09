@@ -7,12 +7,15 @@ other browsers with a code and a temporary password.
 You need an account to present. **Viewers don't** — a share code and temporary
 password are all they need.
 
-There are two ways to get photos into it:
+It plays photos and PowerPoint decks, from a computer, a phone, or the server.
 
 - **From this device** — pick a folder on your own drive and play it
   immediately. Nothing is uploaded and nothing is stored; the selection lives
   only in that browser tab.
-- **From the server library** — photos placed in subfolders of the photo
+- **From a phone** — pick straight from the iOS or Android photo library.
+- **PowerPoint** — a `.pptx` is rendered into slides in the browser and plays
+  like any other show.
+- **From the server library** — files placed in subfolders of the photo
   library, either dropped in with Finder or uploaded through the web UI. These
   persist and are visible to anyone else signed in to the same instance.
 
@@ -75,9 +78,15 @@ password, so neither can be probed independently.
 
 ## Play from this device (no upload)
 
-Click **Choose folder…** in the “Play from this device” panel and pick any
-folder on your drive, or drag a folder onto the drop zone. Subfolders each
-become their own playable card, so a folder of folders works fine.
+The “Play from this device” panel has three ways in:
+
+| Button | What it opens | Where it works |
+| --- | --- | --- |
+| **Photos…** | the system photo picker | everywhere, including iPhone and Android |
+| **Folder…** | a whole folder, subfolders and all | desktop and Android |
+| **PowerPoint…** | one or more `.pptx` files | everywhere |
+
+You can also drag a folder onto the drop zone.
 
 The files are read directly by the browser and played from in-memory object
 URLs. They are never sent to the server — you can confirm this in the network
@@ -85,16 +94,69 @@ panel, where playback makes no requests at all. The trade-off is that the
 selection is per-tab and per-session: reloading clears it, because browsers
 don't let a page silently re-open a local folder later.
 
-Which mechanism the browser uses depends on support:
-
-- Chrome and Edge use the File System Access API directory picker.
-- Safari and Firefox fall back to a directory `<input>`, which works the same
-  way from your side.
-- Drag-and-drop of a folder works in all of them.
-
 Presenting requires a signed-in account, so this panel sits behind the sign-in
 screen even though local playback itself needs nothing from the server. Watching
 a shared slideshow is the one flow that needs no account.
+
+### Browsing the hierarchy
+
+Whatever you pick becomes a browsable tree. Each folder is a card: **Open**
+walks into it, **Play** plays it *and everything beneath it*. A breadcrumb
+across the top walks back out. The first card in any folder — “All of …” —
+plays that whole branch, so you can show one holiday or the entire drive
+without reorganising anything.
+
+If a chosen folder just wraps a single subfolder, the two are collapsed into
+one step, so picking `Pictures` doesn't strand you on a lone `DCIM` to click
+through.
+
+### Phones
+
+iOS and Android don't expose photo albums to a web page — there is no browser
+API for them, so no app can read your albums directly. What they do expose is
+the system picker, which is what **Photos…** opens.
+
+Since the picker hands over files with no folder structure, the hierarchy is
+rebuilt from each photo's own date, giving a **Year › Month** tree to browse.
+Android sometimes supplies a real path, and when it does that's used instead.
+
+One caveat worth knowing: iPhones shoot **HEIC**, which only Safari can
+display. Going through a file picker, iOS usually converts to JPEG on the way
+out, so this rarely bites — but if you land on HEIC files in a browser that
+can't decode them, the app probes one and tells you rather than showing a wall
+of broken images. To force JPEG: *Settings › Photos › Transfer to Mac or PC ›
+Automatic*.
+
+## PowerPoint
+
+Pick a `.pptx` with **PowerPoint…**, drop one in, or drop one into the server
+library — either way it plays as a slideshow, and it can be shared live like
+anything else.
+
+The conversion happens **entirely in your browser**. A `.pptx` is a ZIP of XML,
+which the browser can already unpack, so each slide is turned into a
+self-contained SVG with its images inlined. Nothing is sent anywhere to be
+converted, there's no LibreOffice on the server, and decks stream through the
+sharing relay as ordinary images because that's what they've become.
+
+What comes through: slide order and size, backgrounds, text with its font,
+size, weight, colour, alignment, wrapping and bullets, pictures, shapes with
+fills and outlines, connectors, grouped shapes, and tables.
+
+What doesn't: animations and transitions, charts and SmartArt (drawn as a
+labelled placeholder so the layout still reads), 3-D effects, and WordArt.
+Gradients are approximated by their first colour stop.
+
+Two things follow from rendering rather than screenshotting. Decks stay sharp
+at any size and stream as a few KB per slide instead of a full-resolution
+image. But the deck's fonts usually aren't installed on the machine showing it,
+and substituted fonts measure differently — so text that fitted in PowerPoint
+can wrap differently here. Text that would overflow its box is shrunk to fit,
+the same thing PowerPoint does, rather than being allowed to overlap whatever
+sits below it.
+
+Only `.pptx` works. The older binary `.ppt` is a completely different format;
+open it in PowerPoint and save it as `.pptx`.
 
 ## The server photo library
 
@@ -111,9 +173,12 @@ You can drop folders in with Finder and hit **Refresh**, or create folders and
 upload photos from the web UI itself (drag a batch of images onto any folder
 card).
 
-Supported formats: JPEG, PNG, GIF, WebP, AVIF, BMP, SVG, TIFF, HEIC/HEIF.
-(HEIC and TIFF only render in browsers that support them — Safari does, most
-others don't.)
+Supported formats: JPEG, PNG, GIF, WebP, AVIF, BMP, SVG, TIFF, HEIC/HEIF, and
+`.pptx` presentations. (HEIC and TIFF only render in browsers that support them
+— Safari does, most others don't.)
+
+Presentations in the library appear as their own card next to their folder, and
+are converted in the browser when played.
 
 ## Playback controls
 
@@ -134,8 +199,15 @@ to the counter shows which one is playing.
 
 ## Tests
 
-An end-to-end suite covers accounts, the relay, and the sharing lifecycle. Start
-the server on port 4399 with a throwaway data directory, then run it:
+Two suites. The deck tests (ZIP reader, XML parser, PowerPoint rendering) need
+nothing running — the fixture presentation is built in memory:
+
+```bash
+npm run test:deck
+```
+
+The full run adds the end-to-end suite for accounts, the relay and the sharing
+lifecycle, which needs a server on port 4399 with a throwaway data directory:
 
 ```bash
 PORT=4399 DATA_ROOT=/tmp/slideshow-test node server.js & sleep 1 && npm test
@@ -194,6 +266,9 @@ for anything big, consider syncing files onto the volume directly instead.
 - Streamed photos are sent with `Cache-Control: no-store` so no proxy retains a
   copy, and a broadcast's memory cache is dropped the moment it ends.
 - Only the account that started a broadcast can drive it or end it.
+- Rendered slides are built as escaped SVG and shown through `<img>`, so a
+  booby-trapped deck can't run script — in the presenter's browser or in a
+  viewer's.
 
 ## License
 

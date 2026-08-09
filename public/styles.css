@@ -59,7 +59,7 @@ button, select, input { font: inherit; color: inherit; }
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   word-break: break-all;
 }
-.lib-actions { display: flex; gap: 8px; }
+.lib-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .notice {
   padding: 10px 14px; margin-bottom: 20px;
@@ -125,7 +125,7 @@ button, select, input { font: inherit; color: inherit; }
 }
 .local-head h2 { margin: 0 0 4px; font-size: 17px; }
 .local-help { margin: 0; color: var(--muted); font-size: 13px; max-width: 60ch; }
-.local-buttons { display: flex; gap: 8px; }
+.local-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .dropzone {
   margin-top: 14px; padding: 18px;
@@ -139,6 +139,20 @@ button, select, input { font: inherit; color: inherit; }
 .local-status.err { color: var(--danger); }
 
 #localGrid:not(:empty) { margin-top: 16px; }
+
+/* ── Folder breadcrumb ───────────────────────────────────────────────────── */
+.crumbs {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  margin-top: 14px; font-size: 13px;
+}
+.crumb {
+  background: none; border: 0; padding: 4px 6px; border-radius: 6px;
+  color: var(--accent); cursor: pointer; font-size: 13px;
+  max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.crumb:hover:not(:disabled) { background: var(--surface-2); }
+.crumb:disabled { color: var(--text); font-weight: 600; cursor: default; }
+.crumb-sep { color: var(--muted); }
 
 .badge {
   display: inline-block;
@@ -251,7 +265,7 @@ button, select, input { font: inherit; color: inherit; }
   background: var(--bg); padding: 1px 6px; border-radius: 5px;
   color: var(--text); letter-spacing: .06em;
 }
-.bc-actions { display: flex; gap: 8px; }
+.bc-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .live-dot {
   width: 10px; height: 10px; border-radius: 50%;

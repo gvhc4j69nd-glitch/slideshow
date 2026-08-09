@@ -92,13 +92,15 @@
         <div>
           <h2>Play from this device</h2>
           <p class="local-help" id="localHelp">
-            Pick a folder on your own drive and play it right now. The photos stay
-            on your machine — nothing is uploaded, and the selection is forgotten
-            when you close the tab.
+            Photos and PowerPoint files stay on your machine — nothing is uploaded,
+            and the selection is forgotten when you close the tab. On a phone, use
+            <strong>Photos…</strong> to pick from your camera roll.
           </p>
         </div>
         <div class="local-buttons">
-          <button type="button" class="btn btn-primary" id="chooseLocalBtn">Choose folder…</button>
+          <button type="button" class="btn btn-primary" id="choosePhotosBtn">Photos…</button>
+          <button type="button" class="btn" id="chooseLocalBtn">Folder…</button>
+          <button type="button" class="btn" id="chooseDeckBtn">PowerPoint…</button>
           <button type="button" class="btn" id="clearLocalBtn" hidden>Clear</button>
         </div>
       </div>
@@ -106,6 +108,8 @@
       <div class="dropzone" id="localDrop">Or drag a folder of photos here</div>
 
       <p class="local-status" id="localStatus" hidden></p>
+
+      <nav class="crumbs" id="localCrumbs" aria-label="Folder path" hidden></nav>
 
       <div class="folder-grid" id="localGrid"></div>
     </section>
@@ -165,6 +169,7 @@
         </label>
         <button type="button" class="btn btn-toggle" id="shuffleBtn" aria-pressed="false" title="Shuffle (S)">Shuffle</button>
         <button type="button" class="btn btn-toggle" id="loopBtn" aria-pressed="true" title="Loop (L)">Loop</button>
+        <button type="button" class="btn" id="shareNowBtn" title="Share what's playing to other browsers">Share…</button>
         <button type="button" class="btn btn-icon" id="fullscreenBtn" title="Fullscreen (F)">⛶</button>
       </div>
     </div>
@@ -217,10 +222,18 @@
     </div>
   </dialog>
 
-  <input type="file" id="fileInput" accept="image/*" multiple hidden>
+  <input type="file" id="fileInput" accept="image/*,.heic,.heif,.pptx" multiple hidden>
   <!-- Fallback folder picker for browsers without the File System Access API. -->
   <input type="file" id="localDirInput" webkitdirectory directory multiple hidden>
+  <!-- The system photo picker: the only route into a phone's camera roll. -->
+  <input type="file" id="photoInput" accept="image/*,.heic,.heif" multiple hidden>
+  <input type="file" id="deckInput"
+         accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+         multiple hidden>
 
+  <script src="/zip.js"></script>
+  <script src="/xml.js"></script>
+  <script src="/pptx.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
