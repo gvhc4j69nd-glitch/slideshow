@@ -3,6 +3,7 @@ node_modules/
 *.log
 .env
 .env.*
+!.env.example
 
 # The photo library itself stays out of git — only the folder placeholder is tracked.
 photos/*

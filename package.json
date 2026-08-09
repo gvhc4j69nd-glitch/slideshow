@@ -4,14 +4,20 @@
   "description": "Vinboo — play photos and presentations from any device, and share them live to other browsers.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "test": "node test/deck.js && node test/e2e.js",
-    "test:deck": "node test/deck.js"
+    "start": "node --env-file-if-exists=.env server.js",
+    "migrate": "node --env-file-if-exists=.env scripts/migrate.js",
+    "test": "node test/deck.js && node test/db.js && node test/e2e.js",
+    "test:deck": "node test/deck.js",
+    "test:db": "node test/db.js",
+    "test:e2e": "node test/e2e.js"
   },
   "engines": {
     "node": ">=18"
   },
   "license": "MIT",
   "private": true,
-  "homepage": "https://vinboo.com"
+  "homepage": "https://vinboo.com",
+  "dependencies": {
+    "pg": "^8.23.0"
+  }
 }

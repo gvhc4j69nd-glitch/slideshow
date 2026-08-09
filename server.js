@@ -14,10 +14,11 @@
  * Environment:
  *   PORT             port to listen on (Railway injects this)
  *   HOST             bind address (default 0.0.0.0)
+ *   DATABASE_URL     Postgres connection string (Railway injects this)
  *   PHOTOS_ROOT      server photo library; point at a mounted volume in prod
- *   DATA_ROOT        accounts + signing key; also belongs on the volume
+ *   DATA_ROOT        legacy accounts file, imported once on first boot
  *   SIGNUP_CODE      if set, required to create an account
- *   SESSION_SECRET   overrides the generated signing key
+ *   SESSION_SECRET   overrides the signing key kept in the database
  *   MAX_UPLOAD_BYTES per-file upload cap (default 100 MB)
  */
 
@@ -32,6 +33,8 @@ const {
   parseCookies, buildCookie, clientIp, createLimiter,
 } = require('./lib/http');
 const { Store } = require('./lib/store');
+const dbase = require('./lib/db');
+const migrate = require('./lib/migrate');
 const { Broadcast } = require('./lib/broadcast');
 const auth = require('./lib/auth');
 
@@ -87,7 +90,7 @@ const isDeck = (name) => Object.prototype.hasOwnProperty.call(DECK_TYPES, path.e
 const isPlayable = (name) => isImage(name) || isDeck(name);
 const isHidden = (name) => name.startsWith('.');
 
-const store = new Store(DATA_ROOT);
+const store = new Store();
 let broadcast = null;
 
 const loginLimiter = createLimiter({ max: 10, windowMs: 15 * 60 * 1000 });
@@ -123,7 +126,7 @@ function safeFileName(name) {
 
 /* ── Session helpers ──────────────────────────────────────────────────────── */
 
-function currentUser(req) {
+async function currentUser(req) {
   const token = parseCookies(req.headers.cookie)[USER_COOKIE];
   const payload = auth.readToken(store.secret, token);
   if (!payload || payload.kind !== 'user') return null;
@@ -167,10 +170,18 @@ async function handleRegister(req, res) {
   const password = auth.validatePassword(body.password);
   if (password.error) return sendError(res, 400, password.error);
 
-  if (store.findUser(username.value)) return sendError(res, 409, 'That username is taken.');
+  if (await store.findUser(username.value)) return sendError(res, 409, 'That username is taken.');
 
   const passwordHash = await auth.hashPassword(password.value);
-  const user = await store.addUser({ username: username.value, passwordHash });
+  let user;
+  try {
+    user = await store.addUser({ username: username.value, passwordHash });
+  } catch (err) {
+    // Two sign-ups for the same name can pass the check above simultaneously;
+    // the unique index is what actually settles it.
+    if (err.taken) return sendError(res, 409, 'That username is taken.');
+    throw err;
+  }
 
   sendJson(res, 201, { user: publicUser(user) }, { 'Set-Cookie': userCookie(req, user) });
 }
@@ -182,7 +193,7 @@ async function handleLogin(req, res) {
   const body = await readJsonBody(req);
   if (body === null) return sendError(res, 400, 'Invalid request.');
 
-  const user = store.findUser(body.username);
+  const user = await store.findUser(body.username);
   // Hash even when the user is unknown, so a miss doesn't return noticeably faster.
   const stored = user ? user.passwordHash : await auth.hashPassword('placeholder-for-timing');
   const ok = await auth.verifyPassword(String(body.password || ''), stored);
@@ -616,11 +627,18 @@ const server = http.createServer(async (req, res) => {
   const segments = pathname.split('/').filter(Boolean);
 
   try {
-    if (pathname === '/healthz') return sendJson(res, 200, { ok: true });
+    if (pathname === '/healthz') {
+      try {
+        await dbase.query('SELECT 1');
+        return sendJson(res, 200, { ok: true, db: 'up' });
+      } catch (err) {
+        return sendJson(res, 503, { ok: false, db: 'down', error: err.message });
+      }
+    }
 
     /* Accounts */
     if (pathname === '/api/auth/me' && method === 'GET') {
-      const user = currentUser(req);
+      const user = await currentUser(req);
       return sendJson(res, 200, {
         user: user ? publicUser(user) : null,
         signupCodeRequired: Boolean(SIGNUP_CODE),
@@ -650,7 +668,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     /* Everything below needs an account. */
-    const user = currentUser(req);
+    const user = await currentUser(req);
     if (pathname.startsWith('/api/') || pathname.startsWith('/media/')) {
       if (!user) return sendError(res, 401, 'Sign in to continue.');
     }
@@ -739,16 +757,23 @@ server.keepAliveTimeout = 72 * 1000;
 
 (async () => {
   await fsp.mkdir(PHOTOS_ROOT, { recursive: true });
+
+  const info = await dbase.connect();
+  console.log(`\n  Postgres:      ${info.database} (${info.version})`);
+  await migrate.run();
   await store.init();
+  await store.importLegacyUsers(DATA_ROOT);
+
   broadcast = new Broadcast({ secret: store.secret });
+
+  const accounts = await store.userCount();
 
   server.listen(PORT, HOST, () => {
     console.log('');
     console.log('  Vinboo is running');
     console.log(`  →  http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
     console.log(`  Photo library: ${PHOTOS_ROOT}`);
-    console.log(`  Account data:  ${DATA_ROOT}`);
-    console.log(`  Accounts:      ${store.userCount}`);
+    console.log(`  Accounts:      ${accounts}`);
     console.log(`  Sign-up code:  ${SIGNUP_CODE ? 'required' : 'not set (anyone can register)'}`);
     if (!SIGNUP_CODE && process.env.RAILWAY_ENVIRONMENT) {
       console.warn('  WARNING: no SIGNUP_CODE set — anyone with the URL can create an account.');
@@ -770,7 +795,10 @@ server.on('error', (err) => {
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
-    server.close(() => process.exit(0));
+    server.close(async () => {
+      await dbase.close();
+      process.exit(0);
+    });
     setTimeout(() => process.exit(0), 2000).unref();
   });
 }

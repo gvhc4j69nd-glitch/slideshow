@@ -19,30 +19,67 @@ It plays photos and PowerPoint decks, from a computer, a phone, or the server.
   library, either dropped in with Finder or uploaded through the web UI. These
   persist and are visible to anyone else signed in to the same instance.
 
-No dependencies. It's plain Node plus static HTML/CSS/JS, so there's nothing to
-install.
+The front end is plain HTML/CSS/JS with no build step and no framework. The
+server has one dependency, `pg`, for Postgres.
 
 ## Run it locally
 
+You need Postgres. On a Mac:
+
 ```bash
-npm start
+brew install postgresql@17 && brew services start postgresql@17
 ```
 
-Then open <http://localhost:4321>.
+Create a database and point the app at it:
 
-## Accounts
+```bash
+createdb vinboo
+npm install
+DATABASE_URL=postgres://localhost/vinboo npm start
+```
 
-The first thing you'll see is a sign-in screen. Create an account, and you're
-in. Passwords are hashed with scrypt and stored in `DATA_ROOT/users.json`
-alongside a generated signing key — neither belongs in git, and `.gitignore`
-keeps them out.
+Then open <http://localhost:4321>. The schema is created on first boot.
+
+## Accounts and the database
+
+Accounts live in Postgres. On Railway, adding a Postgres service injects
+`DATABASE_URL` and the app picks it up with no further configuration.
+
+Passwords are hashed with scrypt. The key used to sign session cookies is
+generated once and kept in the database rather than on disk, so cookies survive
+a redeploy with no volume attached, and every instance signs identically.
 
 Set `SIGNUP_CODE` to stop strangers registering on a public instance. When it's
-set, the sign-up form asks for it. (The old `ACCESS_CODE` variable now serves as
-the sign-up code, so existing deployments keep working.)
+set, the sign-up form asks for it. (The old `ACCESS_CODE` variable still works
+as the sign-up code.)
 
-Sessions are cookies signed with the key in `DATA_ROOT`, so they survive
-restarts and redeploys as long as that directory persists.
+### Schema changes
+
+Migrations are numbered SQL files in `migrations/`, applied in filename order
+and recorded in `schema_migrations` so each runs exactly once. To change the
+schema, add a file — never edit one that has already been applied:
+
+```
+migrations/0002_add_albums.sql
+```
+
+They run automatically when the server starts, so a deploy migrates itself. To
+run them by hand:
+
+```bash
+npm run migrate
+```
+
+Because Railway can start several containers during a deploy, the whole run is
+wrapped in a Postgres advisory lock: the first instance migrates, the others
+wait and then find nothing to do.
+
+### Coming from the old JSON file
+
+Earlier versions kept accounts in `DATA_ROOT/users.json`. On first boot against
+an empty `users` table, any accounts in that file are imported automatically,
+password hashes intact, and the file is then left alone. Nothing is imported
+once the table has rows, so it can't duplicate or clobber live data.
 
 ## Sharing a slideshow to other browsers
 
@@ -199,19 +236,34 @@ to the counter shows which one is playing.
 
 ## Tests
 
-Two suites. The deck tests (ZIP reader, XML parser, PowerPoint rendering) need
-nothing running — the fixture presentation is built in memory:
+Three suites.
+
+The deck tests (ZIP reader, XML parser, PowerPoint rendering) need nothing
+running — the fixture presentation is built in memory:
 
 ```bash
 npm run test:deck
 ```
 
-The full run adds the end-to-end suite for accounts, the relay and the sharing
-lifecycle, which needs a server on port 4399 with a throwaway data directory:
+The database tests cover migrations, the account store, the signing key and
+transactions. They truncate tables, so they refuse to run against a database
+whose name doesn't end in `_test`:
 
 ```bash
-PORT=4399 DATA_ROOT=/tmp/slideshow-test node server.js & sleep 1 && npm test
+createdb vinboo_test
+DATABASE_URL=postgres://localhost/vinboo_test npm run test:db
 ```
+
+The end-to-end suite covers accounts, the relay and the sharing lifecycle
+against a running server:
+
+```bash
+DATABASE_URL=postgres://localhost/vinboo_test PORT=4399 node server.js &
+sleep 2 && npm run test:e2e
+```
+
+`npm test` runs all three; it expects `DATABASE_URL` to point at a `_test`
+database and a server already listening on 4399.
 
 ## Configuration
 
@@ -219,26 +271,38 @@ All optional, all via environment variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
+| `DATABASE_URL` | *(required)* | Postgres connection string; Railway injects it |
+| `DATABASE_SSL` | *(auto)* | `require` or `disable` to override TLS detection |
+| `DATABASE_POOL_MAX` | `10` | Maximum pooled connections |
 | `PORT` | `4321` | Port to listen on |
 | `HOST` | `0.0.0.0` | Bind address |
 | `PHOTOS_ROOT` | `./photos` | Where the server photo library lives |
-| `DATA_ROOT` | `./data` | Accounts and the signing key |
+| `DATA_ROOT` | `./data` | Legacy accounts file, imported once on first boot |
 | `SIGNUP_CODE` | *(unset)* | If set, required to create an account |
-| `SESSION_SECRET` | *(unset)* | Overrides the generated signing key |
+| `SESSION_SECRET` | *(unset)* | Overrides the signing key kept in the database |
 | `MAX_UPLOAD_BYTES` | `104857600` | Per-file upload cap (100 MB) |
 | `MAX_FRAME_BYTES` | `26214400` | Largest photo that can be streamed live (25 MB) |
 
 ## Deploying to Railway
 
-1. Create a Railway project from this GitHub repo. Nixpacks detects Node and
-   runs `npm start`; `railway.json` sets the health check to `/healthz`.
-2. **Attach a volume** and point both roots at it — e.g. mount at `/data`, then
-   set `PHOTOS_ROOT=/data/photos` and `DATA_ROOT=/data/state`. Railway
-   containers have an ephemeral filesystem, so without a volume every uploaded
-   photo *and every account* disappears on the next deploy.
-3. **Set `SIGNUP_CODE`** to something only your people know, or anyone who finds
+1. Create a Railway project from this GitHub repo. Nixpacks detects Node, runs
+   `npm install` and then `npm start`; `railway.json` sets the health check to
+   `/healthz`, which reports unhealthy if the database is unreachable.
+2. **Add a Postgres service.** Railway injects `DATABASE_URL`; nothing else is
+   needed, and the schema is created on the first boot.
+3. **Attach a volume for photos** and set `PHOTOS_ROOT` to its mount path (e.g.
+   mount `/data`, set `PHOTOS_ROOT=/data/photos`). Accounts no longer need one —
+   they're in Postgres — but uploaded photos still do, since Railway's
+   filesystem is ephemeral. Skip the volume entirely if you only ever play from
+   your own device.
+4. **Set `SIGNUP_CODE`** to something only your people know, or anyone who finds
    the URL can register.
-4. Don't set `PORT` — Railway injects it.
+5. Don't set `PORT` — Railway injects it.
+
+The app connects over Railway's private network (`*.railway.internal`), which
+doesn't use TLS; TLS is enabled automatically for any other host. Because the
+container can start before the database is accepting connections, the first
+connection retries with backoff instead of crash-looping the deploy.
 
 Live sharing holds requests open for up to 30 seconds at a time, which Railway's
 proxy handles fine. Broadcast state is kept in memory, so a redeploy ends any
@@ -288,6 +352,9 @@ derived from the source logo.
 - Uploads write to a temp file and rename on success, and never overwrite an
   existing photo — a name collision becomes `photo (2).jpg`.
 - Sign-ins, sign-ups, and share-code attempts are each rate-limited per IP.
+- Every query is parameterised, so account data can't be reached by injection,
+  and username uniqueness is enforced by a database index rather than by a
+  check-then-insert that two simultaneous sign-ups could slip through.
 - On-device playback never transmits the files. Object URLs are minted lazily
   and revoked as playback moves on, so a large folder isn't held in memory all
   at once.
