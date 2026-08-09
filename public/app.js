@@ -55,6 +55,7 @@ const el = {
   chooseDeckBtn: $('chooseDeckBtn'), clearLocalBtn: $('clearLocalBtn'),
   localDirInput: $('localDirInput'), photoInput: $('photoInput'), deckInput: $('deckInput'),
   serverTitle: $('serverTitle'), shareNowBtn: $('shareNowBtn'),
+  howToBtn: $('howToBtn'), howToMenu: $('howToMenu'), howToSteps: $('howToSteps'),
 };
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
@@ -1318,6 +1319,141 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden && state.playing && !state.broadcast) pause();
 });
 
+/* ── How-to content, shown on the landing page and in the header menu ─────── */
+
+function mountHowTo() {
+  const template = $('howToSteps');
+  if (!template) return;
+  for (const id of ['howToLanding', 'howToMenuBody']) {
+    const host = $(id);
+    if (host && !host.childElementCount) host.append(template.content.cloneNode(true));
+  }
+}
+
+function closeHowToMenu() {
+  el.howToMenu.hidden = true;
+  el.howToBtn.setAttribute('aria-expanded', 'false');
+}
+
+el.howToBtn.addEventListener('click', (event) => {
+  event.stopPropagation();
+  const opening = el.howToMenu.hidden;
+  el.howToMenu.hidden = !opening;
+  el.howToBtn.setAttribute('aria-expanded', String(opening));
+});
+
+// Clicking anywhere else, or pressing Escape, closes it.
+document.addEventListener('click', (event) => {
+  if (!el.howToMenu.hidden && !event.target.closest('.menu')) closeHowToMenu();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !el.howToMenu.hidden) {
+    closeHowToMenu();
+    el.howToBtn.focus();
+  }
+});
+
+/* ── Landing animation: one device, then many, faster and faster ──────────── */
+
+/**
+ * Screens join one at a time with the gap shrinking each time, so the sequence
+ * reads as "and another, and another" rather than a steady drip. Driven from
+ * script rather than CSS delays because the whole run has to reset and repeat
+ * as a group, and it should stop when nobody is looking at it.
+ */
+let broadcastAnimationReady = false;
+
+function startBroadcastAnimation() {
+  const svg = $('bcast');
+  const counter = $('bcastCount');
+  // Safe to call again after signing out; the observer handles visibility.
+  if (!svg || broadcastAnimationReady) return;
+  broadcastAnimationReady = true;
+
+  const devices = [...svg.querySelectorAll('.dev')].map((node) => node.dataset.dev);
+  const setOn = (id, on) => {
+    for (const node of svg.querySelectorAll(`[data-dev="${id}"]`)) node.classList.toggle('on', on);
+  };
+  const say = (n) => {
+    if (counter) counter.textContent = n === 1 ? '1 screen' : `${n} screens`;
+  };
+
+  // Someone who prefers less motion gets the finished picture, held still.
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    devices.forEach((id) => setOn(id, true));
+    say(devices.length + 1);
+    return;
+  }
+
+  let timer = null;
+  let photoTimer = null;
+  let photo = 0;
+
+  const clear = () => {
+    clearTimeout(timer);
+    timer = null;
+  };
+
+  function run() {
+    devices.forEach((id) => setOn(id, false));
+    say(1);
+
+    let index = 0;
+    let gap = 900;                       // first screen joins after a beat…
+    const step = () => {
+      setOn(devices[index], true);
+      index += 1;
+      say(index + 1);
+
+      if (index < devices.length) {
+        gap = Math.max(190, gap * 0.78); // …each one after that lands sooner
+        timer = setTimeout(step, gap);
+      } else {
+        timer = setTimeout(run, 3200);   // hold the full room, then start over
+      }
+    };
+    timer = setTimeout(step, 700);
+  }
+
+  const start = () => {
+    if (timer) return;
+    run();
+    photoTimer = setInterval(() => {
+      photo = (photo + 1) % 3;
+      svg.dataset.photo = String(photo);
+    }, 2400);
+  };
+
+  const stop = () => {
+    clear();
+    clearInterval(photoTimer);
+    photoTimer = null;
+  };
+
+  /*
+   * Run by default and only pause on a signal we actually receive: scrolled
+   * out of view, or a real tab-visibility change. Waiting for permission to
+   * start would leave the graphic frozen on its first frame anywhere those
+   * signals don't arrive — embedded webviews and prerendered pages among them —
+   * and a stalled hero image reads as a broken page.
+   */
+  let onScreen = true;
+  let tabHidden = false;
+  const sync = () => (onScreen && !tabHidden ? start() : stop());
+
+  new IntersectionObserver((entries) => {
+    for (const entry of entries) onScreen = entry.isIntersecting;
+    sync();
+  }, { threshold: 0.15 }).observe(svg);
+
+  document.addEventListener('visibilitychange', () => {
+    tabHidden = document.hidden;
+    sync();
+  });
+
+  sync();
+}
+
 /* ── Accounts ─────────────────────────────────────────────────────────────── */
 
 let authMode = 'login';   // or 'register'
@@ -1377,10 +1513,12 @@ el.signOutBtn.addEventListener('click', async () => {
   el.library.hidden = true;
   el.gate.hidden = false;
   setAuthMode('login');
-  el.gateUser.focus();
+  startBroadcastAnimation();
+  window.scrollTo({ top: 0 });
 });
 
 function enterApp(user) {
+  closeHowToMenu();
   state.user = user;
   el.whoami.textContent = user ? `Signed in as ${user.username}` : '';
   el.gate.hidden = true;
@@ -1400,10 +1538,12 @@ state.interval = Number(el.speedSelect.value);
   } catch {
     // Server unreachable; show the sign-in screen and let the attempt report it.
   }
+  mountHowTo();
   setAuthMode('login');
-  if (me && me.user) enterApp(me.user);
-  else {
+  if (me && me.user) {
+    enterApp(me.user);
+  } else {
     el.gate.hidden = false;
-    el.gateUser.focus();
+    startBroadcastAnimation();
   }
 })();

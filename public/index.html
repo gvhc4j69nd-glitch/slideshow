@@ -12,8 +12,161 @@
 </head>
 <body>
 
-  <!-- ── Sign in / create account ─────────────────────────────────────────── -->
-  <main id="gate" class="screen gate" hidden>
+  <!-- ── Landing: what Vinboo is, how to use it, and sign in ──────────────── -->
+  <main id="gate" class="screen gate gate-landing" hidden>
+   <div class="landing">
+
+    <header class="landing-head">
+      <img class="landing-logo" src="/brand/wordmark.png" alt="Vinboo">
+      <p class="tagline">Put your photos and presentations on every screen in the room — at once.</p>
+    </header>
+
+    <div class="landing-grid">
+      <div class="landing-main">
+
+        <!-- One host device, many screens following it. -->
+        <figure class="bcast-figure">
+          <svg class="bcast" id="bcast" viewBox="0 0 960 440" role="img"
+               aria-label="One phone broadcasting a slideshow to televisions, laptops, tablets and phones at the same time">
+            <g class="beams">
+              <line class="beam" data-dev="1" x1="132" y1="238" x2="314" y2="78"  pathLength="1"/>
+              <line class="beam" data-dev="2" x1="132" y1="238" x2="484" y2="79"  pathLength="1"/>
+              <line class="beam" data-dev="3" x1="132" y1="238" x2="658" y2="86"  pathLength="1"/>
+              <line class="beam" data-dev="4" x1="132" y1="238" x2="810" y2="86"  pathLength="1"/>
+              <line class="beam" data-dev="5" x1="132" y1="238" x2="302" y2="309" pathLength="1"/>
+              <line class="beam" data-dev="6" x1="132" y1="238" x2="442" y2="282" pathLength="1"/>
+              <line class="beam" data-dev="7" x1="132" y1="238" x2="594" y2="316" pathLength="1"/>
+              <line class="beam" data-dev="8" x1="132" y1="238" x2="786" y2="311" pathLength="1"/>
+            </g>
+
+            <g class="devices">
+              <!-- Television -->
+              <g class="dev" data-dev="1">
+                <rect class="stand-base" x="278" y="146" width="72" height="7" rx="3.5"/>
+                <rect class="stand" x="304" y="130" width="20" height="18"/>
+                <rect class="frame" x="232" y="26" width="164" height="104" rx="11"/>
+                <rect class="screen-fill" x="241" y="35" width="146" height="86" rx="6"/>
+                <rect class="horizon" x="241" y="93" width="146" height="28" rx="6"/>
+              </g>
+              <!-- Tablet -->
+              <g class="dev" data-dev="2">
+                <rect class="frame" x="438" y="18" width="92" height="122" rx="11"/>
+                <rect class="screen-fill" x="446" y="30" width="76" height="98" rx="5"/>
+                <rect class="horizon" x="446" y="102" width="76" height="26" rx="5"/>
+              </g>
+              <!-- Television -->
+              <g class="dev" data-dev="3">
+                <rect class="stand-base" x="622" y="154" width="72" height="7" rx="3.5"/>
+                <rect class="stand" x="648" y="138" width="20" height="18"/>
+                <rect class="frame" x="576" y="34" width="164" height="104" rx="11"/>
+                <rect class="screen-fill" x="585" y="43" width="146" height="86" rx="6"/>
+                <rect class="horizon" x="585" y="101" width="146" height="28" rx="6"/>
+              </g>
+              <!-- Phone -->
+              <g class="dev" data-dev="4">
+                <rect class="frame" x="784" y="40" width="52" height="92" rx="10"/>
+                <rect class="screen-fill" x="790" y="50" width="40" height="72" rx="4"/>
+                <rect class="horizon" x="790" y="101" width="40" height="21" rx="4"/>
+              </g>
+              <!-- Laptop -->
+              <g class="dev" data-dev="5">
+                <rect class="frame" x="228" y="262" width="148" height="94" rx="9"/>
+                <rect class="screen-fill" x="236" y="270" width="132" height="78" rx="4"/>
+                <rect class="horizon" x="236" y="322" width="132" height="26" rx="4"/>
+                <path class="laptop-base" d="M212 356 h180 l14 12 h-208 z"/>
+              </g>
+              <!-- Phone -->
+              <g class="dev" data-dev="6">
+                <rect class="frame" x="416" y="236" width="52" height="92" rx="10"/>
+                <rect class="screen-fill" x="422" y="246" width="40" height="72" rx="4"/>
+                <rect class="horizon" x="422" y="297" width="40" height="21" rx="4"/>
+              </g>
+              <!-- Television -->
+              <g class="dev" data-dev="7">
+                <rect class="stand-base" x="558" y="384" width="72" height="7" rx="3.5"/>
+                <rect class="stand" x="584" y="368" width="20" height="18"/>
+                <rect class="frame" x="512" y="264" width="164" height="104" rx="11"/>
+                <rect class="screen-fill" x="521" y="273" width="146" height="86" rx="6"/>
+                <rect class="horizon" x="521" y="331" width="146" height="28" rx="6"/>
+              </g>
+              <!-- Tablet -->
+              <g class="dev" data-dev="8">
+                <rect class="frame" x="740" y="250" width="92" height="122" rx="11"/>
+                <rect class="screen-fill" x="748" y="262" width="76" height="98" rx="5"/>
+                <rect class="horizon" x="748" y="334" width="76" height="26" rx="5"/>
+              </g>
+            </g>
+
+            <!-- The host: drawn last so the beams read as coming from behind it. -->
+            <g class="host">
+              <rect class="host-glow" x="30" y="154" width="112" height="168" rx="26"/>
+              <rect class="frame host-frame" x="44" y="168" width="84" height="140" rx="14"/>
+              <rect class="screen-fill" x="52" y="180" width="68" height="116" rx="8"/>
+              <rect class="horizon" x="52" y="266" width="68" height="30" rx="8"/>
+              <circle class="play-disc" cx="86" cy="238" r="19"/>
+              <path class="play-mark" d="M80 229 l16 9 -16 9 z"/>
+            </g>
+          </svg>
+
+          <figcaption class="bcast-caption">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span>One device presenting to <strong id="bcastCount">1 screen</strong></span>
+          </figcaption>
+        </figure>
+
+        <section class="pitch">
+          <h2>What Vinboo is for</h2>
+          <p class="pitch-lead">
+            Vinboo turns any browser into a screen for your slideshow. You pick the
+            photos or the deck on your own phone or laptop, and everyone else just
+            opens a page and types a code. No app to install, no account for them,
+            and nothing uploaded anywhere.
+          </p>
+
+          <div class="use-cases">
+            <div class="use-case">
+              <span class="use-icon" aria-hidden="true">🎉</span>
+              <h3>Parties and gatherings</h3>
+              <p>
+                Put the night's photos on every TV in the house at the same time, and
+                let guests follow along on their own phones. One code covers the lot.
+              </p>
+            </div>
+            <div class="use-case">
+              <span class="use-icon" aria-hidden="true">💞</span>
+              <h3>Family who aren't there</h3>
+              <p>
+                Send grandparents a code and walk them through the holiday album at your
+                pace — you press next, their screen changes. Much easier than posting a
+                folder and hoping they find it.
+              </p>
+            </div>
+            <div class="use-case">
+              <span class="use-icon" aria-hidden="true">📊</span>
+              <h3>Presenting to a room</h3>
+              <p>
+                Open a PowerPoint and share the code. Everyone watches your slides on
+                their own screen, in step with you — whether they're in the room or at
+                home.
+              </p>
+            </div>
+          </div>
+
+          <p class="pitch-privacy">
+            <strong>Your files stay yours.</strong> Photos and decks are streamed live
+            from the browser you're presenting from. They are never uploaded to a
+            server or stored anywhere, and the code stops working the moment you stop
+            sharing.
+          </p>
+        </section>
+
+        <section class="howto" aria-labelledby="howtoHeading">
+          <h2 id="howtoHeading">How to use it</h2>
+          <div id="howToLanding"></div>
+        </section>
+      </div>
+
+      <aside class="landing-aside">
     <form class="gate-card" id="gateForm">
       <img class="gate-logo" src="/brand/wordmark.png" alt="Vinboo">
 
@@ -46,7 +199,46 @@
       <p class="gate-foot">Just watching? <a href="/watch">Enter a share code</a>.</p>
       <p class="gate-foot">vinboo.com</p>
     </form>
+      </aside>
+    </div>
+   </div>
   </main>
+
+  <!-- Written once, shown both on the landing page and in the header menu. -->
+  <template id="howToSteps">
+    <ol class="steps">
+      <li>
+        <strong>Pick what to show.</strong> <em>Photos…</em> opens your camera roll,
+        <em>Folder…</em> takes a whole folder including its subfolders, and
+        <em>PowerPoint…</em> opens a <span class="mono">.pptx</span>.
+      </li>
+      <li>
+        <strong>Press Play</strong> to watch it right here — pause, next, start over,
+        shuffle, and a speed control.
+      </li>
+      <li>
+        <strong>Press Share…</strong> to put it on other screens. You get a
+        six-character code and a temporary password.
+      </li>
+      <li>
+        <strong>On each TV, laptop or phone</strong>, open
+        <span class="mono">vinboo.com/watch</span> and type in both. Repeat for as many
+        screens as you like — there's no limit and they need no account.
+      </li>
+      <li>
+        <strong>You drive every screen.</strong> Pause, skip or start over on your
+        device and all of them follow.
+      </li>
+      <li>
+        <strong>Press Stop sharing</strong> when you're done. The code and password
+        stop working straight away.
+      </li>
+    </ol>
+    <p class="steps-note">
+      Keep the presenting tab open and awake — your device is the source of the
+      photos, so the screens stop receiving slides if it closes.
+    </p>
+  </template>
 
   <!-- ── Library: pick a folder ───────────────────────────────────────────── -->
   <main id="library" class="screen" hidden>
@@ -56,6 +248,18 @@
       </div>
       <div class="lib-actions">
         <span class="who" id="whoami"></span>
+
+        <div class="menu">
+          <button type="button" class="btn" id="howToBtn"
+                  aria-expanded="false" aria-controls="howToMenu" aria-haspopup="true">
+            How to use <span class="caret" aria-hidden="true">▾</span>
+          </button>
+          <div class="menu-panel" id="howToMenu" role="dialog" aria-label="How to use Vinboo" hidden>
+            <h3>How to use Vinboo</h3>
+            <div id="howToMenuBody"></div>
+          </div>
+        </div>
+
         <button type="button" class="btn" id="newFolderBtn">New folder</button>
         <button type="button" class="btn" id="refreshBtn">Refresh</button>
         <button type="button" class="btn" id="signOutBtn">Sign out</button>

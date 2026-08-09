@@ -353,6 +353,151 @@ a { color: var(--coral-ink); }
 .stack { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--ink-soft); }
 .gate-foot { margin: 2px 0 0; font-size: 13px; color: var(--ink-soft); text-align: center; }
 
+/* ── Landing page ────────────────────────────────────────────────────────── */
+.gate-landing { display: block; min-height: auto; padding: 0; }
+.landing { max-width: 1140px; margin: 0 auto; padding: 40px 24px 72px; }
+
+.landing-head { text-align: center; margin-bottom: 30px; }
+.landing-logo { width: min(290px, 62%); height: auto; }
+.tagline {
+  margin: 10px auto 0; max-width: 34ch;
+  font-size: 20px; font-weight: 600; letter-spacing: -.01em; color: var(--ink);
+}
+
+.landing-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr) 372px;
+  gap: 40px; align-items: start;
+}
+.landing-aside { position: sticky; top: 28px; }
+
+@media (max-width: 940px) {
+  .landing-grid { grid-template-columns: 1fr; gap: 32px; }
+  /* Returning visitors shouldn't have to scroll past the pitch to sign in. */
+  .landing-aside { order: -1; position: static; max-width: 420px; margin: 0 auto; width: 100%; }
+  .tagline { font-size: 18px; }
+}
+
+/* ── The broadcast animation ─────────────────────────────────────────────── */
+.bcast-figure {
+  margin: 0 0 34px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 14px 14px 8px;
+  box-shadow: var(--shadow-sm);
+}
+.bcast { display: block; width: 100%; height: auto; }
+
+.bcast .frame { fill: #F1ECF6; stroke: rgba(42, 36, 64, .16); stroke-width: 2; }
+.bcast .host-frame { fill: #FFF; stroke: var(--coral); stroke-width: 3; }
+.bcast .stand, .bcast .stand-base { fill: #DDD5E8; }
+.bcast .laptop-base { fill: #DDD5E8; }
+.bcast .host-glow { fill: var(--coral); opacity: .14; }
+
+/* Every screen shows the same photo at the same moment — that's the point. */
+.bcast .screen-fill { fill: var(--coral); transition: fill .5s ease; }
+.bcast .horizon { fill: rgba(255, 255, 255, .34); transition: fill .5s ease; }
+.bcast[data-photo="1"] .screen-fill { fill: var(--cyan); }
+.bcast[data-photo="2"] .screen-fill { fill: var(--amber); }
+
+.bcast .play-disc { fill: #FFF; opacity: .92; }
+.bcast .play-mark { fill: var(--coral-ink); }
+
+.bcast .beam {
+  stroke: var(--cyan-ink); stroke-width: 2.5; stroke-linecap: round;
+  stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0;
+  transition: stroke-dashoffset .55s ease, opacity .3s ease;
+}
+.bcast .beam.on { stroke-dashoffset: 0; opacity: .45; }
+
+.bcast .dev {
+  opacity: 0;
+  transform: scale(.8);
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: opacity .3s ease, transform .4s cubic-bezier(.2, 1.5, .45, 1);
+}
+.bcast .dev.on { opacity: 1; transform: scale(1); }
+
+.bcast-caption {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 4px 0 8px; font-size: 13px; color: var(--ink-soft); text-align: center;
+}
+.bcast-caption strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* ── Pitch ───────────────────────────────────────────────────────────────── */
+.pitch h2, .howto h2 { font-size: 21px; letter-spacing: -.02em; margin: 0 0 10px; }
+.pitch-lead { margin: 0 0 24px; color: var(--ink-soft); max-width: 62ch; }
+
+.use-cases {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(192px, 1fr));
+  gap: 14px; margin-bottom: 22px;
+}
+.use-case {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); padding: 18px;
+  box-shadow: var(--shadow-sm);
+}
+.use-case h3 { margin: 10px 0 6px; font-size: 16px; letter-spacing: -.01em; }
+.use-case p { margin: 0; font-size: 13.5px; color: var(--ink-soft); }
+.use-icon { font-size: 26px; line-height: 1; }
+.use-cases .use-case:nth-child(1) { border-top: 3px solid var(--coral); }
+.use-cases .use-case:nth-child(2) { border-top: 3px solid var(--cyan); }
+.use-cases .use-case:nth-child(3) { border-top: 3px solid var(--amber); }
+
+.pitch-privacy {
+  margin: 0 0 34px; padding: 14px 16px;
+  background: var(--cyan-soft); border: 1px solid rgba(31, 120, 132, .2);
+  border-radius: var(--radius); font-size: 13.5px; color: var(--cyan-ink);
+}
+
+/* ── How-to steps (landing page and header menu) ─────────────────────────── */
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: step; }
+.steps li {
+  position: relative; counter-increment: step;
+  padding: 0 0 18px 46px; font-size: 14px; color: var(--ink-soft);
+}
+.steps li::before {
+  content: counter(step);
+  position: absolute; left: 0; top: -2px;
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--coral); color: var(--ink);
+  font-weight: 700; font-size: 14px;
+}
+/* A rail joining the steps, stopping at the last one. */
+.steps li::after {
+  content: ""; position: absolute; left: 15px; top: 32px; bottom: 4px;
+  width: 2px; background: var(--line);
+}
+.steps li:last-child { padding-bottom: 0; }
+.steps li:last-child::after { display: none; }
+.steps strong { color: var(--ink); }
+.steps em { font-style: normal; font-weight: 600; color: var(--coral-ink); }
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--surface-2); padding: 1px 6px; border-radius: 6px;
+  font-size: .92em; color: var(--ink);
+}
+.steps-note {
+  margin: 16px 0 0; padding: 12px 14px;
+  background: var(--amber-soft); border: 1px solid rgba(147, 106, 16, .2);
+  border-radius: var(--radius); font-size: 13px; color: var(--amber-ink);
+}
+
+/* ── Header dropdown ─────────────────────────────────────────────────────── */
+.menu { position: relative; }
+.caret { font-size: 10px; opacity: .6; }
+.menu-panel {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 40;
+  width: min(420px, calc(100vw - 32px));
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); padding: 20px;
+  box-shadow: 0 24px 60px -18px rgba(42, 36, 64, .45);
+}
+.menu-panel h3 { margin: 0 0 14px; font-size: 17px; letter-spacing: -.02em; }
+.menu-panel .steps li { font-size: 13.5px; }
+
 /* ── Broadcast bar ───────────────────────────────────────────────────────── */
 .broadcast-bar {
   display: flex; flex-wrap: wrap; gap: 16px;
