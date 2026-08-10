@@ -95,6 +95,26 @@ async function guardTargetServer() {
   r = await call(other, '/api/auth/login', { method: 'POST', json: { username: 'presenter', password: 'correct-horse' } });
   ok('correct password signs in', r.res.status === 200, r.res.status);
 
+  console.log('\n— the address a presenter reads out —');
+
+  r = await call(host, '/api/auth/me');
+  ok('the api says which address to show', typeof r.body.siteHost === 'string', JSON.stringify(r.body.siteHost));
+  // These tests run against 127.0.0.1, where the real host is the only one that
+  // works, so that is what should come back.
+  ok('a local server shows its own address', /^(127\.0\.0\.1|localhost)/.test(r.body.siteHost), r.body.siteHost);
+
+  // A deployment answers to whatever hostname the platform handed it. What the
+  // presenter needs to read out is the name of the site.
+  r = await call(host, '/api/auth/me', {
+    headers: { 'X-Forwarded-Host': 'slideshow-production-1c4f.up.railway.app' },
+  });
+  ok('a deployment shows the site name, not the platform hostname',
+    r.body.siteHost === 'vinboo.com', r.body.siteHost);
+
+  r = await call(host, '/api/auth/me', { headers: { 'X-Forwarded-Host': '192.168.1.40:4321' } });
+  ok('but a home network still shows the address that works there',
+    r.body.siteHost === '192.168.1.40:4321', r.body.siteHost);
+
   console.log('\n— starting a broadcast —');
   const PHOTOS = [
     Buffer.from('PHOTO-ZERO-' + 'a'.repeat(50)),

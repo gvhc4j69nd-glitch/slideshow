@@ -7,6 +7,7 @@ const state = {
   signupCodeRequired: false,
   broadcast: null,   // {code, password, photos, mode, expiresAt} while sharing
   handoffLimits: { maxPhotos: 50, maxTtlMs: 48 * 60 * 60 * 1000 },
+  siteHost: location.host,   // the name to read out, not the host we are on
   localRoot: null,   // tree of folders picked off this device — never uploaded
   localPath: [],     // where we are in that tree
   source: 'local',   // everything plays from this device now
@@ -947,7 +948,7 @@ function renderBroadcastBar() {
 function showShareDialog(info) {
   el.shareCode.textContent = info.code;
   el.sharePass.textContent = info.password;
-  el.shareUrl.textContent = `${location.host}/watch`;
+  el.shareUrl.textContent = `${state.siteHost}/watch`;
 
   // The two modes make opposite promises about this tab, so the dialog has to
   // say which one the presenter just chose.
@@ -981,7 +982,11 @@ el.bcStopBtn.addEventListener('click', () => stopBroadcast({}));
 el.shareCopyBtn.addEventListener('click', async () => {
   const bc = state.broadcast;
   if (!bc) return;
-  const text = `Watch my slideshow at ${location.origin}/watch\nCode: ${bc.code}\nPassword: ${bc.password}`;
+  // Local and private hosts are served over plain http; the public site is not.
+  const scheme = /^(localhost|127\.|\[?::1|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/i
+    .test(state.siteHost) ? 'http' : 'https';
+  const text = `Watch my slideshow at ${scheme}://${state.siteHost}/watch`
+    + `\nCode: ${bc.code}\nPassword: ${bc.password}`;
   try {
     await navigator.clipboard.writeText(text);
     el.shareCopyBtn.textContent = 'Copied';
@@ -1738,6 +1743,7 @@ state.interval = Number(el.speedSelect.value);
   try {
     me = await api('/api/auth/me');
     state.signupCodeRequired = Boolean(me.signupCodeRequired);
+    if (me.siteHost) state.siteHost = me.siteHost;
   } catch {
     // Server unreachable; show the sign-in screen and let the attempt report it.
   }

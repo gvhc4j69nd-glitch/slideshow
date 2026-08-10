@@ -128,6 +128,32 @@ function publicOrigin(req) {
   return `${proto}://${host}`;
 }
 
+// The name of the site, as it should be read out to somebody standing at a
+// television. Set SITE_HOST (or SITE_URL) when self-hosting.
+const CANONICAL_HOST = (process.env.SITE_HOST || 'vinboo.com').trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+
+const LOCAL_HOST = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|0\.0\.0\.0|.+\.local)(:\d+)?$/i;
+const PRIVATE_HOST = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
+
+/**
+ * The address to *show* a presenter, which is not the address they are on.
+ *
+ * A deployment answers to whatever hostname the platform gave it —
+ * "slideshow-production-1c4f.up.railway.app" — and reading that out to somebody
+ * holding a TV remote is useless. What they need is the name of the site.
+ *
+ * Serving from a laptop or over a home network is the exception: there the real
+ * host is the only one that works, so it wins.
+ */
+function displayHost(req) {
+  const configured = (process.env.SITE_URL || '').trim();
+  if (configured) return configured.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+  if (host && (LOCAL_HOST.test(host) || PRIVATE_HOST.test(host))) return host;
+  return CANONICAL_HOST || host;
+}
+
 /* ── Accounts ─────────────────────────────────────────────────────────────── */
 
 async function handleRegister(req, res) {
@@ -476,6 +502,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, {
         user: user ? publicUser(user) : null,
         signupCodeRequired: Boolean(SIGNUP_CODE),
+        siteHost: displayHost(req),
       });
     }
     if (pathname === '/api/auth/register' && method === 'POST') return await handleRegister(req, res);

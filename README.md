@@ -210,6 +210,18 @@ Both credentials are needed, wrong guesses are rate-limited to 10 per IP per 15
 minutes, and the failure message is identical for a bad code and a bad
 password, so neither can be probed independently.
 
+### The address a presenter reads out
+
+The share dialog names the site, not the hostname the app happens to be answering
+on. A platform gives a deployment a name like
+`slideshow-production-1c4f.up.railway.app`, which is useless to somebody
+standing at a television with a remote — so the dialog says `vinboo.com/watch`.
+
+Serving from a laptop or over a home network is the exception: there the real
+host is the only one that reaches the server, so `localhost:4321` or
+`192.168.1.40:4321` is shown instead. Anyone self-hosting on their own domain
+should set `SITE_HOST` (or `SITE_URL`).
+
 ### What actually goes over the wire
 
 Slides are converted before sending, rather than the file being forwarded as it
@@ -551,6 +563,8 @@ All optional, all via environment variables:
 | `SIGNUP_CODE` | *(unset)* | If set, required to create an account |
 | `SESSION_SECRET` | *(unset)* | Overrides the signing key kept in the database |
 | `MAX_FRAME_BYTES` | `26214400` | Largest photo that can be streamed live (25 MB) |
+| `SITE_HOST` | `vinboo.com` | The address shown to a presenter to read out |
+| `SITE_URL` | *(unset)* | Full public origin; overrides `SITE_HOST` and is used for cast URLs |
 
 ## Deploying to Railway
 
