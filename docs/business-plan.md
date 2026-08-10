@@ -25,13 +25,15 @@ infrastructure comfortably — but subscriptions produce the rest. Modelled at
 250,000 monthly presenters: **$135k/year advertising, $299k/year subscriptions,
 $18k/year infrastructure.**
 
-**The finding that could sink it.** In live mode a viewer holds only six slides
-in memory, so a long-running show re-fetches the same photos through the relay
-all evening. At scale that is **$72,000/month of egress against $36,000/month of
-revenue** — the free tier would cost twice what the whole business earns. Making
-a viewer keep the whole show, which hand-off mode already does, cuts it **53×**
-to $1,368/month. This is a few hours of work and it is the single highest-value
-engineering task in this document.
+**The finding that costs the most.** In live mode a viewer holds only six slides
+in memory, so a show re-fetches the same photos through the relay for as long as
+it runs. **Cost therefore scales with duration rather than with content, and
+break-even is 19 minutes** — a show earns $0.015 and costs about $0.048 an hour
+to serve. Blended over a realistic mix of show lengths that is **18× more egress
+than necessary**, which takes gross margin from **96% to 33%**; if shows really do
+run all evening it reaches $72,000/month and exceeds revenue outright. Having a
+viewer keep the show, which hand-off mode already does, is a few hours of work
+and is the single highest-value engineering task in this document.
 
 **The pleasant surprise.** Premium is *cheaper to serve than free*. Object
 storage costs $0.015/GB-month with free egress on both Railway and Cloudflare
@@ -219,27 +221,62 @@ should be generous, because it is nearly free to give.
 
 ## 6. The two findings that decide the business
 
-### Finding 1 — live mode re-fetches, and at scale that is fatal
+### Finding 1 — live mode's cost scales with time, not content
 
 A viewer keeps only six slides in memory in live mode [measured:
-`MAX_CACHED = 6` in `public/watch.js`]. A 40-photo show looping for three hours
-at five seconds a slide is 2,160 slide-views per screen, and nearly every one of
-them is a fresh fetch through the relay.
+`MAX_CACHED = 6` in `public/watch.js`]. Once a show loops past those six, nearly
+every advance is a fresh fetch through the relay — so **cost scales with how long
+a show runs, not with how much content it holds.**
 
-| | Per show | At 500,000 shows/month |
-|---|---|---|
-| Live mode, 3-hour loop | 2.88 GB | **1,440 TB → $72,000/month** |
-| One copy per screen | 54.7 MB | 27.4 TB → **$1,368/month** |
+That is the wrong shape. A slideshow left on a television all evening is the use
+case the landing page leads with, and it is precisely the one this punishes.
 
-**$72,000/month against $36,000/month of revenue.** The free tier would cost
-twice what the entire business earns, and the harder people used it the worse it
-would get.
+**Break-even is 19 minutes.** A show earns $0.015 in advertising and costs about
+**$0.048 per show-hour** to serve at four screens:
 
-The fix is small. Hand-off mode already stores the whole show in the browser's
-Cache API and fetches each slide exactly once; live mode should do the same, or
-at minimum raise its in-memory cache to cover the whole playlist. A 40-photo show
-is ~14 MB in the browser — nothing. **This is the highest-value engineering task
-in this plan: a few hours of work for a 53× reduction in the dominant cost.**
+| Show length | Egress | Egress cost | Ad revenue | Net |
+|---|---|---|---|---|
+| 10 minutes | 156 MB | $0.0076 | $0.0150 | **+$0.0074** |
+| 19 minutes | ~300 MB | $0.0147 | $0.0150 | break-even |
+| 30 minutes | 484 MB | $0.0236 | $0.0150 | −$0.0086 |
+| 1 hour | 976 MB | $0.0477 | $0.0150 | −$0.0327 |
+| 3 hours | 2.9 GB | $0.1438 | $0.0150 | **−$0.1288** |
+
+Blended over a realistic mix — 25% ambient at three hours, 35% family
+walkthroughs at fifteen minutes, 40% presentations at twenty-five [assumed] — the
+average show sends **980 MB where 54.7 MB would do: 18× more than it needs to.**
+
+#### What it does to the model
+
+| At Year 3 (500,000 shows/month) | Egress | Infrastructure | Gross margin |
+|---|---|---|---|
+| Each slide fetched once | $1,335/mo | $1,535/mo | **96%** |
+| Live mode as it stands | $23,932/mo | $24,132/mo | **33%** |
+| Worst case, every show 3 hours | $72,000/mo | $72,200/mo | **negative** |
+
+The middle row does not bankrupt the business — it gives away two thirds of gross
+margin, and the more successful the party use case becomes the worse the trade
+gets. The bottom row is the one that ends it, and the only thing separating the
+two is how long people leave shows running, which is not something the business
+controls.
+
+#### The fix, and the one thing to watch
+
+Hand-off mode already stores the whole show and fetches each slide exactly once.
+Live mode should do the same — but **as a byte budget, not "cache everything"**,
+because live mode has no photo cap the way hand-off does:
+
+| Slides held | Memory in the tab |
+|---|---|
+| 40 | 14 MB |
+| 285 | 97 MB |
+| 2,000 | 684 MB |
+
+A ~100 MB budget holds about 285 slides, which is more than almost any real show,
+while stopping a 2,000-photo folder from exhausting a television's memory — which
+is why the cache was small to begin with. **A few hours of work for an 18×
+reduction in the dominant cost, and it makes spend depend on content size rather
+than on how long the party lasts.**
 
 ### Finding 2 — premium is cheaper to serve than free
 
@@ -261,7 +298,8 @@ offer.
 
 Assumes 2 shows per presenter per month, 4 screens per show, 40 slides, $2.50
 RPM, **2.5% free-to-paid conversion** (published consumer freemium median is
-2.1–5% [sourced]), $3.99/month blended subscription, and Finding 1 fixed.
+2.1–5% [sourced]), $3.99/month blended subscription, **and Finding 1 fixed** —
+the italic row shows the same scenario if it is not.
 
 | | Year 1 | Year 2 | Year 3 |
 |---|---|---|---|
@@ -276,6 +314,7 @@ RPM, **2.5% free-to-paid conversion** (published consumer freemium median is
 | Compute (assumed) | $200 | $200 | $200 |
 | **Infrastructure** | $227/mo | $467/mo | $1,535/mo |
 | **Gross margin** | 69% | 94% | 96% |
+| *Margin if Finding 1 is left unfixed* | *6%* | *31%* | *33%* |
 
 Compute is held flat at $200/month because the relay is I/O-bound long-polling,
 not CPU-bound: what matters is concurrent open connections, not total volume, and
