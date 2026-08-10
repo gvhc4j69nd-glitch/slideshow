@@ -56,6 +56,14 @@ Everything on the presenter's side happens in the browser: photos are read off
 the device, and a `.pptx` is unzipped and turned into SVG slides there too. The
 server only ever sees the bytes of whichever slide is being looked at.
 
+On the wire it is all ordinary HTTPS — **no WebSockets, no WebRTC, nothing
+peer-to-peer** — which is why it works through corporate proxies and hotel
+Wi-Fi without any special handling. Waiting is done by long-polling: a `GET` is
+held open for up to 25 seconds (30 for a slide) and answered the instant
+something changes. Slides move as raw binary bodies carrying their own type, so
+nothing is base64-encoded or transcoded on the way. The diagram above labels
+every hop with its method, path and payload.
+
 ## Run it locally
 
 You need Postgres. On a Mac:
