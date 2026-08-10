@@ -103,6 +103,13 @@ alternatives — slide-sync tools like ShowSlide and Sync, photos-to-TV apps lik
 Pixo, and the free defaults of Chromecast and AirPlay — and is honest about where
 Vinboo loses as well as where it wins.
 
+[docs/business-plan.md](docs/business-plan.md) turns that into a plan: a free
+tier funded by three ad placements, premium tiers for stored shows and end-to-end
+encryption, and the infrastructure arithmetic at current Railway and object-storage
+rates. Its two findings are that advertising is a floor rather than the business,
+and that live mode's slide re-fetching would cost twice revenue at scale unless a
+viewer keeps the whole show the way hand-off already does.
+
 The short version: nothing else found does photos *and* PowerPoint, and nothing
 else streams from the presenter's own device instead of uploading first. The
 sharpest weakness used to be that the presenting tab had to stay open, which is
