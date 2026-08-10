@@ -251,7 +251,7 @@ check('a late joiner is told plainly when no screen can serve it', () => {
   const session = start(b, { photoCount: 3, mode: 'handoff' });
   session.hostSeenAt = Date.now() - HOST_TIMEOUT_MS * 10;
   assert.strictEqual(b.hasSource(session), false);
-  assert.match(b.timeoutMessage(session), /no screen with a copy/i);
+  assert.match(b.timeoutMessage(session), /nobody with a copy/i);
 
   watching(session, 'tv-1');
   b.recordCached(session, 'tv-1', 3);
@@ -266,7 +266,10 @@ check('and is told at once rather than after a long wait', () => {
 
   let answer = null;
   b.requestPhoto(session, 0, (result) => { answer = result; });
-  assert.ok(answer && /no screen with a copy/i.test(answer.error), JSON.stringify(answer));
+  assert.ok(answer && /nobody with a copy/i.test(answer.error), JSON.stringify(answer));
+  // The way back must not point at a code that can never work again.
+  assert.ok(/new code/i.test(answer.error), answer.error);
+  assert.ok(!/open the slideshow again/i.test(answer.error), answer.error);
   assert.strictEqual(session.pending.size, 0, 'nothing should have been left queued');
 });
 

@@ -290,13 +290,24 @@ originals stay the source.
 switched off stops counting as a source within about a minute, and a joiner is
 told so at once rather than being left on a spinner:
 
-> No screen with a copy of this slideshow is here to send it. Ask the presenter
-> to open the slideshow again to add this screen.
+> Nobody with a copy of this slideshow is online right now. It starts again as
+> soon as a screen that has one comes back — otherwise ask the presenter to
+> share it again, which gives a new code.
 
-The show is not torn down when that happens — it still runs to its deadline. A
-screen that comes back still holds its copy in its own browser storage, so it
-rejoins, finds every slide locally, and starts serving again without needing the
-presenter or any other screen.
+The show is not torn down when that happens — it still runs to its deadline, and
+the code keeps being accepted. A screen that comes back still holds its copy in
+its own browser storage, so it rejoins, finds every slide locally, and starts
+serving again without needing the presenter or any other screen.
+
+The presenter cannot revive it, though: sharing again always mints a new code,
+because the browser does not keep the folder you picked once the tab has gone.
+So the honest summary of a handed-off show with nobody online is that **the code
+still works, the show is still running, and there are simply no photos to be had
+until something that holds a copy comes back.**
+
+For a few minutes after the last screen leaves, the relay's own cache can still
+answer for a short show — it holds six frames, dropped after five minutes idle.
+After that it is genuinely empty.
 
 Hand-off is deliberately hemmed in, because copies on other people's devices are
 harder to take back than a stream:
