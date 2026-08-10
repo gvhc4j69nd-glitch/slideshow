@@ -44,7 +44,9 @@ const {
 const { Store } = require('./lib/store');
 const dbase = require('./lib/db');
 const migrate = require('./lib/migrate');
-const { Broadcast } = require('./lib/broadcast');
+const {
+  Broadcast, HANDOFF_MAX_PHOTOS, HANDOFF_MIN_TTL_MS, HANDOFF_MAX_TTL_MS,
+} = require('./lib/broadcast');
 const auth = require('./lib/auth');
 
 const PORT = Number(process.env.PORT) || 4321;
@@ -52,6 +54,10 @@ const HOST = process.env.HOST || '0.0.0.0';
 const DATA_ROOT = path.resolve(process.env.DATA_ROOT || path.join(__dirname, 'data'));
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const MAX_FRAME_BYTES = Number(process.env.MAX_FRAME_BYTES) || 25 * 1024 * 1024;
+
+// Handed-off shows outlive the tab that made them, so cap how many one account
+// can leave standing at once.
+const MAX_HANDOFF_PER_USER = 3;
 
 // ACCESS_CODE was the old whole-app gate; accounts replaced it, so it now acts
 // as the signup code if SIGNUP_CODE isn't set.
@@ -190,12 +196,37 @@ async function handleCreateBroadcast(req, res, user) {
     return sendError(res, 400, 'That slideshow has no photos to share.');
   }
 
-  // One live broadcast per user keeps the mental model simple.
-  for (const existing of broadcast.listForUser(user.id)) broadcast.end(existing.code, 'replaced');
+  const mode = body.mode === 'handoff' ? 'handoff' : 'live';
+
+  /*
+   * One *live* broadcast per user keeps the mental model simple — a live show
+   * needs this tab, and a tab can only present one thing. Handed-off shows are
+   * different: they are meant to keep running while you go and do something
+   * else, so starting a new share must not quietly kill them.
+   */
+  const mine = broadcast.listForUser(user.id);
+  for (const existing of mine) {
+    if (existing.mode !== 'handoff') broadcast.end(existing.code, 'replaced');
+  }
+
+  const standing = mine.filter((sessionState) => sessionState.mode === 'handoff').length;
+  if (mode === 'handoff' && standing >= MAX_HANDOFF_PER_USER) {
+    return sendError(res, 409,
+      `You already have ${standing} handed-off slideshows running. `
+      + 'Take one down before starting another.');
+  }
 
   let created;
   try {
-    created = broadcast.create({ userId: user.id, username: user.username, title, photoCount });
+    created = broadcast.create({
+      userId: user.id,
+      username: user.username,
+      title,
+      photoCount,
+      mode,
+      ttlMs: Number(body.ttlMs),
+      interval: Number(body.interval),
+    });
   } catch (err) {
     return sendError(res, err.status || 500, err.message);
   }
@@ -206,6 +237,8 @@ async function handleCreateBroadcast(req, res, user) {
     title: created.session.title,
     photoCount: created.session.photoCount,
     expiresAt: created.session.expiresAt,
+    mode: created.session.mode,
+    interval: created.session.interval,
   });
 }
 
@@ -441,6 +474,13 @@ const server = http.createServer(async (req, res) => {
       if (segments[3] === 'photo' && segments.length === 5 && method === 'GET') {
         return handleWatchPhoto(req, res, session, segments[4]);
       }
+      if (segments[3] === 'cached' && method === 'POST') {
+        const body = await readJsonBody(req);
+        if (body === null) return sendError(res, 400, 'Invalid request.');
+        const viewer = viewerFor(req, session.code);
+        const held = broadcast.recordCached(session, viewer.vid, body.have);
+        return sendJson(res, 200, { have: held, of: session.photoCount });
+      }
       return sendError(res, 404, 'Unknown endpoint.');
     }
 
@@ -453,7 +493,14 @@ const server = http.createServer(async (req, res) => {
     /* Broadcast host endpoints */
     if (pathname === '/api/broadcast' && method === 'POST') return await handleCreateBroadcast(req, res, user);
     if (pathname === '/api/broadcast/mine' && method === 'GET') {
-      return sendJson(res, 200, { sessions: broadcast.listForUser(user.id) });
+      return sendJson(res, 200, {
+        sessions: broadcast.listForUser(user.id),
+        handoff: {
+          maxPhotos: HANDOFF_MAX_PHOTOS,
+          minTtlMs: HANDOFF_MIN_TTL_MS,
+          maxTtlMs: HANDOFF_MAX_TTL_MS,
+        },
+      });
     }
 
     if (segments[0] === 'api' && segments[1] === 'broadcast' && segments.length >= 3) {
@@ -468,6 +515,23 @@ const server = http.createServer(async (req, res) => {
 
       const session = requireOwnedSession(req, res, code, user);
       if (!session) return undefined;
+
+      if (segments[3] === 'extend' && method === 'POST') {
+        const body = await readJsonBody(req);
+        if (body === null) return sendError(res, 400, 'Invalid request.');
+        if (session.mode !== 'handoff') {
+          return sendError(res, 400, 'Only a handed-off slideshow has a deadline to extend.');
+        }
+        const expiresAt = broadcast.extend(session, Number(body.ttlMs));
+        return sendJson(res, 200, { expiresAt, ...broadcast.cacheProgress(session) });
+      }
+
+      if (segments[3] === 'progress' && method === 'GET') {
+        return sendJson(res, 200, {
+          ...broadcast.publicState(session),
+          ...broadcast.cacheProgress(session),
+        });
+      }
 
       if (segments[3] === 'cast-ticket' && method === 'POST') {
         const { ticket, expiresAt } = broadcast.createTicket(session);

@@ -549,6 +549,24 @@ a { color: var(--coral-ink); }
   color: var(--amber-ink);
 }
 
+/* ── Choosing how to share ───────────────────────────────────────────────── */
+.choice {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 14px; border: 1px solid var(--line); border-radius: var(--radius);
+  cursor: pointer; transition: border-color .15s ease, background .15s ease;
+}
+.choice:has(input:checked) { border-color: var(--coral); background: var(--coral-soft); }
+.choice.is-disabled { opacity: .55; cursor: not-allowed; }
+.choice input { margin-top: 3px; accent-color: var(--coral-ink); }
+.choice strong { display: block; font-size: 14px; }
+.choice em { display: block; font-style: normal; font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
+.choice-limit { font-weight: 600; }
+
+.bc-safe {
+  margin-top: 6px; font-size: 12.5px; font-weight: 600; color: var(--amber-ink);
+}
+.bc-safe.is-ready { color: var(--cyan-ink); }
+
 /* ── Dialogs ─────────────────────────────────────────────────────────────── */
 dialog {
   background: var(--surface); color: var(--ink);

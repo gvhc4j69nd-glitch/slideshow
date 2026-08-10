@@ -231,6 +231,85 @@ async function guardTargetServer() {
   r = await call(viewer, '/api/watch/join', { method: 'POST', json: { code: share.code, password: share.password } });
   ok('temp password is dead after ending', r.res.status === 401, r.res.status);
 
+  console.log('\n— hand-off mode —');
+
+  r = await call(host, '/api/broadcast', {
+    method: 'POST',
+    json: { title: 'Party', photoCount: 51, mode: 'handoff', ttlMs: 3600000 },
+  });
+  ok('refuses more than 50 photos', r.res.status === 400 && /50 photos/.test(r.body.error || ''), JSON.stringify(r.body));
+
+  r = await call(host, '/api/broadcast', {
+    method: 'POST',
+    json: { title: 'Party', photoCount: 3, mode: 'handoff', ttlMs: 5 * 60 * 1000 },
+  });
+  const handoff = r.body;
+  ok('starts a handed-off show', r.res.status === 201 && handoff.mode === 'handoff', JSON.stringify(handoff));
+
+  // 5 minutes was asked for; the floor is an hour.
+  const life = handoff.expiresAt - Date.now();
+  ok('clamps a too-short life up to 1 hour', life > 59 * 60 * 1000 && life < 61 * 60 * 1000,
+    `${Math.round(life / 60000)} min`);
+
+  r = await call(host, '/api/broadcast', {
+    method: 'POST',
+    json: { title: 'Party', photoCount: 3, mode: 'handoff', ttlMs: 30 * 24 * 3600 * 1000 },
+  });
+  const capped = r.body;
+  const cappedLife = capped.expiresAt - Date.now();
+  ok('clamps a too-long life down to 48 hours', cappedLife <= 48 * 3600 * 1000 + 5000,
+    `${(cappedLife / 3600000).toFixed(1)} h`);
+
+  const tv2 = jar();
+  r = await call(tv2, '/api/watch/join', { method: 'POST', json: { code: capped.code, password: capped.password } });
+  ok('a screen joins a handed-off show', r.res.status === 200 && r.body.mode === 'handoff', JSON.stringify(r.body));
+  ok('and is told how to run it itself',
+    Number.isFinite(r.body.startedAt) && Number.isFinite(r.body.interval) && Number.isFinite(r.body.now),
+    JSON.stringify({ startedAt: r.body.startedAt, interval: r.body.interval, now: r.body.now }));
+
+  r = await call(tv2, `/api/watch/${capped.code}/cached`, { method: 'POST', json: { have: 3 } });
+  ok('a screen reports the copy it holds', r.res.status === 200 && r.body.have === 3, JSON.stringify(r.body));
+
+  r = await call(host, `/api/broadcast/${capped.code}/progress`);
+  ok('the presenter sees it is safe to close', r.body.complete === 1 && r.body.screens === 1, JSON.stringify(r.body));
+
+  // The crux: a handed-off show must survive the presenter going silent, which
+  // is exactly what ends a live one.
+  const beforeExtend = capped.expiresAt;
+  r = await call(host, `/api/broadcast/${capped.code}/extend`, { method: 'POST', json: { ttlMs: 48 * 3600 * 1000 } });
+  ok('the presenter can extend it', r.res.status === 200 && r.body.expiresAt >= beforeExtend - 5000, JSON.stringify(r.body));
+  ok('but never beyond 48 hours from now', r.body.expiresAt - Date.now() <= 48 * 3600 * 1000 + 5000,
+    `${((r.body.expiresAt - Date.now()) / 3600000).toFixed(1)} h`);
+
+  r = await call(anon, `/api/broadcast/${capped.code}/extend`, { method: 'POST', json: {} });
+  ok('a stranger cannot extend it', r.res.status === 401, r.res.status);
+
+  r = await call(host, `/api/broadcast/${handoff.code}/progress`);
+  ok('a second share does not kill the first handed-off show', r.res.status === 200, r.res.status);
+
+  // A live show has no deadline to move, so extending one is meaningless.
+  r = await call(host, '/api/broadcast', { method: 'POST', json: { title: 'Live one', photoCount: 2 } });
+  const liveOne = r.body;
+  r = await call(host, `/api/broadcast/${liveOne.code}/extend`, { method: 'POST', json: {} });
+  ok('extending a live show is refused', r.res.status === 400, r.res.status);
+
+  r = await call(host, '/api/broadcast', {
+    method: 'POST', json: { title: 'Third', photoCount: 2, mode: 'handoff' },
+  });
+  const third = r.body;
+  r = await call(host, '/api/broadcast', {
+    method: 'POST', json: { title: 'Fourth', photoCount: 2, mode: 'handoff' },
+  });
+  ok('caps how many handed-off shows one account can leave standing', r.res.status === 409, r.res.status);
+  await call(host, `/api/broadcast/${third.code}`, { method: 'DELETE' });
+
+  r = await call(host, `/api/broadcast/${capped.code}`, { method: 'DELETE' });
+  ok('the presenter can take it down early', r.res.status === 200, r.res.status);
+  r = await call(tv2, `/api/watch/${capped.code}/state`);
+  ok('and the screens are told it ended', r.res.status === 404, r.res.status);
+
+  await call(host, `/api/broadcast/${handoff.code}`, { method: 'DELETE' });
+
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
 })().catch((err) => { console.error('test crashed:', err); process.exit(1); });

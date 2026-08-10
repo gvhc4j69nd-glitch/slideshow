@@ -331,12 +331,14 @@
           <strong id="bcTitle">Broadcasting</strong>
           <div class="bc-sub">
             Code <code id="bcCode">—</code> · password <code id="bcPass">—</code> ·
-            <span id="bcViewers">0 viewers</span>
+            <span id="bcViewers">0 viewers</span><span id="bcHandoff"></span>
           </div>
+          <div class="bc-sub bc-safe" id="bcSafe" hidden></div>
         </div>
       </div>
       <div class="bc-actions">
         <button type="button" class="btn" id="bcShowBtn">Show code</button>
+        <button type="button" class="btn" id="bcExtendBtn" hidden>Extend 48h</button>
         <button type="button" class="btn btn-danger" id="bcStopBtn">Stop sharing</button>
       </div>
     </div>
@@ -437,13 +439,58 @@
     </div>
   </section>
 
+  <!-- ── Choose how to share, before a code exists ────────────────────────── -->
+  <dialog id="shareOptions">
+    <form method="dialog" id="shareOptionsForm" class="share-body">
+      <h2>Share this slideshow</h2>
+
+      <label class="choice">
+        <input type="radio" name="shareMode" value="live" checked>
+        <span>
+          <strong>Keep this tab open</strong>
+          <em>You drive every screen — pause, skip, start over. The show ends when
+            you close the tab. Any number of photos.</em>
+        </span>
+      </label>
+
+      <label class="choice" id="handoffChoice">
+        <input type="radio" name="shareMode" value="handoff">
+        <span>
+          <strong>Hand off to the screens</strong>
+          <em>Each screen takes a copy, then runs the show on its own. You can
+            close the tab and put your phone away.</em>
+          <em class="choice-limit" id="handoffLimit"></em>
+        </span>
+      </label>
+
+      <label class="stack" id="handoffTtlRow" hidden>
+        <span>Take it down after</span>
+        <select id="handoffTtl">
+          <option value="3600000">1 hour</option>
+          <option value="14400000">4 hours</option>
+          <option value="43200000">12 hours</option>
+          <option value="86400000" selected>24 hours</option>
+          <option value="172800000">48 hours</option>
+        </select>
+      </label>
+
+      <p class="dialog-help" id="shareOptionsNote"></p>
+      <p class="dialog-error" id="shareOptionsError" hidden></p>
+
+      <menu>
+        <button type="button" class="btn" id="shareOptionsCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="shareOptionsGo">Start sharing</button>
+      </menu>
+    </form>
+  </dialog>
+
   <!-- ── Share dialog: the code + temp password to read out ───────────────── -->
   <dialog id="shareDialog">
     <div class="share-body">
-      <h2>Slideshow is live</h2>
+      <h2 id="shareTitle">Slideshow is live</h2>
       <p class="dialog-help">
         On the other browser, open <strong id="shareUrl">…/watch</strong> and enter both of these.
-        They work until you stop sharing.
+        <span id="shareIntro">They work until you stop sharing.</span>
       </p>
 
       <div class="credential">
@@ -457,7 +504,7 @@
       </div>
 
       <p class="dialog-help" id="shareExpiry"></p>
-      <p class="dialog-help">
+      <p class="dialog-help" id="shareMode">
         The photos are streamed live from this browser. They are not uploaded or
         stored on the server, so this tab has to stay open.
       </p>

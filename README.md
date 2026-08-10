@@ -199,6 +199,53 @@ Both credentials are needed, wrong guesses are rate-limited to 10 per IP per 15
 minutes, and the failure message is identical for a bad code and a bad
 password, so neither can be probed independently.
 
+### Handing off, so you can close the tab
+
+Pressing **Share…** asks which of two arrangements you want.
+
+**Keep this tab open** is the above: you drive every screen, any number of
+photos, and the show ends when you leave.
+
+**Hand off to the screens** is for when you want to set a slideshow going at a
+party and then put your phone in your pocket. Each screen copies the photos into
+its own browser storage as it joins, and once it has the lot it runs the show by
+itself — no server, no presenting tab. Every screen works out which slide to
+show from the clock rather than being told, so they stay in step without anyone
+driving them.
+
+While the copying is happening the tab still has to be open, because it is still
+the only source of the pictures. The broadcast bar counts the screens up and
+tells you plainly when you're done:
+
+```
+Handed off "Barbecue"
+Code 6QAHVF · password EY82-MYH9-6SAX · 3 screens · ends in 23h 40m
+Safe to close this tab — all screens have a full copy.
+```
+
+Any screen that joins later, while the tab is still open, gets its copy the same
+way. Once you have gone, no new screen can join — there is nothing left to copy
+from.
+
+Hand-off is deliberately hemmed in, because copies on other people's devices are
+harder to take back than a stream:
+
+- **50 photos at most.** Above that the option is greyed out and says why.
+- **1 to 48 hours**, chosen when you share, 24 hours by default. When the time
+  is up the server drops the show and every screen deletes its copy.
+- **Extending is not cumulative.** **Extend 48h** moves the deadline to 48 hours
+  from *now*, so no amount of extending turns a slideshow into a permanent one.
+  Come back and extend, or it goes away on its own.
+- **Three handed-off shows per account.** Starting a fourth is refused until you
+  take one down.
+- Starting a new share does not disturb a handed-off show already running, which
+  is the one exception to one-broadcast-per-account.
+
+The screens delete their copies when the show ends — whether it timed out, you
+pressed **Stop sharing**, or you never came back. Nothing is uploaded in either
+mode; the difference is only whether the copies live on the screens or stream
+from your tab.
+
 ## Casting to a television
 
 The player has a **Cast** button. It sends the *viewer page* to the television
@@ -327,7 +374,7 @@ to the counter shows which one is playing.
 
 ## Tests
 
-Three suites.
+Four suites.
 
 The deck tests (ZIP reader, XML parser, PowerPoint rendering) need nothing
 running — the fixture presentation is built in memory:
@@ -345,6 +392,15 @@ createdb vinboo_test
 DATABASE_URL=postgres://localhost/vinboo_test npm run test:db
 ```
 
+The relay tests cover the bookkeeping that the clock drives — a live show dying
+when the presenting tab goes quiet while a handed-off one survives, the photo cap
+and the 1-to-48-hour clamp, and the fact that extending never stacks up. They
+move the clock by hand rather than waiting, so they need nothing running:
+
+```bash
+npm run test:broadcast
+```
+
 The end-to-end suite covers accounts, the relay and the sharing lifecycle
 against a running server:
 
@@ -353,7 +409,7 @@ DATABASE_URL=postgres://localhost/vinboo_test PORT=4399 node server.js &
 sleep 2 && npm run test:e2e
 ```
 
-`npm test` runs all three; it expects `DATABASE_URL` to point at a `_test`
+`npm test` runs all four; it expects `DATABASE_URL` to point at a `_test`
 database and a server already listening on 4399.
 
 Both suites that touch data refuse to run against anything that isn't a `_test`
@@ -539,6 +595,13 @@ derived from the source logo.
   with unbiased character mapping, and only their hashes are kept in memory.
 - Streamed photos are sent with `Cache-Control: no-store` so no proxy retains a
   copy, and a broadcast's memory cache is dropped the moment it ends.
+- **Hand-off is the one place a copy leaves your device.** In that mode each
+  viewing browser deliberately writes the photos into its own Cache Storage so
+  it can keep playing without you. The server still never sees a file, but the
+  screens hold real copies, which is why the mode is capped at 50 photos and 48
+  hours and why the copies are deleted when the show ends. Anyone with physical
+  access to a screen has those photos until then. If that isn't acceptable for a
+  particular set of pictures, use **Keep this tab open** instead.
 - Only the account that started a broadcast can drive it or end it.
 - Rendered slides are built as escaped SVG and shown through `<img>`, so a
   booby-trapped deck can't run script — in the presenter's browser or in a

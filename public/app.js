@@ -5,7 +5,8 @@
 const state = {
   user: null,
   signupCodeRequired: false,
-  broadcast: null,   // {code, password, folderId, photos, expiresAt} while sharing
+  broadcast: null,   // {code, password, photos, mode, expiresAt} while sharing
+  handoffLimits: { maxPhotos: 50, maxTtlMs: 48 * 60 * 60 * 1000 },
   localRoot: null,   // tree of folders picked off this device — never uploaded
   localPath: [],     // where we are in that tree
   source: 'local',   // everything plays from this device now
@@ -39,8 +40,14 @@ const el = {
   whoami: $('whoami'), signOutBtn: $('signOutBtn'),
   broadcastBar: $('broadcastBar'), bcTitle: $('bcTitle'), bcCode: $('bcCode'), bcPass: $('bcPass'),
   bcViewers: $('bcViewers'), bcShowBtn: $('bcShowBtn'), bcStopBtn: $('bcStopBtn'), bcWarn: $('bcWarn'),
+  shareOptions: $('shareOptions'), shareOptionsForm: $('shareOptionsForm'),
+  shareOptionsCancel: $('shareOptionsCancel'), shareOptionsError: $('shareOptionsError'),
+  shareOptionsNote: $('shareOptionsNote'), handoffChoice: $('handoffChoice'),
+  handoffLimit: $('handoffLimit'), handoffTtlRow: $('handoffTtlRow'), handoffTtl: $('handoffTtl'),
+  bcHandoff: $('bcHandoff'), bcSafe: $('bcSafe'), bcExtendBtn: $('bcExtendBtn'),
   shareDialog: $('shareDialog'), shareCode: $('shareCode'), sharePass: $('sharePass'),
   shareUrl: $('shareUrl'), shareExpiry: $('shareExpiry'),
+  shareTitle: $('shareTitle'), shareIntro: $('shareIntro'), shareMode: $('shareMode'),
   shareCopyBtn: $('shareCopyBtn'), shareDoneBtn: $('shareDoneBtn'),
   localPanel: $('localPanel'), localGrid: $('localGrid'), localDrop: $('localDrop'),
   localStatus: $('localStatus'), localHelp: $('localHelp'), localCrumbs: $('localCrumbs'),
@@ -455,7 +462,7 @@ function shareButton(startShow) {
     button.disabled = true;
     try {
       await startShow();
-      await shareCurrentShow();
+      openShareOptions();
     } finally {
       button.disabled = false;
     }
@@ -730,40 +737,163 @@ el.localDrop.addEventListener('drop', (event) => {
  */
 const isShareable = () => state.photos.length > 0 && state.photos.every((photo) => photo.file);
 
-async function shareCurrentShow() {
-  // Whatever is playing is what gets shared — a folder, a subtree, or a deck.
+/* ── Choosing how to share ────────────────────────────────────────────────── */
+
+function openShareOptions() {
+  if (!isShareable()) {
+    showNotice('Start playing something from this device first, then share it.');
+    return;
+  }
+  const { maxPhotos } = state.handoffLimits;
+  const tooMany = state.photos.length > maxPhotos;
+  const radio = el.shareOptionsForm.querySelector('input[value="handoff"]');
+
+  // Hand-off is deliberately capped: the screens hold the copies, so it is a
+  // short arrangement rather than somewhere to park an album.
+  radio.disabled = tooMany;
+  el.handoffChoice.classList.toggle('is-disabled', tooMany);
+  el.handoffLimit.textContent = tooMany
+    ? `Not available — hand-off is limited to ${maxPhotos} photos and this show has ${state.photos.length}.`
+    : `Up to ${maxPhotos} photos. This show has ${state.photos.length}.`;
+
+  if (tooMany) el.shareOptionsForm.querySelector('input[value="live"]').checked = true;
+  el.handoffTtlRow.hidden = !radio.checked || tooMany;
+  el.shareOptionsError.hidden = true;
+  syncShareOptionsNote();
+  el.shareOptions.showModal();
+}
+
+function syncShareOptionsNote() {
+  const handoff = el.shareOptionsForm.querySelector('input[value="handoff"]').checked;
+  el.handoffTtlRow.hidden = !handoff;
+  el.shareOptionsNote.textContent = handoff
+    ? 'Keep this tab open until every screen reports a full copy — then you can close it. '
+      + 'Nothing is uploaded: the copies live on the screens, and they delete them when the show ends.'
+    : 'The photos stream from this tab as each screen asks for them.';
+}
+
+el.shareOptionsForm.addEventListener('change', syncShareOptionsNote);
+el.shareOptionsCancel.addEventListener('click', () => el.shareOptions.close());
+
+el.shareOptionsForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const handoff = el.shareOptionsForm.querySelector('input[value="handoff"]').checked;
+  try {
+    await shareCurrentShow({
+      mode: handoff ? 'handoff' : 'live',
+      ttlMs: handoff ? Number(el.handoffTtl.value) : undefined,
+    });
+    el.shareOptions.close();
+  } catch (err) {
+    el.shareOptionsError.textContent = err.message;
+    el.shareOptionsError.hidden = false;
+  }
+});
+
+/* ── Sharing ──────────────────────────────────────────────────────────────── */
+
+/**
+ * While a broadcast is live this tab is the source of the photos. It parks a
+ * long-poll waiting for viewers to ask for a slide, reads that file off disk,
+ * and PUTs the bytes back for the relay to hand on.
+ *
+ * In hand-off mode the same loop runs, but each screen keeps what it receives,
+ * so once they all have a full copy this tab is free to close.
+ */
+async function shareCurrentShow({ mode = 'live', ttlMs } = {}) {
   if (!isShareable()) {
     showNotice('Start playing something from this device first, then share it.');
     return;
   }
   if (state.broadcast) await stopBroadcast({ silent: true });
 
-  try {
-    const info = await api('/api/broadcast', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: state.folder, photoCount: state.photos.length }),
-    });
-
-    state.broadcast = {
-      code: info.code,
-      password: info.password,
+  const info = await api('/api/broadcast', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       title: state.folder,
-      photos: state.photos,     // the live playlist, so a reshuffle stays in step
-      gen: 0,
-      expiresAt: info.expiresAt,
-      viewers: 0,
-      running: true,
-    };
+      photoCount: state.photos.length,
+      mode,
+      ttlMs,
+      interval: state.interval,
+    }),
+  });
 
-    refreshShareUi();
-    showShareDialog(info);
-    serveRequests();            // background loop, deliberately not awaited
-    pushBroadcastState();
-  } catch (err) {
-    showNotice(`Could not start sharing: ${err.message}`);
+  state.broadcast = {
+    code: info.code,
+    password: info.password,
+    title: state.folder,
+    photos: state.photos,     // the live playlist, so a reshuffle stays in step
+    gen: 0,
+    mode: info.mode,
+    expiresAt: info.expiresAt,
+    viewers: 0,
+    screensComplete: 0,
+    slidesHeld: 0,
+    slidesNeeded: 0,
+    running: true,
+  };
+
+  refreshShareUi();
+  showShareDialog(info);
+  serveRequests();            // background loop, deliberately not awaited
+  if (info.mode === 'handoff') watchHandoffProgress();
+  else pushBroadcastState();
+}
+
+/* ── Hand-off: watching the screens take their copies ─────────────────────── */
+
+const remaining = (until) => {
+  const ms = Math.max(0, until - Date.now());
+  const hours = Math.floor(ms / 3600000);
+  const mins = Math.round((ms % 3600000) / 60000);
+  return hours ? `${hours}h ${mins}m` : `${mins}m`;
+};
+
+async function watchHandoffProgress() {
+  const bc = state.broadcast;
+  while (bc && bc.running && state.broadcast === bc) {
+    try {
+      const p = await api(`/api/broadcast/${bc.code}/progress`);
+      Object.assign(bc, {
+        viewers: p.viewers,
+        screensComplete: p.complete,
+        slidesHeld: p.slidesHeld,
+        slidesNeeded: p.slidesNeeded,
+        expiresAt: p.expiresAt,
+      });
+      renderBroadcastBar();
+    } catch (err) {
+      if (err.message && /not running/i.test(err.message)) {
+        state.broadcast = null;
+        refreshShareUi();
+        showNotice('That slideshow has been taken down.', 'ok');
+        return;
+      }
+    }
+    await new Promise((r) => setTimeout(r, 3000));
   }
 }
+
+el.bcExtendBtn.addEventListener('click', async () => {
+  const bc = state.broadcast;
+  if (!bc) return;
+  el.bcExtendBtn.disabled = true;
+  try {
+    const { expiresAt } = await api(`/api/broadcast/${bc.code}/extend`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ttlMs: state.handoffLimits.maxTtlMs }),
+    });
+    bc.expiresAt = expiresAt;
+    renderBroadcastBar();
+    showNotice(`Extended — this slideshow now runs for another ${remaining(expiresAt)}.`, 'ok');
+  } catch (err) {
+    showNotice(`Could not extend: ${err.message}`);
+  } finally {
+    el.bcExtendBtn.disabled = false;
+  }
+});
 
 /** Starting or stopping a share changes the folder cards too. */
 function refreshShareUi() {
@@ -774,21 +904,70 @@ function refreshShareUi() {
 function renderBroadcastBar() {
   const bc = state.broadcast;
   el.broadcastBar.hidden = !bc;
-  el.bcWarn.hidden = !bc;
   el.shareNowBtn.textContent = bc ? 'Stop sharing' : 'Share…';
-  if (!bc) return;
-  el.bcTitle.textContent = `Broadcasting “${bc.title || 'slideshow'}”`;
+  if (!bc) {
+    el.bcWarn.hidden = true;
+    el.bcSafe.hidden = true;
+    el.bcExtendBtn.hidden = true;
+    return;
+  }
+
+  const handoff = bc.mode === 'handoff';
+  el.bcTitle.textContent = `${handoff ? 'Handed off' : 'Broadcasting'} “${bc.title || 'slideshow'}”`;
   el.bcCode.textContent = bc.code;
   el.bcPass.textContent = bc.password;
-  el.bcViewers.textContent = bc.viewers === 1 ? '1 viewer' : `${bc.viewers} viewers`;
+  el.bcViewers.textContent = bc.viewers === 1 ? '1 screen' : `${bc.viewers} screens`;
+  el.bcExtendBtn.hidden = !handoff;
+
+  if (!handoff) {
+    el.bcHandoff.textContent = '';
+    el.bcSafe.hidden = true;
+    el.bcWarn.hidden = false;      // the live warning: keep this tab open
+    return;
+  }
+
+  el.bcHandoff.textContent = ` · ends in ${remaining(bc.expiresAt)}`;
+
+  // The whole point of hand-off is knowing when you can walk away, so say it
+  // plainly rather than leaving the user to infer it from a progress bar.
+  const done = bc.viewers > 0 && bc.screensComplete >= bc.viewers;
+  el.bcWarn.hidden = done;
+  el.bcSafe.hidden = false;
+  el.bcSafe.classList.toggle('is-ready', done);
+  el.bcSafe.textContent = bc.viewers === 0
+    ? 'Waiting for a screen to join — give it the code, then keep this tab open while it copies.'
+    : done
+      ? `Safe to close this tab — all ${bc.viewers === 1 ? 'screens have' : `${bc.viewers} screens have`} a full copy.`
+      : `Copying to screens: ${bc.screensComplete} of ${bc.viewers} done`
+        + `${bc.slidesNeeded ? ` (${Math.round((bc.slidesHeld / bc.slidesNeeded) * 100)}%)` : ''}`
+        + ' — keep this tab open.';
 }
 
 function showShareDialog(info) {
   el.shareCode.textContent = info.code;
   el.sharePass.textContent = info.password;
   el.shareUrl.textContent = `${location.host}/watch`;
+
+  // The two modes make opposite promises about this tab, so the dialog has to
+  // say which one the presenter just chose.
+  const handoff = info.mode === 'handoff';
   const expires = new Date(info.expiresAt);
-  el.shareExpiry.textContent = `The code stops working when you stop sharing, or at ${expires.toLocaleTimeString()} at the latest.`;
+  const when = `${expires.toLocaleDateString(undefined, { weekday: 'long' })} at ${expires.toLocaleTimeString()}`;
+
+  el.shareTitle.textContent = handoff ? 'Handed off to the screens' : 'Slideshow is live';
+  el.shareIntro.textContent = handoff
+    ? 'Add every screen now, while this tab is still open.'
+    : 'They work until you stop sharing.';
+  el.shareExpiry.textContent = handoff
+    ? `The show takes itself down on ${when}, unless you come back and extend it.`
+    : `The code stops working when you stop sharing, or at ${expires.toLocaleTimeString()} at the latest.`;
+  el.shareMode.textContent = handoff
+    ? 'Each screen copies the photos as it joins. Once they all report a full copy '
+      + 'you can close this tab — nothing is uploaded, and the screens delete their '
+      + 'copies when the show ends.'
+    : 'The photos are streamed live from this browser. They are not uploaded or '
+      + 'stored on the server, so this tab has to stay open.';
+
   el.shareDialog.showModal();
 }
 
@@ -891,7 +1070,11 @@ function pushBroadcastState() {
 // code alive until the host timeout notices.
 window.addEventListener('pagehide', () => {
   const bc = state.broadcast;
-  if (bc && navigator.sendBeacon) navigator.sendBeacon(`/api/broadcast/${bc.code}/end`, new Blob([], { type: 'text/plain' }));
+  // A handed-off show is supposed to survive this tab closing; only a live one
+  // is torn down, since without this tab it has no source of photos.
+  if (bc && bc.mode !== 'handoff' && navigator.sendBeacon) {
+    navigator.sendBeacon(`/api/broadcast/${bc.code}/end`, new Blob([], { type: 'text/plain' }));
+  }
 });
 
 /* ── Casting to a television ──────────────────────────────────────────────── */
@@ -912,7 +1095,7 @@ const canCast = typeof window.PresentationRequest === 'function';
 
 async function castTicketUrl() {
   if (!state.broadcast) {
-    await shareCurrentShow();
+    await shareCurrentShow({ mode: 'live' });
     if (!state.broadcast) return null;
   }
   const { url } = await api(`/api/broadcast/${state.broadcast.code}/cast-ticket`, { method: 'POST' });
@@ -1156,7 +1339,7 @@ el.loopBtn.addEventListener('click', () => {
 
 el.shareNowBtn.addEventListener('click', () => {
   if (state.broadcast) stopBroadcast({});
-  else shareCurrentShow();
+  else openShareOptions();
 });
 
 el.fullscreenBtn.addEventListener('click', () => {
@@ -1424,6 +1607,9 @@ state.interval = Number(el.speedSelect.value);
   }
   mountHowTo();
   setAuthMode('login');
+  api('/api/broadcast/mine')
+    .then((mine) => { if (mine.handoff) state.handoffLimits = mine.handoff; })
+    .catch(() => {});   // signed out, or offline; the defaults are fine
   if (me && me.user) {
     enterApp(me.user);
   } else {

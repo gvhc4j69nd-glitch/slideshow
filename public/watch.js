@@ -29,9 +29,138 @@ const state = {
   running: false,
   cache: new Map(),   // index -> object URL of an already-fetched slide
   inFlight: new Map(),
+
+  // Hand-off: this screen keeps its own copy and runs the show unaided.
+  mode: 'live',
+  startedAt: 0,
+  interval: 5000,
+  skew: 0,            // serverNow - Date.now(), so screens agree on the time
+  held: 0,            // slides copied so far
+  store: null,        // the Cache API bucket holding them
+  clockTimer: null,
 };
 
 const MAX_CACHED = 6;
+
+/* ── Keeping a copy, for hand-off ─────────────────────────────────────────── */
+
+const storeName = () => `vinboo-${state.code}-${state.gen ?? 0}`;
+
+/** Ask not to be evicted mid-evening. Best effort; refusal is not fatal. */
+async function openStore() {
+  if (!('caches' in window)) return null;
+  try {
+    if (navigator.storage && navigator.storage.persist) await navigator.storage.persist();
+    return await caches.open(storeName());
+  } catch {
+    return null;
+  }
+}
+
+const slideKey = (index) => `/__vinboo/${state.code}/${state.gen ?? 0}/${index}`;
+
+async function readStored(index) {
+  if (!state.store) return null;
+  try {
+    const hit = await state.store.match(slideKey(index));
+    return hit ? await hit.blob() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeStored(index, blob) {
+  if (!state.store) return false;
+  try {
+    await state.store.put(slideKey(index), new Response(blob));
+    return true;
+  } catch {
+    // Out of room. Whatever is already held still plays; the loop just gets
+    // shorter, which beats failing outright on a television with little space.
+    return false;
+  }
+}
+
+/** Delete this show's copy. Called when it ends, so nothing lingers. */
+async function dropStore() {
+  state.store = null;
+  if (!('caches' in window)) return;
+  try {
+    for (const name of await caches.keys()) {
+      if (name.startsWith(`vinboo-${state.code}-`)) await caches.delete(name);
+    }
+  } catch {
+    // Nothing useful to do if the browser refuses.
+  }
+}
+
+async function reportHeld() {
+  try {
+    await fetch(`/api/watch/${state.code}/cached`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ have: state.held }),
+    });
+  } catch {
+    // The presenter's progress readout is a nicety, not a dependency.
+  }
+}
+
+/**
+ * Copy the whole show while the presenter is still here, so this screen can
+ * carry on once they leave.
+ */
+async function precacheAll() {
+  state.store = await openStore();
+  let held = 0;
+  for (let i = 0; i < state.photoCount && state.running; i += 1) {
+    try {
+      await fetchSlide(i);
+      held += 1;
+      if (held !== state.held) {
+        state.held = held;
+        if (held % 5 === 0 || held === state.photoCount) await reportHeld();
+      }
+    } catch {
+      // A slide that will not come now may come later; keep going.
+    }
+  }
+  state.held = held;
+  await reportHeld();
+}
+
+/* ── Running the show without a presenter ─────────────────────────────────── */
+
+const serverNow = () => Date.now() + state.skew;
+
+/**
+ * Every screen derives the slide from the same arithmetic, so they stay in step
+ * with each other and need nobody to tell them what to show.
+ */
+function clockIndex() {
+  if (!state.photoCount || !state.interval) return 0;
+  const elapsed = Math.max(0, serverNow() - state.startedAt);
+  return Math.floor(elapsed / state.interval) % state.photoCount;
+}
+
+function startClockPlayback() {
+  if (state.clockTimer) return;
+  const tick = () => {
+    if (!state.running) return;
+    const wanted = clockIndex();
+    if (wanted !== state.index) {
+      state.index = wanted;
+      showSlide(wanted);
+    }
+  };
+  tick();
+  state.clockTimer = setInterval(tick, 400);
+}
+
+function stopClockPlayback() {
+  clearInterval(state.clockTimer);
+  state.clockTimer = null;
+}
 
 async function api(url, options) {
   const res = await fetch(url, options);
@@ -77,6 +206,13 @@ function startViewing(info) {
   applyState(info);
   markActive();
   pollState();
+
+  // A handed-off show is this screen's responsibility from here: take a copy
+  // while the presenter is still around to give one.
+  if (state.mode === 'handoff') {
+    startClockPlayback();
+    precacheAll();
+  }
 }
 
 /* ── Following the presenter ──────────────────────────────────────────────── */
@@ -90,20 +226,27 @@ function applyState(info) {
   el.viewTitle.textContent = info.title || 'Slideshow';
   el.viewHost.textContent = info.host ? `Presented by ${info.host}` : '';
   state.photoCount = info.photoCount || 0;
-  el.viewCounter.textContent = `${Math.min(info.index + 1, state.photoCount)} / ${state.photoCount}`;
+
+  if (info.mode) state.mode = info.mode;
+  if (Number.isFinite(info.now)) state.skew = info.now - Date.now();
+  if (Number.isFinite(info.startedAt)) state.startedAt = info.startedAt;
+  if (Number.isFinite(info.interval)) state.interval = info.interval;
 
   if (info.ended) {
     setStatus('Ended', 'bad');
-    el.stageMsg.textContent = info.reason === 'host-disconnected'
-      ? 'The presenter disconnected.'
-      : 'The presenter ended the slideshow.';
+    el.stageMsg.textContent = info.reason === 'expired'
+      ? 'This slideshow has reached its end time and been taken down.'
+      : info.reason === 'host-disconnected'
+        ? 'The presenter disconnected.'
+        : 'The presenter ended the slideshow.';
     el.stageMsg.hidden = false;
     state.running = false;
+    stopClockPlayback();
+    // Nothing is meant to outlive the show, including this screen's copy.
+    dropCache();
+    dropStore();
     return;
   }
-
-  if (!info.hostLive) setStatus('Presenter away', 'bad');
-  else setStatus(info.playing ? 'Live' : 'Paused');
 
   // The presenter reshuffled, so a cached slide no longer matches its index.
   if (Number.isInteger(info.gen) && info.gen !== state.gen) {
@@ -111,6 +254,20 @@ function applyState(info) {
     dropCache();
     state.index = -1;
   }
+
+  if (state.mode === 'handoff') {
+    const held = state.held;
+    setStatus(held >= state.photoCount || !state.photoCount
+      ? 'Running on this screen'
+      : `Copying ${held}/${state.photoCount}`);
+    el.viewCounter.textContent = `${state.index + 1} / ${state.photoCount}`;
+    startClockPlayback();       // the clock decides, not the presenter
+    return;
+  }
+
+  el.viewCounter.textContent = `${Math.min(info.index + 1, state.photoCount)} / ${state.photoCount}`;
+  if (!info.hostLive) setStatus('Presenter away', 'bad');
+  else setStatus(info.playing ? 'Live' : 'Paused');
 
   if (info.index !== state.index) {
     state.index = info.index;
@@ -152,16 +309,26 @@ async function fetchSlide(index) {
   if (state.inFlight.has(index)) return state.inFlight.get(index);
 
   const pending = (async () => {
+    const stored = await readStored(index);
+    if (stored) {
+      const fromDisk = URL.createObjectURL(stored);
+      state.cache.set(index, fromDisk);
+      return fromDisk;
+    }
+
     const res = await fetch(`/api/watch/${state.code}/photo/${index}`);
     if (!res.ok) {
       const body = await res.json().catch(() => null);
       throw new Error((body && body.error) || `Could not load photo ${index + 1}`);
     }
-    const url = URL.createObjectURL(await res.blob());
+    const blob = await res.blob();
+    if (state.mode === 'handoff') await writeStored(index, blob);
+    const url = URL.createObjectURL(blob);
     state.cache.set(index, url);
 
-    // Keep only a few slides around so long shows don't grow without bound.
-    while (state.cache.size > MAX_CACHED) {
+    // Live shows can be long, so only a few object URLs are kept alive. A
+    // handed-off show is capped at 50 slides, so it keeps all of them.
+    while (state.mode !== 'handoff' && state.cache.size > MAX_CACHED) {
       const oldest = state.cache.keys().next().value;
       if (oldest === state.index) break;
       URL.revokeObjectURL(state.cache.get(oldest));
@@ -237,6 +404,7 @@ for (const type of ['mousemove', 'keydown', 'touchstart', 'click']) {
 
 el.leaveBtn.addEventListener('click', () => {
   state.running = false;
+  stopClockPlayback();
   for (const url of state.cache.values()) URL.revokeObjectURL(url);
   state.cache.clear();
   el.slideA.removeAttribute('src');
