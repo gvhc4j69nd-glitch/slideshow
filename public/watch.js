@@ -17,6 +17,9 @@ const el = {
   stageMsg: $('stageMsg'), viewTitle: $('viewTitle'), viewCounter: $('viewCounter'),
   viewStatus: $('viewStatus'), viewHost: $('viewHost'), leaveBtn: $('leaveBtn'),
   viewFullscreenBtn: $('viewFullscreenBtn'),
+  viewControls: $('viewControls'), viewPlayBtn: $('viewPlayBtn'),
+  viewPrevBtn: $('viewPrevBtn'), viewNextBtn: $('viewNextBtn'),
+  viewRestartBtn: $('viewRestartBtn'), viewSpeed: $('viewSpeed'),
 };
 
 const state = {
@@ -40,6 +43,8 @@ const state = {
   store: null,        // the Cache API bucket holding them
   clockTimer: null,
   seeding: false,     // this screen is answering other screens' requests
+  playing: true,      // hand-off only: this screen drives its own playback
+  ownSpeed: false,    // the viewer picked a speed, so stop taking the show's
 };
 
 const MAX_CACHED = 6;
@@ -222,29 +227,59 @@ const serverNow = () => Date.now() + state.skew;
  * Every screen derives the slide from the same arithmetic, so they stay in step
  * with each other and need nobody to tell them what to show.
  */
-function clockIndex() {
-  if (!state.photoCount || !state.interval) return 0;
-  const elapsed = Math.max(0, serverNow() - state.startedAt);
-  return Math.floor(elapsed / state.interval) % state.photoCount;
+/*
+ * A handed-off screen runs the show itself. It starts at the first photo rather
+ * than dropping the viewer into the middle of a loop, and it keeps its own
+ * timer, so the controls below actually control something. Nothing here talks
+ * to the presenter — by this point there may not be one.
+ */
+function startLocalPlayback() {
+  stopLocalPlayback();
+  state.index = -1;
+  state.playing = true;
+  showLocal(0);
+  el.viewControls.hidden = false;
+  syncPlayButton();
+  el.viewSpeed.value = String(state.interval);
+  state.clockTimer = setInterval(() => {
+    if (!state.running || !state.playing) return;
+    showLocal((state.index + 1) % Math.max(1, state.photoCount));
+  }, state.interval);
 }
 
-function startClockPlayback() {
-  if (state.clockTimer) return;
-  const tick = () => {
-    if (!state.running) return;
-    const wanted = clockIndex();
-    if (wanted !== state.index) {
-      state.index = wanted;
-      showSlide(wanted);
-    }
-  };
-  tick();
-  state.clockTimer = setInterval(tick, 400);
-}
-
-function stopClockPlayback() {
+function stopLocalPlayback() {
   clearInterval(state.clockTimer);
   state.clockTimer = null;
+}
+
+/** Move this screen to a slide, and restart the dwell so it gets a full turn. */
+function showLocal(index) {
+  if (!state.photoCount) return;
+  const wanted = ((index % state.photoCount) + state.photoCount) % state.photoCount;
+  state.index = wanted;
+  showSlide(wanted);
+}
+
+function restartLocalTimer() {
+  if (!state.clockTimer) return;
+  clearInterval(state.clockTimer);
+  state.clockTimer = setInterval(() => {
+    if (!state.running || !state.playing) return;
+    showLocal((state.index + 1) % Math.max(1, state.photoCount));
+  }, state.interval);
+}
+
+function syncPlayButton() {
+  el.viewPlayBtn.textContent = state.playing ? '❚❚' : '▶';
+  el.viewPlayBtn.title = state.playing ? 'Pause (Space)' : 'Play (Space)';
+  el.viewPlayBtn.setAttribute('aria-pressed', String(state.playing));
+}
+
+function stepLocal(by) {
+  if (!state.photoCount) return;
+  showLocal(state.index + by);
+  restartLocalTimer();
+  markActive();
 }
 
 async function api(url, options) {
@@ -340,6 +375,7 @@ function startViewing(info) {
   el.viewer.hidden = false;
   state.running = true;
   state.version = null;
+  state.ownSpeed = false;
   applyState(info);
   markActive();
   pollState();
@@ -347,7 +383,7 @@ function startViewing(info) {
   // A handed-off show is this screen's responsibility from here: take a copy
   // while the presenter is still around to give one.
   if (state.mode === 'handoff') {
-    startClockPlayback();
+    startLocalPlayback();
     precacheAll();
   }
 }
@@ -368,7 +404,9 @@ function applyState(info) {
   if (info.mode) state.mode = info.mode;
   if (Number.isFinite(info.now)) state.skew = info.now - Date.now();
   if (Number.isFinite(info.startedAt)) state.startedAt = info.startedAt;
-  if (Number.isFinite(info.interval)) state.interval = info.interval;
+  // The show's pace is the starting point, not a standing instruction: once
+  // somebody at this screen has picked their own, polling must not undo it.
+  if (Number.isFinite(info.interval) && !state.ownSpeed) state.interval = info.interval;
 
   if (info.ended) {
     setStatus('Ended', 'bad');
@@ -379,7 +417,8 @@ function applyState(info) {
         : 'The presenter ended the slideshow.';
     el.stageMsg.hidden = false;
     state.running = false;
-    stopClockPlayback();
+    stopLocalPlayback();
+    el.viewControls.hidden = true;
     // Nothing is meant to outlive the show, including this screen's copy.
     dropCache();
     dropStore();
@@ -399,7 +438,7 @@ function applyState(info) {
       ? 'Running on this screen'
       : `Copying ${held}/${state.photoCount}`);
     el.viewCounter.textContent = `${state.index + 1} / ${state.photoCount}`;
-    startClockPlayback();       // the clock decides, not the presenter
+    // This screen runs itself from here; startViewing kicked it off.
     return;
   }
 
@@ -548,6 +587,46 @@ async function showSlide(index) {
 
 /* ── Controls ─────────────────────────────────────────────────────────────── */
 
+el.viewPlayBtn.addEventListener('click', () => {
+  state.playing = !state.playing;
+  syncPlayButton();
+  if (state.playing) restartLocalTimer();
+  markActive();
+});
+
+el.viewNextBtn.addEventListener('click', () => stepLocal(1));
+el.viewPrevBtn.addEventListener('click', () => stepLocal(-1));
+
+el.viewRestartBtn.addEventListener('click', () => {
+  showLocal(0);
+  restartLocalTimer();
+  markActive();
+});
+
+el.viewSpeed.addEventListener('change', () => {
+  state.interval = Number(el.viewSpeed.value) || state.interval;
+  state.ownSpeed = true;
+  restartLocalTimer();
+  markActive();
+});
+
+/*
+ * A television is driven by a remote, and a remote sends arrow keys. These are
+ * the same shortcuts the presenter's player uses, so the two behave alike.
+ */
+document.addEventListener('keydown', (event) => {
+  if (el.viewer.hidden || state.mode !== 'handoff') return;
+  if (event.target instanceof HTMLSelectElement) return;
+  switch (event.key) {
+    case ' ': case 'Enter': event.preventDefault(); el.viewPlayBtn.click(); break;
+    case 'ArrowRight': event.preventDefault(); stepLocal(1); break;
+    case 'ArrowLeft': event.preventDefault(); stepLocal(-1); break;
+    case 'r': case 'R': el.viewRestartBtn.click(); break;
+    case 'f': case 'F': el.viewFullscreenBtn.click(); break;
+    default: break;
+  }
+});
+
 el.viewFullscreenBtn.addEventListener('click', () => {
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   else el.viewer.requestFullscreen().catch(() => {});
@@ -572,7 +651,8 @@ for (const type of ['mousemove', 'keydown', 'touchstart', 'click']) {
 
 el.leaveBtn.addEventListener('click', () => {
   state.running = false;
-  stopClockPlayback();
+  stopLocalPlayback();
+  el.viewControls.hidden = true;
   for (const url of state.cache.values()) URL.revokeObjectURL(url);
   state.cache.clear();
   el.slideA.removeAttribute('src');

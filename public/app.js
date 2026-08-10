@@ -769,7 +769,9 @@ function syncShareOptionsNote() {
   el.handoffTtlRow.hidden = !handoff;
   el.shareOptionsNote.textContent = handoff
     ? 'Keep this tab open until every screen reports a full copy — then you can close it. '
-      + 'Nothing is uploaded: the copies live on the screens, and they delete them when the show ends.'
+      + 'Nothing is uploaded: the copies live on the screens themselves. One of those screens '
+      + 'has to stay on for the life of the show — if they all go off, nothing can join, and '
+      + 'they delete their copies when it ends.'
     : 'The photos stream from this tab as each screen asks for them.';
 }
 
@@ -940,6 +942,7 @@ function renderBroadcastBar() {
     ? 'Waiting for a screen to join — give it the code, then keep this tab open while it copies.'
     : done
       ? `Safe to close this tab — all ${bc.viewers === 1 ? 'screens have' : `${bc.viewers} screens have`} a full copy.`
+        + ' Leave at least one screen on for the life of the show.'
       : `Copying to screens: ${bc.screensComplete} of ${bc.viewers} done`
         + `${bc.slidesNeeded ? ` (${Math.round((bc.slidesHeld / bc.slidesNeeded) * 100)}%)` : ''}`
         + ' — keep this tab open.';
@@ -964,9 +967,10 @@ function showShareDialog(info) {
     ? `The show takes itself down on ${when}, unless you come back and extend it.`
     : `The code stops working when you stop sharing, or at ${expires.toLocaleTimeString()} at the latest.`;
   el.shareMode.textContent = handoff
-    ? 'Each screen copies the photos as it joins. Once they all report a full copy '
-      + 'you can close this tab — nothing is uploaded, and the screens delete their '
-      + 'copies when the show ends.'
+    ? 'Each screen copies the photos as it joins and then runs the show itself. Once they '
+      + 'all report a full copy you can close this tab, but leave at least one screen on for '
+      + 'the life of the show — the photos live on the screens, not on a server, so if every '
+      + 'screen goes off there is nothing left to join. They delete their copies when it ends.'
     : 'The photos are streamed live from this browser. They are not uploaded or '
       + 'stored on the server, so this tab has to stay open.';
 

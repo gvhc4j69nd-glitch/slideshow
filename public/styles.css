@@ -295,10 +295,15 @@ a { color: var(--coral-ink); }
   border-top: 1px solid var(--stage-line);
   transition: opacity .3s ease;
 }
-.controls-left, .controls-center, .controls-right {
+.controls-left, .controls-center, .controls-mid, .controls-right {
   display: flex; align-items: center; gap: 8px;
 }
 .controls-left { min-width: 0; }
+.controls-mid { justify-content: center; flex: 0 1 auto; }
+/* On a phone the row wraps, and the controls belong on their own line. */
+@media (max-width: 640px) {
+  .controls-mid { order: 3; width: 100%; justify-content: center; }
+}
 .meta { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
 .meta strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 30vw; }
 .counter { color: var(--stage-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -314,10 +319,7 @@ a { color: var(--coral-ink); }
   box-shadow: none;
 }
 .controls .btn:hover:not(:disabled) { background: rgba(255, 255, 255, .16); }
-.controls /* An anchor styled as a button still has to sit on the same baseline as one. */
-.btn-link { display: inline-block; text-decoration: none; line-height: normal; }
-
-.btn-primary { background: var(--coral); border-color: transparent; color: var(--ink); }
+.controls .btn-primary { background: var(--coral); border-color: transparent; color: var(--ink); }
 .controls .btn-primary:hover:not(:disabled) { background: #FF9291; }
 .controls .btn-toggle[aria-pressed="true"] { background: var(--cyan); border-color: transparent; color: var(--ink); }
 

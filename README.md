@@ -266,9 +266,20 @@ photos, and the show ends when you leave.
 **Hand off to the screens** is for when you want to set a slideshow going at a
 party and then put your phone in your pocket. Each screen copies the photos into
 its own browser storage as it joins, and once it has the lot it runs the show by
-itself — no server, no presenting tab. Every screen works out which slide to
-show from the clock rather than being told, so they stay in step without anyone
-driving them.
+itself — no server, no presenting tab. It starts at the first photo rather than
+dropping you into the middle of a loop.
+
+Because the screen owns its copy, it gets its own controls: play and pause,
+back and forward, start over, and its own speed. Arrow keys, space, `R` and `F`
+work too, which is what a television remote actually sends. A screen following a
+live presenter has none of this — there the presenter drives, and the screen has
+nothing of its own to decide.
+
+**One screen has to stay on for the life of the show.** The photos live on the
+screens, not on a server, so a screen that already holds a copy keeps playing on
+its own — but if every screen goes off, there is nothing left for a new one to
+copy from, and nobody else can join until one comes back. The share dialog and
+the broadcast bar both say so.
 
 While the copying is happening the tab still has to be open, because it is still
 the only source of the pictures. The broadcast bar counts the screens up and

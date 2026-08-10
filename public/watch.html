@@ -92,6 +92,27 @@
           </span>
         </span>
       </div>
+      <!-- Only for a handed-off show. While a presenter is driving, this screen
+           follows them and has nothing of its own to decide. -->
+      <div class="controls-mid" id="viewControls" hidden>
+        <button type="button" class="btn btn-icon" id="viewPrevBtn" title="Previous (←)">◂◂</button>
+        <button type="button" class="btn btn-icon btn-primary" id="viewPlayBtn"
+                title="Pause (Space)" aria-pressed="true">❚❚</button>
+        <button type="button" class="btn btn-icon" id="viewNextBtn" title="Next (→)">▸▸</button>
+        <button type="button" class="btn btn-icon" id="viewRestartBtn" title="Start over (R)">↺</button>
+        <label class="field speed">
+          <span>Speed</span>
+          <select id="viewSpeed" aria-label="Seconds per slide">
+            <option value="2000">2s</option>
+            <option value="3000">3s</option>
+            <option value="5000">5s</option>
+            <option value="8000">8s</option>
+            <option value="15000">15s</option>
+            <option value="30000">30s</option>
+          </select>
+        </label>
+      </div>
+
       <div class="controls-right">
         <span class="field" id="viewHost"></span>
         <button type="button" class="btn btn-icon" id="viewFullscreenBtn" title="Fullscreen (F)">⛶</button>
