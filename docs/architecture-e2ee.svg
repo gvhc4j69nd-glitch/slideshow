@@ -1,0 +1,238 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1070" width="1200" height="1070"
+     font-family="ui-rounded, 'SF Pro Rounded', Nunito, 'Segoe UI', Helvetica, Arial, sans-serif">
+
+  <defs>
+    <marker id="a-media" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#C8362F"/>
+    </marker>
+    <marker id="a-control" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#1F7884"/>
+    </marker>
+    <marker id="a-auth" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#936A10"/>
+    </marker>
+    <marker id="a-key" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#6F4BA8"/>
+    </marker>
+  </defs>
+
+  <style>
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+
+  <rect x="0" y="0" width="1200" height="1070" fill="#FFFAF5"/>
+
+  <text x="600" y="44" text-anchor="middle" font-size="27" font-weight="700" fill="#2A2440">
+    Vinboo Premium — end-to-end encrypted
+  </text>
+  <text x="600" y="72" text-anchor="middle" font-size="14.5" fill="#6B6480">
+    The same relay, carrying sealed boxes. The server forwards what it cannot open.
+  </text>
+
+  <!-- ── Presenter ───────────────────────────────────────────────────────── -->
+  <rect x="40" y="104" width="270" height="330" rx="18" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
+  <rect x="40" y="104" width="270" height="5" rx="2.5" fill="#FF8382"/>
+  <text x="62" y="138" font-size="16" font-weight="700" fill="#2A2440">Presenter's browser</text>
+  <text x="62" y="158" font-size="12.5" fill="#6B6480">seals every slide before it leaves</text>
+
+  <rect x="62" y="174" width="226" height="64" rx="10" fill="#F3EDFA"/>
+  <text x="76" y="194" font-size="12" font-weight="600" fill="#6F4BA8">Makes the key, keeps the key</text>
+  <text x="76" y="211" font-size="11.5" fill="#6F4BA8">A fresh 256-bit key per slideshow,</text>
+  <text x="76" y="227" font-size="11.5" fill="#6F4BA8">generated here by WebCrypto.</text>
+
+  <text x="62" y="262" font-size="12" fill="#2A2440">• Encrypts each slide, AES-256-GCM</text>
+  <text x="62" y="282" font-size="12" fill="#2A2440">• A fresh IV for every slide</text>
+  <text x="62" y="302" font-size="12" fill="#2A2440">• Title and file names sealed too</text>
+  <text x="62" y="322" font-size="12" fill="#2A2440">• Key destroyed when sharing stops</text>
+
+  <rect x="62" y="340" width="226" height="46" rx="10" fill="#FFEDEC"/>
+  <text x="76" y="360" font-size="11.5" font-weight="600" fill="#C8362F">Still the only copy</text>
+  <text x="76" y="376" font-size="11.5" fill="#C8362F">Close this tab and the show ends.</text>
+
+  <text x="62" y="410" font-size="11.5" fill="#6B6480">Encrypting a slide costs a few</text>
+  <text x="62" y="426" font-size="11.5" fill="#6B6480">milliseconds — unnoticeable per photo.</text>
+
+  <!-- ── Server ──────────────────────────────────────────────────────────── -->
+  <rect x="460" y="104" width="270" height="330" rx="18" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
+  <rect x="460" y="104" width="270" height="5" rx="2.5" fill="#51D1E3"/>
+  <text x="482" y="138" font-size="16" font-weight="700" fill="#2A2440">Vinboo server</text>
+  <text x="482" y="158" font-size="12" fill="#6B6480">unchanged, and now unable to look</text>
+
+  <text x="482" y="186" font-size="12" fill="#2A2440">• Parks requests and fans out replies</text>
+  <text x="482" y="206" font-size="12" fill="#2A2440">• Moves ciphertext, byte for byte</text>
+  <text x="482" y="226" font-size="12" fill="#2A2440">• Checks an auth token, not a key</text>
+
+  <rect x="482" y="244" width="226" height="104" rx="10" fill="#F3EDFA"/>
+  <text x="496" y="264" font-size="12" font-weight="600" fill="#6F4BA8">Holds no key, ever</text>
+  <text x="496" y="281" font-size="11.5" fill="#6F4BA8">The viewer's secret arrives split in</text>
+  <text x="496" y="297" font-size="11.5" fill="#6F4BA8">two by HKDF. Vinboo receives the half</text>
+  <text x="496" y="313" font-size="11.5" fill="#6F4BA8">that proves you know it, and never</text>
+  <text x="496" y="329" font-size="11.5" fill="#6F4BA8">the half that opens the box.</text>
+
+  <text x="482" y="372" font-size="11.5" fill="#6B6480">A breach, a subpoena or a curious</text>
+  <text x="482" y="388" font-size="11.5" fill="#6B6480">engineer yields ciphertext and</text>
+  <text x="482" y="404" font-size="11.5" fill="#6B6480">timings — no pictures.</text>
+
+  <!-- ── Viewers ─────────────────────────────────────────────────────────── -->
+  <rect x="880" y="104" width="270" height="330" rx="18" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
+  <rect x="880" y="104" width="270" height="5" rx="2.5" fill="#FDCA5C"/>
+  <text x="902" y="138" font-size="16" font-weight="700" fill="#2A2440">Viewers</text>
+  <text x="902" y="158" font-size="12.5" fill="#6B6480">open the box themselves</text>
+
+  <rect x="902" y="176" width="96" height="58" rx="7" fill="#F1ECF6" stroke="rgba(42,36,64,.16)"/>
+  <rect x="909" y="183" width="82" height="40" rx="4" fill="#FF8382"/>
+  <rect x="938" y="234" width="24" height="8" fill="#DDD5E8"/>
+  <rect x="922" y="242" width="56" height="6" rx="3" fill="#DDD5E8"/>
+  <text x="950" y="266" text-anchor="middle" font-size="12" fill="#2A2440">Television</text>
+
+  <rect x="1012" y="180" width="84" height="50" rx="6" fill="#F1ECF6" stroke="rgba(42,36,64,.16)"/>
+  <rect x="1018" y="186" width="72" height="38" rx="4" fill="#FF8382"/>
+  <path d="M1006 230 h96 l9 8 h-114 z" fill="#DDD5E8"/>
+  <text x="1054" y="266" text-anchor="middle" font-size="12" fill="#2A2440">Laptop</text>
+
+  <rect x="1110" y="176" width="34" height="60" rx="7" fill="#F1ECF6" stroke="rgba(42,36,64,.16)"/>
+  <rect x="1115" y="183" width="24" height="46" rx="3" fill="#FF8382"/>
+  <text x="1127" y="266" text-anchor="middle" font-size="12" fill="#2A2440">Phone</text>
+
+  <rect x="902" y="284" width="226" height="86" rx="10" fill="#F3EDFA"/>
+  <text x="916" y="304" font-size="12" font-weight="600" fill="#6F4BA8">Decrypts in the browser</text>
+  <text x="916" y="321" font-size="11.5" fill="#6F4BA8">AES-GCM also proves the slide is the</text>
+  <text x="916" y="337" font-size="11.5" fill="#6F4BA8">one the presenter sent: tamper with a</text>
+  <text x="916" y="353" font-size="11.5" fill="#6F4BA8">byte and it refuses to open at all.</text>
+
+  <text x="902" y="392" font-size="11.5" fill="#6B6480">Still no account, still no app — but now</text>
+  <text x="902" y="408" font-size="11.5" fill="#6B6480">they need the key, not just a password.</text>
+
+  <!-- ── Presenter ↔ server ──────────────────────────────────────────────── -->
+  <line x1="310" y1="170" x2="460" y2="170" stroke="#936A10" stroke-width="2" marker-end="url(#a-auth)"/>
+  <circle cx="322" cy="154" r="9" fill="#936A10"/><text x="322" y="158" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">1</text>
+  <text x="398" y="158" text-anchor="middle" font-size="11.5" fill="#936A10">sign in</text>
+  <text x="385" y="187" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">POST /api/auth/login</text>
+  <text x="385" y="199" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">HTTPS · JSON</text>
+
+  <line x1="310" y1="240" x2="460" y2="240" stroke="#1F7884" stroke-width="2" marker-end="url(#a-control)"/>
+  <circle cx="322" cy="224" r="9" fill="#1F7884"/><text x="322" y="228" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">2</text>
+  <text x="400" y="228" text-anchor="middle" font-size="11.5" fill="#1F7884">start sharing</text>
+  <text x="385" y="257" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">POST /api/broadcast</text>
+  <text x="385" y="269" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">→ code + auth half only</text>
+
+  <line x1="460" y1="310" x2="310" y2="310" stroke="#1F7884" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#a-control)"/>
+  <circle cx="322" cy="294" r="9" fill="#1F7884"/><text x="322" y="298" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">4</text>
+  <text x="404" y="298" text-anchor="middle" font-size="11.5" fill="#1F7884">“slide 4, please”</text>
+  <text x="385" y="327" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">GET …/requests</text>
+  <text x="385" y="339" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">held open ≤ 25s</text>
+
+  <line x1="310" y1="380" x2="460" y2="380" stroke="#C8362F" stroke-width="3" marker-end="url(#a-media)"/>
+  <circle cx="322" cy="364" r="9" fill="#C8362F"/><text x="322" y="368" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">5</text>
+  <text x="404" y="368" text-anchor="middle" font-size="11.5" font-weight="600" fill="#C8362F">the sealed slide</text>
+  <text x="385" y="397" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">PUT …/frame/:id</text>
+  <text x="385" y="409" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">ciphertext + IV</text>
+
+  <!-- ── Server ↔ viewers ────────────────────────────────────────────────── -->
+  <line x1="880" y1="170" x2="730" y2="170" stroke="#1F7884" stroke-width="2" marker-end="url(#a-control)"/>
+  <circle cx="742" cy="154" r="9" fill="#1F7884"/><text x="742" y="158" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">3</text>
+  <text x="822" y="158" text-anchor="middle" font-size="11.5" fill="#1F7884">prove you know it</text>
+  <text x="805" y="187" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">POST /api/watch/join</text>
+  <text x="805" y="199" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">auth half · never the key</text>
+
+  <line x1="880" y1="240" x2="730" y2="240" stroke="#1F7884" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#a-control)"/>
+  <text x="814" y="228" text-anchor="middle" font-size="11.5" fill="#1F7884">“which slide?”</text>
+  <text x="805" y="257" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">GET …/state?since=N</text>
+  <text x="805" y="269" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">held open ≤ 25s</text>
+
+  <line x1="730" y1="380" x2="880" y2="380" stroke="#C8362F" stroke-width="3" marker-end="url(#a-media)"/>
+  <circle cx="742" cy="364" r="9" fill="#C8362F"/><text x="742" y="368" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">6</text>
+  <text x="820" y="368" text-anchor="middle" font-size="11.5" font-weight="600" fill="#C8362F">still sealed</text>
+  <text x="805" y="397" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">GET …/photo/:i</text>
+  <text x="805" y="409" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">ciphertext · no-store</text>
+
+  <!-- ── Postgres ────────────────────────────────────────────────────────── -->
+  <line x1="595" y1="434" x2="595" y2="474" stroke="#936A10" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a-auth)"/>
+  <text x="614" y="452" font-size="9.5" class="mono" fill="#6B6480">accounts only · no keys</text>
+
+  <ellipse cx="595" cy="492" rx="92" ry="15" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
+  <path d="M503 492 v46 a92 15 0 0 0 184 0 v-46" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
+  <text x="595" y="520" text-anchor="middle" font-size="13.5" font-weight="700" fill="#2A2440">Postgres</text>
+  <text x="595" y="537" text-anchor="middle" font-size="11" fill="#6B6480">accounts + signing key</text>
+
+  <!-- ── The key path: around the server, never through it ───────────────── -->
+  <path d="M150 434 C 150 640, 380 660, 600 660 C 820 660, 1040 640, 1040 434"
+        fill="none" stroke="#6F4BA8" stroke-width="3" stroke-dasharray="9 5"
+        marker-end="url(#a-key)"/>
+
+  <circle cx="600" cy="660" r="19" fill="#F3EDFA" stroke="#6F4BA8" stroke-width="2"/>
+  <text x="600" y="666" text-anchor="middle" font-size="16">🔑</text>
+
+  <text x="600" y="700" text-anchor="middle" font-size="13" font-weight="700" fill="#6F4BA8">
+    The key goes person to person, never through Vinboo
+  </text>
+  <text x="600" y="719" text-anchor="middle" font-size="11.5" fill="#6F4BA8">
+    a link you send, a QR code on your screen, or a secret you read aloud
+  </text>
+
+  <!-- The server is deliberately not on that path. -->
+  <line x1="595" y1="553" x2="595" y2="626" stroke="#C8362F" stroke-width="2" stroke-dasharray="4 4" opacity=".5"/>
+  <circle cx="595" cy="590" r="13" fill="#FFEDEC" stroke="#C8362F" stroke-width="2"/>
+  <line x1="587" y1="582" x2="603" y2="598" stroke="#C8362F" stroke-width="2.5"/>
+  <line x1="603" y1="582" x2="587" y2="598" stroke="#C8362F" stroke-width="2.5"/>
+  <text x="622" y="595" font-size="11.5" fill="#C8362F">no key reaches the server</text>
+
+  <!-- ── Panel: how the key travels ──────────────────────────────────────── -->
+  <rect x="40" y="744" width="350" height="292" rx="14" fill="#FFFFFF" stroke="rgba(42,36,64,.1)"/>
+  <text x="62" y="774" font-size="14" font-weight="700" fill="#2A2440">How the key travels</text>
+
+  <text x="62" y="800" font-size="11.5" font-weight="600" fill="#6F4BA8">A link</text>
+  <text x="62" y="818" font-size="10.5" class="mono" fill="#2A2440">vinboo.com/watch#k=…</text>
+  <text x="62" y="836" font-size="11.5" fill="#6B6480">Everything after the # stays inside the</text>
+  <text x="62" y="852" font-size="11.5" fill="#6B6480">browser. It is never put in the request,</text>
+  <text x="62" y="868" font-size="11.5" fill="#6B6480">so no server or log ever sees it.</text>
+
+  <text x="62" y="896" font-size="11.5" font-weight="600" fill="#6F4BA8">A QR code</text>
+  <text x="62" y="914" font-size="11.5" fill="#6B6480">Shown on the presenter's screen and</text>
+  <text x="62" y="930" font-size="11.5" fill="#6B6480">scanned by a phone across the room.</text>
+
+  <text x="62" y="958" font-size="11.5" font-weight="600" fill="#6F4BA8">A spoken secret</text>
+  <text x="62" y="976" font-size="11.5" fill="#6B6480">Split by HKDF into two halves: one is</text>
+  <text x="62" y="992" font-size="11.5" fill="#6B6480">sent to prove you know it, the other</text>
+  <text x="62" y="1008" font-size="11.5" fill="#6B6480">never leaves the browser and unlocks</text>
+  <text x="62" y="1024" font-size="11.5" fill="#6B6480">the slides.</text>
+
+  <!-- ── Panel: what the server still learns ─────────────────────────────── -->
+  <rect x="425" y="744" width="350" height="292" rx="14" fill="#FFFFFF" stroke="rgba(42,36,64,.1)"/>
+  <text x="447" y="774" font-size="14" font-weight="700" fill="#2A2440">What the server still learns</text>
+
+  <text x="447" y="800" font-size="11.5" fill="#6B6480">Ciphertext gives nothing away, but the</text>
+  <text x="447" y="816" font-size="11.5" fill="#6B6480">shape of the traffic still does:</text>
+
+  <text x="447" y="844" font-size="11.5" fill="#2A2440">• that you are presenting, and when</text>
+  <text x="447" y="864" font-size="11.5" fill="#2A2440">• how many screens, and for how long</text>
+  <text x="447" y="884" font-size="11.5" fill="#2A2440">• how many slides, and the size of each</text>
+  <text x="447" y="904" font-size="11.5" fill="#2A2440">• which slide is showing right now</text>
+
+  <rect x="447" y="924" width="306" height="94" rx="10" fill="#E4F8FB"/>
+  <text x="461" y="946" font-size="11.5" font-weight="600" fill="#1F7884">What it cannot see</text>
+  <text x="461" y="964" font-size="11.5" fill="#1F7884">The pictures. The deck. The file names.</text>
+  <text x="461" y="980" font-size="11.5" fill="#1F7884">The title of the show. Those are sealed</text>
+  <text x="461" y="996" font-size="11.5" fill="#1F7884">with the same key, so the metadata it</text>
+  <text x="461" y="1012" font-size="11.5" fill="#1F7884">keeps is genuinely only shape and time.</text>
+
+  <!-- ── Panel: the honest limit ─────────────────────────────────────────── -->
+  <rect x="810" y="744" width="350" height="292" rx="14" fill="#FFFFFF" stroke="rgba(42,36,64,.1)"/>
+  <text x="832" y="774" font-size="14" font-weight="700" fill="#2A2440">The honest limit</text>
+
+  <text x="832" y="800" font-size="11.5" fill="#6B6480">The browser runs code that Vinboo</text>
+  <text x="832" y="816" font-size="11.5" fill="#6B6480">serves. An operator who was compromised</text>
+  <text x="832" y="832" font-size="11.5" fill="#6B6480">or compelled could ship JavaScript that</text>
+  <text x="832" y="848" font-size="11.5" fill="#6B6480">quietly copies the key.</text>
+
+  <text x="832" y="876" font-size="11.5" fill="#6B6480">Encryption in a web page narrows what a</text>
+  <text x="832" y="892" font-size="11.5" fill="#6B6480">breach exposes. It does not remove trust</text>
+  <text x="832" y="908" font-size="11.5" fill="#6B6480">in whoever serves the page. Signed</text>
+  <text x="832" y="924" font-size="11.5" fill="#6B6480">builds and an extension narrow it further.</text>
+
+  <rect x="832" y="942" width="306" height="76" rx="10" fill="#FFF4DE"/>
+  <text x="846" y="964" font-size="11.5" font-weight="600" fill="#936A10">What it costs</text>
+  <text x="846" y="982" font-size="11.5" fill="#936A10">Lose the link and the show is gone —</text>
+  <text x="846" y="998" font-size="11.5" fill="#936A10">there is no recovery, by design. And a</text>
+  <text x="846" y="1014" font-size="11.5" fill="#936A10">full-strength key is no fun on a remote.</text>
+</svg>

@@ -64,6 +64,38 @@ something changes. Slides move as raw binary bodies carrying their own type, so
 nothing is base64-encoded or transcoded on the way. The diagram above labels
 every hop with its method, path and payload.
 
+## What end-to-end encryption would look like
+
+**Not built.** This is a design sketch for a premium tier, kept here so the
+shape of the change is on record.
+
+![A design for end-to-end encrypted Vinboo: the presenter's browser seals each slide, the server relays ciphertext it cannot open, and the key travels person to person rather than through the server](docs/architecture-e2ee.svg)
+
+Today the server can read a slide during the moment it passes through — TLS
+protects each hop separately, which is not the same as end-to-end. Closing that
+gap needs three things, and the relay itself needs none of them:
+
+1. **Seal before sending.** The presenting browser generates a 256-bit key per
+   slideshow and encrypts each slide with AES-256-GCM and a fresh IV. GCM also
+   authenticates, so a tampered slide refuses to open rather than displaying
+   something the presenter never sent.
+2. **Get the key there without the server.** A link carries it in the fragment
+   (`/watch#k=…`), which browsers never put in a request; a QR code covers a TV
+   across the room. For a typed secret, HKDF splits it in two — one half is sent
+   to prove the viewer knows it, the other never leaves the browser and does the
+   decrypting.
+3. **Seal the metadata too**, or the title and file names leak what the pictures
+   were.
+
+The relay code barely changes: it already moves opaque bytes it doesn't inspect.
+
+What it would still leak is timing and shape — that you are presenting, for how
+long, to how many screens, how many slides and how big each one is. And the
+honest limit: the browser runs JavaScript that Vinboo serves, so an operator who
+was compromised or compelled could ship code that copies the key. Encryption in
+a web page narrows what a breach exposes; it does not remove trust in whoever
+serves the page.
+
 ## Run it locally
 
 You need Postgres. On a Mac:
