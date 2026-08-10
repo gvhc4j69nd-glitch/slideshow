@@ -28,6 +28,7 @@ const state = {
   frontIsA: true,
   running: false,
   cache: new Map(),   // index -> object URL of an already-fetched slide
+  blobs: new Map(),   // index -> the bytes behind it, for the data: URL retry
   inFlight: new Map(),
 
   // Hand-off: this screen keeps its own copy and runs the show unaided.
@@ -356,6 +357,7 @@ function startViewing(info) {
 function dropCache() {
   for (const url of state.cache.values()) URL.revokeObjectURL(url);
   state.cache.clear();
+  state.blobs.clear();
 }
 
 function applyState(info) {
@@ -438,6 +440,13 @@ async function pollState() {
   }
 }
 
+const asDataUrl = (blob) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = () => reject(reader.error || new Error('Could not read that photo.'));
+  reader.readAsDataURL(blob);
+});
+
 /* ── Pulling slides through the relay ─────────────────────────────────────── */
 
 async function fetchSlide(index) {
@@ -449,6 +458,7 @@ async function fetchSlide(index) {
     if (stored) {
       const fromDisk = URL.createObjectURL(stored);
       state.cache.set(index, fromDisk);
+      state.blobs.set(index, stored);
       return fromDisk;
     }
 
@@ -461,6 +471,7 @@ async function fetchSlide(index) {
     if (state.mode === 'handoff') await writeStored(index, blob);
     const url = URL.createObjectURL(blob);
     state.cache.set(index, url);
+    state.blobs.set(index, blob);
 
     // Live shows can be long, so only a few object URLs are kept alive. A
     // handed-off show is capped at 50 slides, so it keeps all of them.
@@ -469,6 +480,7 @@ async function fetchSlide(index) {
       if (oldest === state.index) break;
       URL.revokeObjectURL(state.cache.get(oldest));
       state.cache.delete(oldest);
+      state.blobs.delete(oldest);
     }
     return url;
   })();
@@ -504,8 +516,28 @@ async function showSlide(index) {
     state.frontIsA = !state.frontIsA;
     el.stageMsg.hidden = true;
   };
-  incoming.onerror = () => {
-    el.stageMsg.textContent = 'That photo could not be displayed.';
+
+  /*
+   * Some television browsers will not load a blob: URL into an <img> even
+   * though they fetched the bytes perfectly well. Rather than give up, the same
+   * bytes are offered again inline. It costs a base64 copy, which is why it is
+   * a fallback and not the normal path.
+   */
+  let retried = false;
+  incoming.onerror = async () => {
+    const blob = state.blobs.get(index);
+    if (!retried && blob) {
+      retried = true;
+      try {
+        incoming.src = await asDataUrl(blob);
+        return;
+      } catch {
+        // fall through to the message
+      }
+    }
+    el.stageMsg.textContent = blob && blob.type && !/^image\//.test(blob.type)
+      ? `This screen could not display that photo (${blob.type}).`
+      : 'That photo could not be displayed on this screen.';
     el.stageMsg.hidden = false;
   };
   incoming.src = url;

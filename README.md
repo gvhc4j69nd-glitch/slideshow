@@ -210,6 +210,40 @@ Both credentials are needed, wrong guesses are rate-limited to 10 per IP per 15
 minutes, and the failure message is identical for a bad code and a bad
 password, so neither can be probed independently.
 
+### What actually goes over the wire
+
+Slides are converted before sending, rather than the file being forwarded as it
+sits on disk. That is not an optimisation; it is what makes a television work.
+
+A TV's browser is an old engine with a small decode budget, and it is strict
+where Chrome is forgiving:
+
+- **Chrome sniffs a mislabelled image and renders it anyway.** A television
+  refuses. A `File.type` is filled in by the operating system's picker and is
+  frequently empty — HEIC especially — so the type is now read from the bytes
+  themselves rather than trusted.
+- **Televisions cannot decode HEIC, AVIF or TIFF at all**, which is exactly what
+  a phone's camera roll is full of.
+- **A full-resolution photo exhausts the decode budget.** A 12-megapixel image
+  needs about 48 MB decoded, whatever its file size suggests.
+
+So the presenting browser redraws each slide once through a canvas: at most
+2560px on the long edge, as JPEG, or PNG where transparency matters. Whatever
+this browser can display, it can draw, so anything it plays locally is something
+it can send. A photo that is already JPEG, PNG or GIF within that size is passed
+through untouched — no recompression and no loss. Converted slides are
+remembered, so twelve screens asking for the same slide convert it once.
+
+PowerPoint slides used to go over as SVG, which televisions render poorly; they
+are rasterised the same way.
+
+Local playback is unaffected and still uses the original file at full
+resolution. Only what leaves the device is normalised.
+
+As a last resort the viewer retries a slide as an inline `data:` URL, because
+some television browsers fetch a `blob:` URL correctly and then refuse to load
+it into an `<img>`.
+
 ### Handing off, so you can close the tab
 
 Pressing **Share…** asks which of two arrangements you want.

@@ -8,6 +8,7 @@ const assert = require('assert');
 const Zip = require('../public/zip.js');
 const X = require('../public/xml.js');
 const Pptx = require('../public/pptx.js');
+const ImageType = require('../public/imagetype.js');
 
 let pass = 0;
 let fail = 0;
@@ -553,7 +554,78 @@ function svgText(svg) {
     );
   });
 
-  console.log(`\n${pass} passed, ${fail} failed\n`);
+  console.log('\n— identifying an image from its bytes —');
+
+// The wrong type here is invisible on a phone or a laptop, which sniff and
+// render anyway, and fatal on a television, which does not.
+const bytesOf = (...parts) => {
+  const out = [];
+  for (const part of parts) {
+    if (typeof part === 'string') for (const ch of part) out.push(ch.charCodeAt(0));
+    else out.push(...part);
+  }
+  return Uint8Array.from(out);
+};
+const pad = (n) => new Array(n).fill(0);
+
+check('reads a JPEG', () => {
+  assert.strictEqual(ImageType.sniff(bytesOf([0xFF, 0xD8, 0xFF, 0xE0], pad(20))), 'image/jpeg');
+});
+
+check('reads a PNG', () => {
+  assert.strictEqual(ImageType.sniff(bytesOf([0x89], 'PNG', [0x0D, 0x0A], pad(20))), 'image/png');
+});
+
+check('reads a GIF', () => {
+  assert.strictEqual(ImageType.sniff(bytesOf('GIF89a', pad(20))), 'image/gif');
+});
+
+check('reads a WebP, and is not fooled by the RIFF header alone', () => {
+  assert.strictEqual(ImageType.sniff(bytesOf('RIFF', [1, 2, 3, 4], 'WEBP', pad(20))), 'image/webp');
+  assert.notStrictEqual(ImageType.sniff(bytesOf('RIFF', [1, 2, 3, 4], 'WAVE', pad(20))), 'image/webp');
+});
+
+check('reads HEIC, which is what a phone actually hands over', () => {
+  assert.strictEqual(ImageType.sniff(bytesOf(pad(4), 'ftypheic', pad(20))), 'image/heic');
+  assert.strictEqual(ImageType.sniff(bytesOf(pad(4), 'ftypmif1', pad(20))), 'image/heic');
+});
+
+check('reads AVIF', () => {
+  assert.strictEqual(ImageType.sniff(bytesOf(pad(4), 'ftypavif', pad(20))), 'image/avif');
+});
+
+check('reads TIFF in either byte order', () => {
+  assert.strictEqual(ImageType.sniff(bytesOf([0x49, 0x49, 0x2A, 0x00], pad(20))), 'image/tiff');
+  assert.strictEqual(ImageType.sniff(bytesOf([0x4D, 0x4D, 0x00, 0x2A], pad(20))), 'image/tiff');
+});
+
+check('reads a BMP', () => {
+  assert.strictEqual(ImageType.sniff(bytesOf('BM', pad(20))), 'image/bmp');
+});
+
+check('reads SVG however it opens', () => {
+  assert.strictEqual(ImageType.sniff(bytesOf('<svg xmlns="x"><rect/></svg>')), 'image/svg+xml');
+  assert.strictEqual(ImageType.sniff(bytesOf('<?xml version="1.0"?><svg xmlns="x"/>')), 'image/svg+xml');
+  assert.strictEqual(ImageType.sniff(bytesOf('\n  <!-- a note --><svg xmlns="x"/>')), 'image/svg+xml');
+});
+
+check('says nothing rather than guessing at bytes it does not know', () => {
+  assert.strictEqual(ImageType.sniff(bytesOf('not an image at all really')), '');
+  assert.strictEqual(ImageType.sniff(bytesOf([1, 2])), '');
+});
+
+check('only jpeg, png and gif are safe to send untouched', () => {
+  for (const safe of ['image/jpeg', 'image/png', 'image/gif']) {
+    assert.ok(ImageType.isUniversal(safe), safe);
+  }
+  // These are the ones a television cannot decode, so they must be converted.
+  for (const risky of ['image/heic', 'image/avif', 'image/tiff', 'image/webp',
+    'image/svg+xml', 'image/bmp', 'application/octet-stream', '']) {
+    assert.ok(!ImageType.isUniversal(risky), risky);
+  }
+});
+
+console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
 })().catch((err) => {
   console.error('test crashed:', err);

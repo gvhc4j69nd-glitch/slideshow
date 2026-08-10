@@ -1033,20 +1033,134 @@ async function serveRequests() {
   }
 }
 
+/* ── Making a slide safe for any screen ───────────────────────────────────── */
+
+/*
+ * A television's browser is not a desktop one. It is usually an old engine with
+ * a small decode budget, and it is strict where Chrome is forgiving: Chrome
+ * sniffs a mistyped blob and renders it anyway, a television refuses. It also
+ * cannot decode HEIC, AVIF or TIFF at all — the very formats a phone camera
+ * produces — and it will run out of memory on a full-resolution photo.
+ *
+ * So the presenter converts before sending rather than hoping. Whatever this
+ * browser can display, it can also draw to a canvas, and what comes off a
+ * canvas is a plain JPEG or PNG at a sane size that anything can decode.
+ */
+
+const WIRE_MAX_DIM = 2560;          // beyond this, televisions start failing
+const WIRE_JPEG_QUALITY = 0.9;
+const WIRE_CACHE_MAX = 24;          // converted slides kept around, newest first
+
+const wireCache = new Map();        // photo -> {gen, blob}
+
+/** Decode through an <img>, which handles every format this browser knows. */
+function decodeImage(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => resolve({ img, url });
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('This browser cannot open that photo.'));
+    };
+    img.src = url;
+  });
+}
+
+function rememberWire(photo, gen, blob) {
+  wireCache.set(photo, { gen, blob });
+  while (wireCache.size > WIRE_CACHE_MAX) {
+    wireCache.delete(wireCache.keys().next().value);
+  }
+  return blob;
+}
+
+/**
+ * The bytes to put on the wire for one slide, and the type to label them with.
+ *
+ * A photo that is already a safe format at a sane size is passed through
+ * untouched — no recompression, no loss. Everything else is redrawn once and
+ * remembered, so twelve screens asking for the same slide convert it once.
+ */
+async function wireImage(photo, gen) {
+  const cached = wireCache.get(photo);
+  if (cached && cached.gen === gen) return cached.blob;
+
+  const source = photo.file;
+  const head = await source.slice(0, 256).arrayBuffer();
+  const sniffed = ImageType.sniff(head) || source.type || 'application/octet-stream';
+
+  let decoded = null;
+  try {
+    decoded = await decodeImage(source);
+  } catch (err) {
+    // Nothing can be done here: this browser cannot read it either, which is
+    // why it also isn't playing locally.
+    throw err;
+  }
+
+  const { img, url } = decoded;
+  try {
+    const width = img.naturalWidth || img.width;
+    const height = img.naturalHeight || img.height;
+    const longest = Math.max(width, height);
+
+    // Already safe, already small enough: send exactly what is on disk.
+    if (ImageType.isUniversal(sniffed) && longest <= WIRE_MAX_DIM) {
+      const asIs = sniffed === source.type ? source : source.slice(0, source.size, sniffed);
+      return rememberWire(photo, gen, asIs);
+    }
+
+    const scale = longest > WIRE_MAX_DIM ? WIRE_MAX_DIM / longest : 1;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+    const ctx = canvas.getContext('2d');
+
+    // A transparent source flattened into a JPEG would come out black, so it
+    // gets a white sheet behind it — the same thing a slide would sit on.
+    const keepsAlpha = sniffed === 'image/png' || sniffed === 'image/webp';
+    if (!keepsAlpha) {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const outType = keepsAlpha ? 'image/png' : 'image/jpeg';
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, outType, WIRE_JPEG_QUALITY));
+    if (!blob) throw new Error('That photo could not be prepared for sending.');
+    return rememberWire(photo, gen, blob);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 async function sendFrame(bc, job) {
   const photo = bc.photos[job.index];
   if (!photo) return;
+
+  let blob;
+  let message = 'The presenter could not read that photo.';
   try {
+    blob = await wireImage(photo, bc.gen || 0);
+  } catch (err) {
+    message = err.message || message;
+  }
+
+  try {
+    if (!blob) throw new Error(message);
     await fetch(`/api/broadcast/${bc.code}/frame/${encodeURIComponent(job.reqId)}`, {
       method: 'PUT',
-      headers: { 'Content-Type': photo.file.type || 'application/octet-stream' },
-      body: photo.file,
+      // The blob's own type, never the file name's guess: a screen that will
+      // not sniff a mislabelled image is exactly the screen this is for.
+      headers: { 'Content-Type': blob.type || 'application/octet-stream' },
+      body: blob,
     });
   } catch {
     fetch(`/api/broadcast/${bc.code}/frame/${encodeURIComponent(job.reqId)}/error`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: 'The presenter could not read that photo.' }),
+      body: JSON.stringify({ message }),
     }).catch(() => {});
   }
 }
