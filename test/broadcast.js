@@ -64,6 +64,35 @@ check('but it is taken down when its time is up', () => {
   assert.strictEqual(b.sessions.has(session.code), false, 'expired show should have been swept');
 });
 
+console.log('\n— typing the temporary password —');
+
+check('the hyphens are presentation, not part of the secret', () => {
+  const b = relay();
+  const { session, password } = b.create({
+    userId: 1, username: 'p', title: 'x', photoCount: 3,
+  });
+  assert.match(password, /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+
+  const letters = password.replace(/-/g, '');
+  assert.ok(b.verifyPassword(session, password), 'as printed');
+  assert.ok(b.verifyPassword(session, letters), 'typed without hyphens');
+  assert.ok(b.verifyPassword(session, letters.toLowerCase()), 'in lower case');
+  assert.ok(b.verifyPassword(session, ` ${password} `), 'with stray spaces');
+  assert.ok(b.verifyPassword(session, password.replace(/-/g, ' ')), 'with spaces for hyphens');
+});
+
+check('a wrong password is still wrong', () => {
+  const b = relay();
+  const { session, password } = b.create({
+    userId: 1, username: 'p', title: 'x', photoCount: 3,
+  });
+  const letters = password.replace(/-/g, '');
+  const wrong = (letters[0] === 'A' ? 'B' : 'A') + letters.slice(1);
+  assert.strictEqual(b.verifyPassword(session, wrong), false);
+  assert.strictEqual(b.verifyPassword(session, ''), false);
+  assert.strictEqual(b.verifyPassword(session, letters.slice(0, 11)), false);
+});
+
 console.log('\n— the limits —');
 
 check('hand-off refuses more than the photo cap', () => {

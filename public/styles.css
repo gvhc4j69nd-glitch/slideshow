@@ -104,6 +104,9 @@ a { color: var(--coral-ink); }
 .btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
 .btn:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
 
+/* An anchor styled as a button still has to sit on the same baseline as one. */
+.btn-link { display: inline-block; text-decoration: none; line-height: normal; }
+
 .btn-primary { background: var(--coral); border-color: transparent; color: var(--ink); }
 .btn-primary:hover:not(:disabled) { background: #FF9291; }
 
@@ -311,7 +314,10 @@ a { color: var(--coral-ink); }
   box-shadow: none;
 }
 .controls .btn:hover:not(:disabled) { background: rgba(255, 255, 255, .16); }
-.controls .btn-primary { background: var(--coral); border-color: transparent; color: var(--ink); }
+.controls /* An anchor styled as a button still has to sit on the same baseline as one. */
+.btn-link { display: inline-block; text-decoration: none; line-height: normal; }
+
+.btn-primary { background: var(--coral); border-color: transparent; color: var(--ink); }
 .controls .btn-primary:hover:not(:disabled) { background: #FF9291; }
 .controls .btn-toggle[aria-pressed="true"] { background: var(--cyan); border-color: transparent; color: var(--ink); }
 

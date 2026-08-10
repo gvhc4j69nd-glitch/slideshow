@@ -261,6 +261,58 @@ function setStatus(text, kind) {
 
 /* ── Joining ──────────────────────────────────────────────────────────────── */
 
+/*
+ * The temporary password is read aloud as three groups — "DKCA, DEDX, EFEX" —
+ * so nobody should have to hunt for the hyphen key, least of all on a
+ * television remote. The field types them in as you go, and takes them out of
+ * anything pasted so a copied password lands correctly either way.
+ */
+const GROUP = 4;
+const GROUPS = 3;
+
+function groupPassword(raw) {
+  const letters = raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, GROUP * GROUPS);
+  return letters.replace(/(.{4})(?=.)/g, '$1-');
+}
+
+/** Format as the user types, keeping the caret where they left it. */
+function formatPasswordField() {
+  const field = el.joinPass;
+  const before = field.value.slice(0, field.selectionStart || 0);
+  const typedBefore = before.replace(/[^A-Za-z0-9]/g, '').length;
+
+  const formatted = groupPassword(field.value);
+  if (formatted === field.value) return;
+  field.value = formatted;
+
+  // Walk forward until the same number of real characters is behind the caret,
+  // so inserting a hyphen doesn't drag it backwards.
+  let caret = 0;
+  let seen = 0;
+  while (caret < formatted.length && seen < typedBefore) {
+    if (formatted[caret] !== '-') seen += 1;
+    caret += 1;
+  }
+  while (caret < formatted.length && formatted[caret] === '-') caret += 1;
+  field.setSelectionRange(caret, caret);
+}
+
+el.joinPass.addEventListener('input', formatPasswordField);
+
+el.joinCode.addEventListener('input', () => {
+  const field = el.joinCode;
+  const caret = field.selectionStart;
+  const tidy = field.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  if (tidy === field.value) return;
+  field.value = tidy;
+  field.setSelectionRange(Math.min(caret, tidy.length), Math.min(caret, tidy.length));
+});
+
+// Six characters is the whole code, so move on without waiting to be told.
+el.joinCode.addEventListener('input', () => {
+  if (el.joinCode.value.length === 6 && !el.joinPass.value) el.joinPass.focus();
+});
+
 el.joinForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   el.joinError.hidden = true;
@@ -270,7 +322,7 @@ el.joinForm.addEventListener('submit', async (event) => {
     const info = await api('/api/watch/join', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, password: el.joinPass.value }),
+      body: JSON.stringify({ code, password: groupPassword(el.joinPass.value) }),
     });
     state.code = info.code;
     startViewing(info);

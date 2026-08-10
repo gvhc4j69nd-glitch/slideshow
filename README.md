@@ -182,6 +182,16 @@ On any other browser — a TV, a laptop, a phone — open `/watch`, type both in
 and that screen mirrors whatever slide you're on. Viewers need no account. Your
 controls drive every screen: pause, next, start over, shuffle.
 
+Signed-in users get a **Watch a show** button in the header too, since a
+presenter often wants the slideshow on the screen in front of them as well. It
+opens in a new tab, so a slideshow this tab is sharing keeps running.
+
+The join form does the fiddly parts. The code is upper-cased as you type and
+jumps to the password once it has six characters; the password's hyphens are
+typed in for you, so `p5nxuy7n5u7z` becomes `P5NX-UY7N-5U7Z`. The hyphens are
+there to make a password readable across a room, not to be part of the secret —
+the server compares on the letters alone, so any spacing or case gets in.
+
 **Your browser is the source.** The photos are streamed live from the tab you're
 presenting from and are never uploaded or written to the server's disk. The
 server only relays bytes: a viewer asks for slide 4, the relay hands that
