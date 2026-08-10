@@ -17,6 +17,45 @@ nothing is ever uploaded.
 The front end is plain HTML/CSS/JS with no build step and no framework. The
 server has one dependency, `pg`, for Postgres.
 
+## How it works
+
+![How Vinboo works: the presenter's browser holds the photos, the server relays them to viewers without storing anything, and Postgres holds only accounts](docs/architecture.svg)
+
+The unusual part is that **the server has no copy of your slideshow**. A viewer
+asks for slide 4; rather than answering, the server holds that request open and
+hands it to the presenter's browser, which sends the bytes back for the server
+to pass on. Ten screens on the same slide cost the presenter one upload, because
+the reply is fanned out to everyone waiting.
+
+```mermaid
+sequenceDiagram
+    participant TV as Television
+    participant S as Vinboo server
+    participant P as Presenter's browser
+
+    P->>S: I am presenting — here is a 40-slide show
+    S-->>P: code ABC123 + temporary password
+    TV->>S: joining with ABC123 + password
+    S-->>TV: you are in — the show has 40 slides
+
+    loop while presenting
+        P->>S: long-poll — anyone need a slide?
+        TV->>S: send me slide 4
+        Note over S: request parked, not answered
+        S-->>P: slide 4, please
+        P->>S: bytes for slide 4
+        S-->>TV: slide 4
+        Note over S: bytes dropped after a<br/>few-slide memory cache
+    end
+
+    P->>S: now showing slide 5
+    S-->>TV: slide changed → fetch slide 5
+```
+
+Everything on the presenter's side happens in the browser: photos are read off
+the device, and a `.pptx` is unzipped and turned into SVG slides there too. The
+server only ever sees the bytes of whichever slide is being looked at.
+
 ## Run it locally
 
 You need Postgres. On a Mac:

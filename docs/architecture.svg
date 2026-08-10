@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720"
+     font-family="ui-rounded, 'SF Pro Rounded', Nunito, 'Segoe UI', Helvetica, Arial, sans-serif">
+
+  <defs>
+    <marker id="arrow-media" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#C8362F"/>
+    </marker>
+    <marker id="arrow-control" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#1F7884"/>
+    </marker>
+    <marker id="arrow-auth" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#936A10"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="720" fill="#FFFAF5"/>
+
+  <text x="600" y="46" text-anchor="middle" font-size="27" font-weight="700" fill="#2A2440">How Vinboo works</text>
+  <text x="600" y="74" text-anchor="middle" font-size="14.5" fill="#6B6480">
+    The slideshow lives on the presenter's device. The server passes bytes along; it never keeps them.
+  </text>
+
+  <!-- ── Presenter ───────────────────────────────────────────────────────── -->
+  <rect x="40" y="118" width="290" height="286" rx="18" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
+  <rect x="40" y="118" width="290" height="5" rx="2.5" fill="#FF8382"/>
+  <text x="62" y="152" font-size="16" font-weight="700" fill="#2A2440">Presenter's browser</text>
+  <text x="62" y="172" font-size="12.5" fill="#6B6480">phone · laptop · tablet</text>
+
+  <rect x="62" y="188" width="246" height="46" rx="10" fill="#FFEDEC"/>
+  <text x="76" y="207" font-size="12.5" font-weight="600" fill="#C8362F">Photos and .pptx files</text>
+  <text x="76" y="224" font-size="11.5" fill="#C8362F">read straight off the device</text>
+
+  <text x="62" y="258" font-size="12.5" fill="#2A2440">• Renders PowerPoint into SVG slides</text>
+  <text x="62" y="278" font-size="12.5" fill="#2A2440">• Holds the playlist and the running order</text>
+  <text x="62" y="298" font-size="12.5" fill="#2A2440">• Answers requests for individual slides</text>
+
+  <rect x="62" y="316" width="246" height="66" rx="10" fill="#FFF4DE"/>
+  <text x="76" y="337" font-size="12" font-weight="600" fill="#936A10">Must stay open and awake</text>
+  <text x="76" y="354" font-size="11.5" fill="#936A10">It is the only copy of the pictures,</text>
+  <text x="76" y="370" font-size="11.5" fill="#936A10">so if it closes the screens go quiet.</text>
+
+  <!-- ── Server ──────────────────────────────────────────────────────────── -->
+  <rect x="455" y="118" width="290" height="286" rx="18" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
+  <rect x="455" y="118" width="290" height="5" rx="2.5" fill="#51D1E3"/>
+  <text x="477" y="152" font-size="16" font-weight="700" fill="#2A2440">Vinboo server</text>
+  <text x="477" y="172" font-size="12.5" fill="#6B6480">Node on Railway</text>
+
+  <text x="477" y="200" font-size="12.5" fill="#2A2440">• Accounts, sign-in, sessions</text>
+  <text x="477" y="220" font-size="12.5" fill="#2A2440">• Issues share codes and passwords</text>
+  <text x="477" y="240" font-size="12.5" fill="#2A2440">• Parks each viewer's request for a slide</text>
+  <text x="477" y="260" font-size="12.5" fill="#2A2440">• Hands it to the presenter, relays the reply</text>
+
+  <rect x="477" y="278" width="246" height="66" rx="10" fill="#E4F8FB"/>
+  <text x="491" y="299" font-size="12" font-weight="600" fill="#1F7884">No media on disk, ever</text>
+  <text x="491" y="316" font-size="11.5" fill="#1F7884">A slide sits in memory only while in</text>
+  <text x="491" y="332" font-size="11.5" fill="#1F7884">flight, plus a few-slide cache.</text>
+
+  <text x="477" y="368" font-size="11.5" fill="#6B6480">No volume is attached. Nothing to leak,</text>
+  <text x="477" y="384" font-size="11.5" fill="#6B6480">nothing to back up, nothing to fill.</text>
+
+  <!-- ── Postgres ────────────────────────────────────────────────────────── -->
+  <ellipse cx="600" cy="474" rx="105" ry="18" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
+  <path d="M495 474 v58 a105 18 0 0 0 210 0 v-58" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
+  <text x="600" y="508" text-anchor="middle" font-size="14" font-weight="700" fill="#2A2440">Postgres</text>
+  <text x="600" y="527" text-anchor="middle" font-size="11.5" fill="#6B6480">accounts + signing key only</text>
+  <line x1="600" y1="404" x2="600" y2="452" stroke="#936A10" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrow-auth)"/>
+
+  <!-- ── Viewers ─────────────────────────────────────────────────────────── -->
+  <rect x="870" y="118" width="290" height="286" rx="18" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
+  <rect x="870" y="118" width="290" height="5" rx="2.5" fill="#FDCA5C"/>
+  <text x="892" y="152" font-size="16" font-weight="700" fill="#2A2440">Viewers</text>
+  <text x="892" y="172" font-size="12.5" fill="#6B6480">as many as you like · no account</text>
+
+  <!-- TV -->
+  <rect x="886" y="196" width="102" height="64" rx="7" fill="#F1ECF6" stroke="rgba(42,36,64,.16)"/>
+  <rect x="893" y="203" width="88" height="44" rx="4" fill="#FF8382"/>
+  <rect x="925" y="260" width="24" height="8" fill="#DDD5E8"/>
+  <rect x="909" y="268" width="56" height="6" rx="3" fill="#DDD5E8"/>
+  <text x="937" y="292" text-anchor="middle" font-size="12" fill="#2A2440">Television</text>
+
+  <!-- Laptop -->
+  <rect x="1002" y="200" width="88" height="54" rx="6" fill="#F1ECF6" stroke="rgba(42,36,64,.16)"/>
+  <rect x="1008" y="206" width="76" height="42" rx="4" fill="#FF8382"/>
+  <path d="M996 254 h100 l9 8 h-118 z" fill="#DDD5E8"/>
+  <text x="1046" y="292" text-anchor="middle" font-size="12" fill="#2A2440">Laptop</text>
+
+  <!-- Phone -->
+  <rect x="1106" y="196" width="36" height="66" rx="7" fill="#F1ECF6" stroke="rgba(42,36,64,.16)"/>
+  <rect x="1111" y="203" width="26" height="52" rx="3" fill="#FF8382"/>
+  <text x="1124" y="292" text-anchor="middle" font-size="12" fill="#2A2440">Phone</text>
+
+  <text x="892" y="322" font-size="11.5" fill="#6B6480">Any browser will do. A Chromecast can be</text>
+  <text x="892" y="338" font-size="11.5" fill="#6B6480">sent a one-time link so nothing is typed.</text>
+
+  <text x="892" y="374" font-size="11.5" fill="#6B6480">Every screen shows the same slide,</text>
+  <text x="892" y="390" font-size="11.5" fill="#6B6480">because the presenter chooses it.</text>
+
+  <!-- ── Presenter ↔ server ──────────────────────────────────────────────── -->
+  <line x1="330" y1="200" x2="455" y2="200" stroke="#936A10" stroke-width="2" marker-end="url(#arrow-auth)"/>
+  <circle cx="340" cy="188" r="9" fill="#936A10"/><text x="340" y="192" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">1</text>
+  <text x="392" y="192" text-anchor="middle" font-size="11.5" fill="#936A10">sign in</text>
+
+  <line x1="330" y1="246" x2="455" y2="246" stroke="#1F7884" stroke-width="2" marker-end="url(#arrow-control)"/>
+  <circle cx="340" cy="234" r="9" fill="#1F7884"/><text x="340" y="238" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">2</text>
+  <text x="392" y="230" text-anchor="middle" font-size="11.5" fill="#1F7884">start sharing</text>
+  <text x="392" y="264" text-anchor="middle" font-size="11" fill="#1F7884">← code + password</text>
+
+  <line x1="455" y1="306" x2="330" y2="306" stroke="#1F7884" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow-control)"/>
+  <circle cx="340" cy="294" r="9" fill="#1F7884"/><text x="340" y="298" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">4</text>
+  <text x="392" y="298" text-anchor="middle" font-size="11.5" fill="#1F7884">“slide 4, please”</text>
+
+  <line x1="330" y1="352" x2="455" y2="352" stroke="#C8362F" stroke-width="3" marker-end="url(#arrow-media)"/>
+  <circle cx="340" cy="340" r="9" fill="#C8362F"/><text x="340" y="344" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">5</text>
+  <text x="392" y="344" text-anchor="middle" font-size="11.5" font-weight="600" fill="#C8362F">the slide itself</text>
+
+  <!-- ── Server ↔ viewers ────────────────────────────────────────────────── -->
+  <line x1="870" y1="200" x2="745" y2="200" stroke="#1F7884" stroke-width="2" marker-end="url(#arrow-control)"/>
+  <circle cx="758" cy="188" r="9" fill="#1F7884"/><text x="758" y="192" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">3</text>
+  <text x="818" y="192" text-anchor="middle" font-size="11.5" fill="#1F7884">join with code</text>
+
+  <line x1="870" y1="252" x2="745" y2="252" stroke="#1F7884" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow-control)"/>
+  <text x="818" y="246" text-anchor="middle" font-size="11.5" fill="#1F7884">“which slide?”</text>
+  <text x="818" y="274" text-anchor="middle" font-size="11" fill="#1F7884">until it changes</text>
+
+  <line x1="745" y1="352" x2="870" y2="352" stroke="#C8362F" stroke-width="3" marker-end="url(#arrow-media)"/>
+  <circle cx="758" cy="340" r="9" fill="#C8362F"/><text x="758" y="344" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">6</text>
+  <text x="818" y="344" text-anchor="middle" font-size="11.5" font-weight="600" fill="#C8362F">passed on</text>
+
+  <!-- ── The point ───────────────────────────────────────────────────────── -->
+  <rect x="40" y="576" width="1120" height="104" rx="14" fill="#FFFFFF" stroke="rgba(42,36,64,.1)"/>
+  <text x="64" y="606" font-size="14" font-weight="700" fill="#2A2440">Why it is arranged this way</text>
+  <text x="64" y="630" font-size="12.5" fill="#6B6480">
+    A viewer asks for a slide; the server holds that request open rather than answering it, and passes it to the presenter's
+  </text>
+  <text x="64" y="650" font-size="12.5" fill="#6B6480">
+    browser, which sends the bytes back. Ten screens on the same slide cost the presenter one upload, because the server fans
+  </text>
+  <text x="64" y="670" font-size="12.5" fill="#6B6480">
+    the reply out to everyone waiting. Nothing is uploaded in advance, and nothing is left behind when the slideshow ends.
+  </text>
+
+  <!-- ── Legend ──────────────────────────────────────────────────────────── -->
+  <line x1="795" y1="452" x2="835" y2="452" stroke="#C8362F" stroke-width="3"/>
+  <text x="843" y="456" font-size="12" fill="#6B6480">pictures</text>
+
+  <line x1="795" y1="478" x2="835" y2="478" stroke="#1F7884" stroke-width="2"/>
+  <text x="843" y="482" font-size="12" fill="#6B6480">control — who is watching, which slide</text>
+
+  <line x1="795" y1="504" x2="835" y2="504" stroke="#936A10" stroke-width="2"/>
+  <text x="843" y="508" font-size="12" fill="#6B6480">accounts</text>
+
+  <line x1="795" y1="530" x2="835" y2="530" stroke="#1F7884" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="843" y="534" font-size="12" fill="#6B6480">held open, answered when something changes</text>
+</svg>
