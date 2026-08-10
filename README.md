@@ -96,6 +96,18 @@ was compromised or compelled could ship code that copies the key. Encryption in
 a web page narrows what a breach exposes; it does not remove trust in whoever
 serves the page.
 
+## Where this sits in the market
+
+[docs/competitive-analysis.md](docs/competitive-analysis.md) surveys the
+alternatives — slide-sync tools like ShowSlide and Sync, photos-to-TV apps like
+Pixo, and the free defaults of Chromecast and AirPlay — and is honest about where
+Vinboo loses as well as where it wins.
+
+The short version: nothing else found does photos *and* PowerPoint, and nothing
+else streams from the presenter's own device instead of uploading first. The
+sharpest weakness is that the presenting tab has to stay open, which is exactly
+what the party use case wants least.
+
 ## Run it locally
 
 You need Postgres. On a Mac:
