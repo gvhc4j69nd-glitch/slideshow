@@ -377,6 +377,26 @@ those are the strings to change: the canonical and `og:url` tags in
 `public/index.html` and `public/watch.html`, plus `robots.txt` and
 `sitemap.xml`.
 
+## Analytics
+
+Both public pages carry the Google tag (`gtag.js`) for measurement ID
+`G-XXF25X6BPJ`. The ID is written into `public/index.html` and
+`public/watch.html` — those are the two places to change it.
+
+Two things worth knowing about what it will and won't show:
+
+- **One page view per visit.** The app moves between the landing page, the
+  library and the player without navigating, so a whole session of presenting
+  registers as a single view. If you want to see which parts get used, that
+  needs explicit `gtag('event', …)` calls at those transitions.
+- **Viewers are counted too**, since the tag is on `/watch` as well. That is
+  probably what you want — it is the only way to see how many screens a
+  slideshow actually reached — but it does mean people who never signed up are
+  measured.
+
+If the site takes visitors from the EU or UK, analytics cookies generally need
+consent before they are set, which this does not currently ask for.
+
 ## Look and feel
 
 The visual system comes from the logo, and the palette is sampled from the
