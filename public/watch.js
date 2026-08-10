@@ -41,13 +41,27 @@ const state = {
   skew: 0,            // serverNow - Date.now(), so screens agree on the time
   held: 0,            // slides copied so far
   store: null,        // the Cache API bucket holding them
+  cacheBytes: 0,      // decoded bytes held by state.cache, against the budget
   clockTimer: null,
   seeding: false,     // this screen is answering other screens' requests
   playing: true,      // hand-off only: this screen drives its own playback
   ownSpeed: false,    // the viewer picked a speed, so stop taking the show's
 };
 
-const MAX_CACHED = 6;
+/*
+ * Decoded slides are kept to a budget in bytes rather than a count.
+ *
+ * A count cannot be right for both cases: six slides is a few megabytes of
+ * holiday photos and a rounding error of screenshots, and either way a show that
+ * loops past six re-fetches every photo through the relay for the rest of the
+ * evening. That is the dominant running cost of the whole service.
+ *
+ * A budget fixes that without the obvious alternative — keeping everything —
+ * which would put a two-thousand-photo folder into a television's memory and
+ * cause exactly the decode failures the wire format was reshaped to avoid.
+ */
+const CACHE_BUDGET_BYTES = 100 * 1024 * 1024;
+const CACHE_MIN_SLIDES = 3;      // the one showing, the one coming, and one back
 const PRECACHE_ATTEMPTS = 4;      // sweeps over the slides that didn't arrive
 const PRECACHE_RETRY_MS = 1500;   // multiplied by the attempt, so it backs off
 const SEED_RETRY_MS = 2000;
@@ -391,9 +405,7 @@ function startViewing(info) {
 /* ── Following the presenter ──────────────────────────────────────────────── */
 
 function dropCache() {
-  for (const url of state.cache.values()) URL.revokeObjectURL(url);
-  state.cache.clear();
-  state.blobs.clear();
+  releaseAll();
 }
 
 function applyState(info) {
@@ -486,6 +498,47 @@ const asDataUrl = (blob) => new Promise((resolve, reject) => {
   reader.readAsDataURL(blob);
 });
 
+/* ── Holding decoded slides ───────────────────────────────────────────────── */
+
+/** Let a slide go: revoke its object URL and stop counting its bytes. */
+function release(index) {
+  const url = state.cache.get(index);
+  if (url) URL.revokeObjectURL(url);
+  const blob = state.blobs.get(index);
+  if (blob) state.cacheBytes = Math.max(0, state.cacheBytes - blob.size);
+  state.cache.delete(index);
+  state.blobs.delete(index);
+}
+
+function releaseAll() {
+  for (const index of [...state.cache.keys()]) release(index);
+  state.cache.clear();
+  state.blobs.clear();
+  state.cacheBytes = 0;
+}
+
+/**
+ * Keep a decoded slide, then trim the oldest until the budget is met.
+ *
+ * The slide on screen and the one being warmed for next are never dropped —
+ * evicting either would re-fetch the very photo about to be shown. Anything
+ * else goes oldest first, which for a slideshow is also furthest from being
+ * needed again.
+ */
+function hold(index, url, blob) {
+  state.cache.set(index, url);
+  state.blobs.set(index, blob);
+  state.cacheBytes += blob.size;
+
+  const spare = state.photoCount ? (state.index + 1) % state.photoCount : -1;
+  for (const candidate of [...state.cache.keys()]) {
+    if (state.cacheBytes <= CACHE_BUDGET_BYTES) break;
+    if (state.cache.size <= CACHE_MIN_SLIDES) break;
+    if (candidate === state.index || candidate === spare || candidate === index) continue;
+    release(candidate);
+  }
+}
+
 /* ── Pulling slides through the relay ─────────────────────────────────────── */
 
 async function fetchSlide(index) {
@@ -496,8 +549,7 @@ async function fetchSlide(index) {
     const stored = await readStored(index);
     if (stored) {
       const fromDisk = URL.createObjectURL(stored);
-      state.cache.set(index, fromDisk);
-      state.blobs.set(index, stored);
+      hold(index, fromDisk, stored);
       return fromDisk;
     }
 
@@ -509,18 +561,7 @@ async function fetchSlide(index) {
     const blob = await res.blob();
     if (state.mode === 'handoff') await writeStored(index, blob);
     const url = URL.createObjectURL(blob);
-    state.cache.set(index, url);
-    state.blobs.set(index, blob);
-
-    // Live shows can be long, so only a few object URLs are kept alive. A
-    // handed-off show is capped at 50 slides, so it keeps all of them.
-    while (state.mode !== 'handoff' && state.cache.size > MAX_CACHED) {
-      const oldest = state.cache.keys().next().value;
-      if (oldest === state.index) break;
-      URL.revokeObjectURL(state.cache.get(oldest));
-      state.cache.delete(oldest);
-      state.blobs.delete(oldest);
-    }
+    hold(index, url, blob);
     return url;
   })();
 
@@ -653,8 +694,7 @@ el.leaveBtn.addEventListener('click', () => {
   state.running = false;
   stopLocalPlayback();
   el.viewControls.hidden = true;
-  for (const url of state.cache.values()) URL.revokeObjectURL(url);
-  state.cache.clear();
+  releaseAll();
   el.slideA.removeAttribute('src');
   el.slideB.removeAttribute('src');
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});

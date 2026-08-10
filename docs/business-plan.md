@@ -221,10 +221,16 @@ should be generous, because it is nearly free to give.
 
 ## 6. The two findings that decide the business
 
-### Finding 1 — live mode's cost scales with time, not content
+### Finding 1 — live mode's cost scaled with time, not content
 
-A viewer keeps only six slides in memory in live mode [measured:
-`MAX_CACHED = 6` in `public/watch.js`]. Once a show loops past those six, nearly
+**Fixed since this plan was written.** A viewing screen now keeps decoded slides
+to a 100 MB budget, measured at 12 network requests for 36 slide-views on a
+twelve-photo loop — each photo fetched exactly once. The analysis below is kept
+because it is what the numbers in §7 rest on, and because the shape of the
+mistake is worth remembering.
+
+A viewer kept only six slides in memory in live mode [previously
+`MAX_CACHED = 6` in `public/watch.js`]. Once a show looped past those six, nearly
 every advance is a fresh fetch through the relay — so **cost scales with how long
 a show runs, not with how much content it holds.**
 
@@ -347,8 +353,8 @@ Carried from the competitive analysis, with financial consequences attached.
 
 ## 9. Sequencing
 
-1. **Fix live-mode caching.** A few hours. Removes a cost that would otherwise
-   grow to twice revenue. Do this before anything else.
+1. ~~**Fix live-mode caching.**~~ **Done.** A 100 MB byte budget, verified at 12
+   requests for 36 slide-views. This was the dominant running cost.
 2. **QR-code joining.** A day's work, closes a table-stakes gap named in the
    analysis, and makes the TV experience bearable. Free tier.
 3. **Ads and consent.** Landing and library placements first; treat the viewer

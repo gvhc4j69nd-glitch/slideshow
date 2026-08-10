@@ -209,6 +209,13 @@ was waiting. They sit in server memory only while in flight, plus a small
 bounded cache so ten viewers on the same slide cost you one upload rather than
 ten.
 
+A viewing screen keeps decoded slides up to a **100 MB budget**, so a show that
+loops all evening fetches each photo once rather than pulling it through the
+relay again on every pass. The budget is in bytes rather than a count because
+neither a small count nor "keep everything" works for both a dozen photos and a
+folder of two thousand — and relayed bandwidth is the service's dominant running
+cost. The slide on screen and the one being warmed for next are never evicted.
+
 The trade-off of that privacy is a hard requirement: **the presenting tab has to
 stay open and awake.** If it closes, sleeps, or loses its connection, viewers
 stop getting slides, and the broadcast is torn down after a minute of silence.
