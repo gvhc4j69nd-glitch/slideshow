@@ -103,7 +103,9 @@ alternatives — slide-sync tools like ShowSlide and Sync, photos-to-TV apps lik
 Pixo, and the free defaults of Chromecast and AirPlay — and is honest about where
 Vinboo loses as well as where it wins.
 
-[docs/business-plan.md](docs/business-plan.md) turns that into a plan: a free
+[docs/business-plan.md](docs/business-plan.md) — also as
+[a Word file](docs/business-plan.docx), regenerated with
+`node scripts/md-to-docx.js docs/business-plan.md` — turns that into a plan: a free
 tier funded by three ad placements, premium tiers for stored shows and end-to-end
 encryption, and the infrastructure arithmetic at current Railway and object-storage
 rates. Its two findings are that advertising is a floor rather than the business,
