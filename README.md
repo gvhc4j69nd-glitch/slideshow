@@ -406,6 +406,35 @@ sits below it.
 Only `.pptx` works. The older binary `.ppt` is a completely different format;
 open it in PowerPoint and save it as `.pptx`.
 
+### Charts and shapes
+
+Charts are drawn, not stubbed. PowerPoint caches a chart's categories and
+values inside the chart part alongside the reference to its workbook, so the
+numbers are already on the slide — bar and column (clustered and stacked), line,
+area, pie and doughnut all render from that cache, with the title, legend,
+gridlines and axis ticks. Nothing is uploaded and no spreadsheet is opened.
+
+Two details worth knowing, because both were wrong before they were tested
+against real decks:
+
+- Categories are often stored in a **multi-level** cache rather than a flat one,
+  which happens as soon as an axis has any grouping. Reading only the flat cache
+  loses every label on the axis while leaving the chart otherwise correct.
+- A chart carries **the colour its own text should be**. Charts on dark slides
+  declare white labels, so a hard-coded grey renders a title that cannot be read
+  on exactly the slides that were designed most carefully.
+
+Preset shapes cover the ones that carry meaning in a diagram: arrows in all four
+directions plus the two double-headed ones, chevron, home plate, triangle,
+diamond, parallelogram, trapezoid, pentagon, hexagon, octagon and plus, along
+with elbow connectors. A flipped shape mirrors its outline but not its text,
+which is what PowerPoint does. Anything else still falls back to a rectangle.
+
+**Not rendered:** SmartArt, and embedded objects whose preview is an EMF or WMF
+metafile — both leave a labelled placeholder so the slide still reads the way it
+was laid out. Rendering a metafile faithfully means implementing a Windows
+drawing interpreter, which is a poor trade for the number of slides it affects.
+
 ## Playback controls
 
 | Control | Keyboard | What it does |

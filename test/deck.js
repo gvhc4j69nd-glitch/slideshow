@@ -121,7 +121,8 @@ function makeDeck() {
     'ppt/presentation.xml': '<?xml version="1.0"?>'
       + '<p:presentation xmlns:p="p" xmlns:r="r">'
       + '<p:sldIdLst><p:sldId id="256" r:id="rId1"/><p:sldId id="257" r:id="rId2"/>'
-      + '<p:sldId id="258" r:id="rId3"/></p:sldIdLst>'
+      + '<p:sldId id="258" r:id="rId3"/><p:sldId id="259" r:id="rId4"/>'
+      + '<p:sldId id="260" r:id="rId5"/></p:sldIdLst>'
       + '<p:sldSz cx="9144000" cy="5143500"/>'
       + '</p:presentation>',
 
@@ -129,6 +130,8 @@ function makeDeck() {
       + `<Relationship Id="rId1" Type="${OFFICE_REL}/slide" Target="slides/slide1.xml"/>`
       + `<Relationship Id="rId2" Type="${OFFICE_REL}/slide" Target="slides/slide2.xml"/>`
       + `<Relationship Id="rId3" Type="${OFFICE_REL}/slide" Target="slides/slide3.xml"/>`
+      + `<Relationship Id="rId4" Type="${OFFICE_REL}/slide" Target="slides/slide4.xml"/>`
+      + `<Relationship Id="rId5" Type="${OFFICE_REL}/slide" Target="slides/slide5.xml"/>`
       + `<Relationship Id="rId9" Type="${OFFICE_REL}/theme" Target="theme/theme1.xml"/>`
       + '</Relationships>',
 
@@ -175,6 +178,73 @@ function makeDeck() {
       + '<a:prstGeom prst="rect"/><a:solidFill><a:srgbClr val="00FF00"/></a:solidFill></p:spPr></p:sp>'
       + '</p:grpSp>'
       + '</p:spTree></p:cSld></p:sld>',
+
+    // Slide 4: the shapes a process diagram is made of — an arrow, a chevron,
+    // an elbow connector, and an arrow flipped to point the other way.
+    'ppt/slides/slide4.xml': '<?xml version="1.0"?><p:sld xmlns:p="p" xmlns:a="a">'
+      + '<p:cSld><p:spTree>'
+      + '<p:sp><p:nvSpPr><p:cNvPr id="10" name="Arrow"/></p:nvSpPr>'
+      + '<p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm>'
+      + '<a:prstGeom prst="rightArrow"/><a:solidFill><a:srgbClr val="FF0000"/></a:solidFill></p:spPr>'
+      + '</p:sp>'
+      + '<p:sp><p:nvSpPr><p:cNvPr id="11" name="Back"/></p:nvSpPr>'
+      + '<p:spPr><a:xfrm flipH="1"><a:off x="914400" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm>'
+      + '<a:prstGeom prst="rightArrow"/><a:solidFill><a:srgbClr val="00FF00"/></a:solidFill></p:spPr>'
+      + '<p:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="1200"/><a:t>Back</a:t></a:r></a:p></p:txBody>'
+      + '</p:sp>'
+      + '<p:sp><p:nvSpPr><p:cNvPr id="12" name="Step"/></p:nvSpPr>'
+      + '<p:spPr><a:xfrm><a:off x="0" y="914400"/><a:ext cx="914400" cy="457200"/></a:xfrm>'
+      + '<a:prstGeom prst="chevron"/><a:solidFill><a:srgbClr val="0000FF"/></a:solidFill></p:spPr>'
+      + '</p:sp>'
+      + '<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="13" name="Elbow"/></p:nvCxnSpPr>'
+      + '<p:spPr><a:xfrm><a:off x="1828800" y="914400"/><a:ext cx="914400" cy="457200"/></a:xfrm>'
+      + '<a:prstGeom prst="bentConnector3"/>'
+      + '<a:ln w="12700"><a:solidFill><a:srgbClr val="333333"/></a:solidFill></a:ln></p:spPr>'
+      + '</p:cxnSp>'
+      + '</p:spTree></p:cSld></p:sld>',
+
+    // Slide 5: a chart, the way PowerPoint actually stores one — the numbers
+    // cached in the chart part, and categories nested in a multi-level cache.
+    'ppt/slides/slide5.xml': '<?xml version="1.0"?><p:sld xmlns:p="p" xmlns:a="a" xmlns:r="r">'
+      + '<p:cSld><p:spTree>'
+      + '<p:graphicFrame><p:xfrm><a:off x="457200" y="457200"/><a:ext cx="5486400" cy="3200400"/></p:xfrm>'
+      + '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">'
+      + '<c:chart xmlns:c="c" xmlns:r="r" r:id="rIdC"/>'
+      + '</a:graphicData></a:graphic></p:graphicFrame>'
+      + '</p:spTree></p:cSld></p:sld>',
+
+    'ppt/slides/_rels/slide5.xml.rels': `<Relationships xmlns="${RELS_NS}">`
+      + `<Relationship Id="rIdC" Type="${OFFICE_REL}/chart" Target="../charts/chart1.xml"/>`
+      + '</Relationships>',
+
+    'ppt/charts/chart1.xml': '<?xml version="1.0"?><c:chartSpace xmlns:c="c" xmlns:a="a">'
+      + '<c:chart>'
+      + '<c:title><c:tx><c:rich><a:p><a:r><a:t>Quarterly revenue</a:t></a:r></a:p></c:rich></c:tx></c:title>'
+      + '<c:plotArea><c:barChart><c:barDir val="col"/><c:grouping val="clustered"/>'
+      + '<c:ser><c:idx val="0"/>'
+      + '<c:tx><c:strRef><c:strCache><c:pt idx="0"><c:v>North</c:v></c:pt></c:strCache></c:strRef></c:tx>'
+      + '<c:spPr><a:solidFill><a:srgbClr val="336699"/></a:solidFill></c:spPr>'
+      + '<c:cat><c:multiLvlStrRef><c:multiLvlStrCache><c:ptCount val="3"/><c:lvl>'
+      + '<c:pt idx="0"><c:v>Q1</c:v></c:pt><c:pt idx="1"><c:v>Q2</c:v></c:pt>'
+      + '<c:pt idx="2"><c:v>Q3</c:v></c:pt>'
+      + '</c:lvl></c:multiLvlStrCache></c:multiLvlStrRef></c:cat>'
+      + '<c:val><c:numRef><c:numCache><c:ptCount val="3"/>'
+      + '<c:pt idx="0"><c:v>10</c:v></c:pt><c:pt idx="1"><c:v>20</c:v></c:pt>'
+      + '<c:pt idx="2"><c:v>40</c:v></c:pt>'
+      + '</c:numCache></c:numRef></c:val></c:ser>'
+      + '<c:ser><c:idx val="1"/>'
+      + '<c:tx><c:strRef><c:strCache><c:pt idx="0"><c:v>South</c:v></c:pt></c:strCache></c:strRef></c:tx>'
+      + '<c:spPr><a:solidFill><a:srgbClr val="CC3300"/></a:solidFill></c:spPr>'
+      + '<c:val><c:numRef><c:numCache><c:ptCount val="3"/>'
+      + '<c:pt idx="0"><c:v>5</c:v></c:pt><c:pt idx="1"><c:v>15</c:v></c:pt>'
+      + '<c:pt idx="2"><c:v>25</c:v></c:pt>'
+      + '</c:numCache></c:numRef></c:val></c:ser>'
+      + '</c:barChart></c:plotArea>'
+      + '<c:legend><c:legendPos val="b"/></c:legend>'
+      + '</c:chart>'
+      + '<c:txPr><a:p><a:pPr><a:defRPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>'
+      + '</a:defRPr></a:pPr></a:p></c:txPr>'
+      + '</c:chartSpace>',
 
     // Slide 3: text that cannot possibly fit, plus markup that must stay inert.
     'ppt/slides/slide3.xml': '<?xml version="1.0"?><p:sld xmlns:p="p" xmlns:a="a">'
@@ -294,7 +364,7 @@ function svgText(svg) {
 
   const deck = makeDeck();
   const rendered = await Pptx.render(deck.buffer.slice(deck.byteOffset, deck.byteOffset + deck.byteLength));
-  const [slide1, slide2, slide3] = rendered.slides;
+  const [slide1, slide2, slide3, slide4, slide5] = rendered.slides;
 
   check('reads the slide size', () => {
     assert.strictEqual(Math.round(rendered.width), 960);
@@ -302,7 +372,7 @@ function svgText(svg) {
   });
 
   check('renders every slide in presentation order', () => {
-    assert.strictEqual(rendered.slides.length, 3);
+    assert.strictEqual(rendered.slides.length, 5);
     assert.ok(svgText(slide1.svg).includes('Hello & welcome'));
     assert.ok(svgText(slide2.svg).includes('narrow shape'));
   });
@@ -358,6 +428,98 @@ function svgText(svg) {
 
   check('draws an explicit bullet', () => {
     assert.ok(slide2.svg.includes('•'));
+  });
+
+  check('a chart is drawn, not left as a grey placeholder', () => {
+    assert.ok(!/>Chart</.test(slide5.svg), 'the placeholder should be gone');
+    assert.match(slide5.svg, /Quarterly revenue/, 'the chart title should render');
+  });
+
+  // Legend swatches are rounded; the bars are not, which is how they are told
+  // apart here.
+  const barsOf = (svg, hex) => [...svg.matchAll(/<rect ([^>]*)\/>/g)]
+    .map((m) => m[1])
+    .filter((attrs) => attrs.includes(`fill="${hex}"`) && !attrs.includes('rx='))
+    .map((attrs) => Number(attrs.match(/height="([\d.]+)"/)[1]));
+
+  check('bars are drawn in their series colours', () => {
+    assert.strictEqual(barsOf(slide5.svg, '#336699').length, 3, 'three bars for the first series');
+    assert.strictEqual(barsOf(slide5.svg, '#CC3300').length, 3, 'three bars for the second');
+  });
+
+  check('bar heights are proportional to the values', () => {
+    // North is 10, 20, 40, so the last bar is four times the first.
+    const heights = barsOf(slide5.svg, '#336699');
+    assert.ok(Math.abs(heights[2] / heights[0] - 4) < 0.02, JSON.stringify(heights));
+    assert.ok(Math.abs(heights[1] / heights[0] - 2) < 0.02, JSON.stringify(heights));
+  });
+
+  check('categories nested in a multi-level cache still label the axis', () => {
+    // The real decks store categories this way whenever the axis has grouping;
+    // reading only c:strCache silently loses every label.
+    for (const label of ['Q1', 'Q2', 'Q3']) {
+      assert.ok(slide5.svg.includes(`>${label}<`), `missing category ${label}`);
+    }
+  });
+
+  check('the legend names both series', () => {
+    assert.ok(slide5.svg.includes('>North<'), 'North missing from the legend');
+    assert.ok(slide5.svg.includes('>South<'), 'South missing from the legend');
+  });
+
+  check("chart text uses the chart's own colour, not a hard-coded grey", () => {
+    // This chart declares white text, as a chart on a dark slide does.
+    assert.match(slide5.svg, /<text[^>]*fill="#FFFFFF"[^>]*>Quarterly revenue</);
+  });
+
+  check('an axis is drawn with gridlines and value ticks', () => {
+    assert.ok(/stroke-opacity="0.22"/.test(slide5.svg), 'gridlines missing');
+    // The largest value is 40, and the axis rounds out to a round number.
+    assert.ok(slide5.svg.includes('>50<'), 'the axis should round up past the largest value');
+    assert.ok(slide5.svg.includes('>0<'), 'the axis should start at zero');
+  });
+
+  check('an arrow is drawn as an arrow, not a rectangle', () => {
+    // Seven points, and a tip on the right edge at half height.
+    assert.match(slide4.svg, /<path d="M[^"]*Z" fill="#FF0000"/,
+      'the right arrow should be a path');
+    const arrow = slide4.svg.match(/<path d="(M[^"]*Z)" fill="#FF0000"/)[1];
+    assert.strictEqual((arrow.match(/[ML]/g) || []).length, 7, arrow);
+    assert.ok(arrow.includes('96.00,48.00'), `tip should sit mid-right: ${arrow}`);
+    assert.ok(!/<rect[^>]*fill="#FF0000"/.test(slide4.svg), 'it must not also be a rect');
+  });
+
+  check('a flipped arrow points the other way', () => {
+    const flipped = slide4.svg.match(/<g transform="translate\(([\d.]+),0\) scale\(-1,1\)">/);
+    assert.ok(flipped, 'the flipped arrow needs a mirror transform');
+    // 2x + w, with x = 96 and w = 96.
+    assert.strictEqual(Number(flipped[1]), 288);
+  });
+
+  check('but its text still reads the right way round', () => {
+    // The mirror must close before the text begins, or "Back" comes out backwards.
+    const mirrorEnd = slide4.svg.indexOf('</g>', slide4.svg.indexOf('scale(-1,1)'));
+    const textAt = slide4.svg.indexOf('Back');
+    assert.ok(mirrorEnd !== -1 && textAt > mirrorEnd,
+      'the label sits inside the mirror transform');
+  });
+
+  check('a chevron keeps its notch', () => {
+    const chevron = slide4.svg.match(/<path d="(M[^"]*Z)" fill="#0000FF"/);
+    assert.ok(chevron, 'the chevron should be a path');
+    assert.strictEqual((chevron[1].match(/[ML]/g) || []).length, 6, chevron[1]);
+  });
+
+  check('an elbow connector turns instead of cutting the corner', () => {
+    const elbow = slide4.svg.match(/<path d="(M[^"]*)" fill="none"[^>]*stroke="#333333"/);
+    assert.ok(elbow, `expected an elbow path: ${slide4.svg.slice(0, 400)}`);
+    assert.strictEqual((elbow[1].match(/[ML]/g) || []).length, 4, elbow[1]);
+    assert.ok(!elbow[1].includes('Z'), 'a connector is a line, not a closed shape');
+  });
+
+  check('an unknown geometry still falls back to a rectangle', () => {
+    // Slide 2's plain rect inside the group.
+    assert.match(slide2.svg, /<rect[^>]*fill="#00FF00"/);
   });
 
   check('renders geometry and outlines', () => {

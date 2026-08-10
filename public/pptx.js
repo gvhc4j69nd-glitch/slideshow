@@ -446,6 +446,101 @@
 
   /* ── Shapes ─────────────────────────────────────────────────────────────── */
 
+  /*
+   * Preset geometries, as outlines in a unit box that the shape's own box then
+   * scales. PowerPoint defines these with adjust handles and formulas; these
+   * are the default proportions, which is what all but a hand-edited shape
+   * uses.
+   *
+   * The point of having them is meaning, not decoration: an arrow drawn as a
+   * rectangle turns "A → B" into "A ▭ B", and a deck full of boxes and arrows
+   * loses the half that carries the argument.
+   */
+  const PRESETS = {
+    triangle:        (a) => [[a, 0], [1, 1], [0, 1]],
+    rtTriangle:      () => [[0, 0], [0, 1], [1, 1]],
+    diamond:         () => [[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]],
+    parallelogram:   (a) => [[a, 0], [1, 0], [1 - a, 1], [0, 1]],
+    trapezoid:       (a) => [[a, 0], [1 - a, 0], [1, 1], [0, 1]],
+    pentagon:        () => [[0.5, 0], [1, 0.38], [0.81, 1], [0.19, 1], [0, 0.38]],
+    hexagon:         (a) => [[a, 0], [1 - a, 0], [1, 0.5], [1 - a, 1], [a, 1], [0, 0.5]],
+    octagon:         (a) => [[a, 0], [1 - a, 0], [1, a], [1, 1 - a],
+                             [1 - a, 1], [a, 1], [0, 1 - a], [0, a]],
+    plus:            (a) => [[a, 0], [1 - a, 0], [1 - a, a], [1, a], [1, 1 - a], [1 - a, 1 - a],
+                             [1 - a, 1], [a, 1], [a, 1 - a], [0, 1 - a], [0, a], [a, a]],
+    // "homePlate" is the pentagon-shaped process arrow; "chevron" is its
+    // notched cousin, and both are staples of a process diagram.
+    homePlate:       (a) => [[0, 0], [1 - a, 0], [1, 0.5], [1 - a, 1], [0, 1]],
+    chevron:         (a) => [[0, 0], [1 - a, 0], [1, 0.5], [1 - a, 1], [0, 1], [a, 0.5]],
+    rightArrow:      (a, b) => [[0, b], [1 - a, b], [1 - a, 0], [1, 0.5],
+                                [1 - a, 1], [1 - a, 1 - b], [0, 1 - b]],
+    leftArrow:       (a, b) => [[1, b], [a, b], [a, 0], [0, 0.5],
+                                [a, 1], [a, 1 - b], [1, 1 - b]],
+    downArrow:       (a, b) => [[b, 0], [1 - b, 0], [1 - b, 1 - a], [1, 1 - a],
+                                [0.5, 1], [0, 1 - a], [b, 1 - a]],
+    upArrow:         (a, b) => [[b, 1], [1 - b, 1], [1 - b, a], [1, a],
+                                [0.5, 0], [0, a], [b, a]],
+    leftRightArrow:  (a, b) => [[0, 0.5], [a, 0], [a, b], [1 - a, b], [1 - a, 0], [1, 0.5],
+                                [1 - a, 1], [1 - a, 1 - b], [a, 1 - b], [a, 1]],
+    upDownArrow:     (a, b) => [[0.5, 0], [1, a], [1 - b, a], [1 - b, 1 - a], [1, 1 - a],
+                                [0.5, 1], [0, 1 - a], [b, 1 - a], [b, a], [0, a]],
+  };
+
+  // Default adjust values, as fractions of the box.
+  const PRESET_ADJUST = {
+    triangle: [0.5], parallelogram: [0.25], trapezoid: [0.25], hexagon: [0.25],
+    octagon: [0.29], plus: [0.25], homePlate: [0.25], chevron: [0.25],
+    rightArrow: [0.35, 0.25], leftArrow: [0.35, 0.25],
+    downArrow: [0.35, 0.25], upArrow: [0.35, 0.25],
+    leftRightArrow: [0.25, 0.25], upDownArrow: [0.25, 0.25],
+  };
+
+  function presetPath(geom, box) {
+    const build = PRESETS[geom];
+    if (!build) return null;
+    const points = build(...(PRESET_ADJUST[geom] || []));
+    const d = points
+      .map(([ux, uy], i) => `${i ? 'L' : 'M'}${(box.x + ux * box.w).toFixed(2)},`
+        + `${(box.y + uy * box.h).toFixed(2)}`)
+      .join(' ');
+    return `${d} Z`;
+  }
+
+  /**
+   * Mirror an outline in its own box.
+   *
+   * A flipped right-arrow is a left-arrow, so the flags have to be honoured or
+   * half the arrows in a process diagram point the wrong way. Only the outline
+   * is mirrored: PowerPoint leaves the text in a flipped shape reading
+   * normally, and so does this.
+   */
+  function flipWrap(box, transform, body) {
+    if (!transform || (!transform.flipH && !transform.flipV)) return body;
+    const parts = [];
+    if (transform.flipH) parts.push(`translate(${(2 * box.x + box.w).toFixed(2)},0) scale(-1,1)`);
+    if (transform.flipV) parts.push(`translate(0,${(2 * box.y + box.h).toFixed(2)}) scale(1,-1)`);
+    return `<g transform="${parts.join(' ')}">${body}</g>`;
+  }
+
+  /*
+   * Elbow connectors. PowerPoint routes these itself; the box plus the flip
+   * flags say which corner it turns, which is enough to draw the same elbow.
+   */
+  function connectorPath(geom, box) {
+    const x1 = box.x;
+    const x2 = box.x + box.w;
+    const y1 = box.y;
+    const y2 = box.y + box.h;
+    if (geom === 'bentConnector2') {
+      return `M${x1.toFixed(2)},${y1.toFixed(2)} L${x2.toFixed(2)},${y1.toFixed(2)}`
+        + ` L${x2.toFixed(2)},${y2.toFixed(2)}`;
+    }
+    // bentConnector3 turns twice, halfway along.
+    const midX = (x1 + x2) / 2;
+    return `M${x1.toFixed(2)},${y1.toFixed(2)} L${midX.toFixed(2)},${y1.toFixed(2)}`
+      + ` L${midX.toFixed(2)},${y2.toFixed(2)} L${x2.toFixed(2)},${y2.toFixed(2)}`;
+  }
+
   function shapeElement(geom, box, fillAttr, strokeAttrs) {
     const { x, y, w, h } = box;
     const common = `${fillAttr} ${strokeAttrs}`;
@@ -453,10 +548,17 @@
       return `<ellipse cx="${(x + w / 2).toFixed(2)}" cy="${(y + h / 2).toFixed(2)}"`
         + ` rx="${(w / 2).toFixed(2)}" ry="${(h / 2).toFixed(2)}" ${common}/>`;
     }
-    if (geom === 'line' || geom === 'straightConnector1') {
+    if (geom === 'line' || /^straightConnector/.test(geom)) {
       return `<line x1="${x.toFixed(2)}" y1="${y.toFixed(2)}" x2="${(x + w).toFixed(2)}"`
         + ` y2="${(y + h).toFixed(2)}" ${strokeAttrs}/>`;
     }
+    if (/^bentConnector[23]$/.test(geom)) {
+      return `<path d="${connectorPath(geom, box)}" fill="none" ${strokeAttrs}/>`;
+    }
+
+    const path = presetPath(geom, box);
+    if (path) return `<path d="${path}" ${common}/>`;
+
     const round = geom === 'roundRect' ? Math.min(w, h) * 0.1 : 0;
     return `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${Math.max(0, w).toFixed(2)}"`
       + ` height="${Math.max(0, h).toFixed(2)}"${round ? ` rx="${round.toFixed(2)}"` : ''} ${common}/>`;
@@ -528,7 +630,8 @@
 
     const pieces = [];
     if (box.w > 0 && box.h > 0) {
-      pieces.push(shapeElement(geom, box, fillAttr, strokeFor(spPr, ctx.theme)));
+      pieces.push(flipWrap(box, transform,
+        shapeElement(geom, box, fillAttr, strokeFor(spPr, ctx.theme))));
     }
 
     const txBody = X.child(node, 'p:txBody');
@@ -569,6 +672,436 @@
     return true;
   }
 
+  /* ── Charts ─────────────────────────────────────────────────────────────── */
+
+  /*
+   * PowerPoint stores a chart's numbers twice: as a reference into an embedded
+   * workbook, and as a cache of the values as they were last drawn. The cache
+   * is what is rendered here, which means a chart draws from the slide alone —
+   * no spreadsheet to open, and nothing that has to leave the device.
+   */
+
+  const CHART_KINDS = ['barChart', 'lineChart', 'pieChart', 'doughnutChart',
+    'areaChart', 'scatterChart'];
+
+  const FALLBACK_SERIES = ['#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F', '#EDC948'];
+  const ACCENTS = ['accent1', 'accent2', 'accent3', 'accent4', 'accent5', 'accent6'];
+
+  /** Read a c:strCache / c:numCache into a dense array, honouring gaps. */
+  function cacheValues(holder, kind) {
+    const cache = X.find(holder, kind);
+    if (!cache) return [];
+    const out = [];
+    for (const point of X.findAll(cache, 'c:pt')) {
+      const idx = Number(X.attr(point, 'idx', out.length));
+      out[idx] = X.allText(X.child(point, 'c:v'));
+    }
+    const count = Number(X.attr(X.child(cache, 'c:ptCount'), 'val', out.length));
+    return Array.from({ length: Math.max(count, out.length) }, (unused, i) => out[i]);
+  }
+
+  /*
+   * Category labels come three ways: a plain string cache, a number cache, or —
+   * whenever the axis has any grouping at all, which is common — a multi-level
+   * cache whose first level holds the labels a reader actually sees.
+   */
+  function readCategories(cat) {
+    const flat = cacheValues(cat, 'c:strCache');
+    if (flat.length) return flat;
+
+    const multi = X.find(cat, 'c:multiLvlStrCache');
+    const level = multi && X.child(multi, 'c:lvl');
+    if (level) {
+      const out = [];
+      for (const point of X.findAll(level, 'c:pt')) {
+        const idx = Number(X.attr(point, 'idx', out.length));
+        out[idx] = X.allText(X.child(point, 'c:v'));
+      }
+      const count = Number(X.attr(X.child(multi, 'c:ptCount'), 'val', out.length));
+      return Array.from({ length: Math.max(count, out.length) }, (unused, i) => out[i]);
+    }
+    return cacheValues(cat, 'c:numCache');
+  }
+
+  function readSeries(ser, theme, index) {
+    const label = X.allText(X.find(X.child(ser, 'c:tx'), 'c:v')).trim();
+    const categories = readCategories(X.child(ser, 'c:cat'));
+
+    const values = cacheValues(X.child(ser, 'c:val'), 'c:numCache').map((raw) => {
+      const n = raw === undefined || raw === '' ? NaN : Number(raw);
+      return Number.isFinite(n) ? n : null;
+    });
+
+    const own = readFill(X.child(ser, 'c:spPr'), theme);
+    // Per-point colours, which is how a pie gets more than one.
+    const points = new Map();
+    for (const dPt of X.children(ser, 'c:dPt')) {
+      const idx = Number(X.attr(X.child(dPt, 'c:idx'), 'val', -1));
+      const fill = readFill(X.child(dPt, 'c:spPr'), theme);
+      if (idx >= 0 && fill && !fill.none) points.set(idx, fill.hex);
+    }
+
+    return {
+      name: label || `Series ${index + 1}`,
+      categories,
+      values,
+      color: own && !own.none ? own.hex : null,
+      points,
+    };
+  }
+
+  function seriesColor(series, i, theme) {
+    if (series && series.color) return series.color;
+    const themed = theme.scheme[ACCENTS[i % ACCENTS.length]];
+    return themed ? `#${themed.toUpperCase()}` : FALLBACK_SERIES[i % FALLBACK_SERIES.length];
+  }
+
+  /** Round an axis bound out to a number a person would have chosen. */
+  function niceBound(value) {
+    if (!(value > 0)) return 1;
+    const magnitude = 10 ** Math.floor(Math.log10(value));
+    const scaled = value / magnitude;
+    const step = scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 5 ? 5 : 10;
+    return step * magnitude;
+  }
+
+  function fmtTick(value) {
+    const abs = Math.abs(value);
+    if (abs >= 1e9) return `${(value / 1e9).toFixed(1)}B`;
+    if (abs >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
+    if (abs >= 1e3) return `${(value / 1e3).toFixed(1)}k`;
+    if (Number.isInteger(value)) return String(value);
+    return String(Number(value.toFixed(2)));
+  }
+
+  const textEl = (x, y, size, fill, anchor, font, body, weight) =>
+    `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" font-family="${esc(font)}"`
+    + ` font-size="${size.toFixed(1)}" fill="${fill}" text-anchor="${anchor}"`
+    + `${weight ? ` font-weight="${weight}"` : ''}>${esc(body)}</text>`;
+
+  /*
+   * A chart carries the colour its text is meant to be, which matters: these
+   * decks put white-labelled charts on near-black slides. Hard-coding a grey
+   * would leave the axis unreadable on exactly the slides that took the most
+   * care over their design. Gridlines are the same ink, faint.
+   */
+  function chartInk(chartXml, theme) {
+    const txPr = X.find(chartXml, 'c:txPr');
+    const colour = txPr && readColor(X.find(txPr, 'a:solidFill'), theme);
+    return colour && !colour.none ? colour.hex : '#5A6270';
+  }
+
+  /** Bars, lines and areas — everything drawn against a pair of axes. */
+  function drawAxes(kind, plot, seriesList, area, font, ink, pieces) {
+    const stacked = /stacked/i.test(X.attr(X.child(plot, 'c:grouping'), 'val', 'clustered'));
+    const percent = /percentStacked/i.test(X.attr(X.child(plot, 'c:grouping'), 'val', ''));
+    const horizontal = kind === 'barChart'
+      && X.attr(X.child(plot, 'c:barDir'), 'val', 'col') === 'bar';
+
+    const categories = seriesList.reduce(
+      (best, s) => (s.categories.length > best.length ? s.categories : best), [],
+    );
+    const count = Math.max(1, categories.length
+      || Math.max(...seriesList.map((s) => s.values.length)));
+
+    // Bounds. Stacked series add up; everything else is plotted independently.
+    let high = 0;
+    let low = 0;
+    for (let i = 0; i < count; i += 1) {
+      if (stacked) {
+        const sum = seriesList.reduce((a, s) => a + Math.max(0, s.values[i] || 0), 0);
+        const neg = seriesList.reduce((a, s) => a + Math.min(0, s.values[i] || 0), 0);
+        high = Math.max(high, sum);
+        low = Math.min(low, neg);
+      } else {
+        for (const s of seriesList) {
+          const v = s.values[i];
+          if (v === null || v === undefined) continue;
+          high = Math.max(high, v);
+          low = Math.min(low, v);
+        }
+      }
+    }
+    if (percent) { high = 1; low = 0; }
+    const top = niceBound(high) || 1;
+    const bottom = low < 0 ? -niceBound(-low) : 0;
+    const span = top - bottom || 1;
+
+    const tick = Math.max(8, Math.min(11, area.h * 0.05));
+    const valueGut = horizontal ? tick * 3.4 : tick * 2.8;
+    const catGut = tick * 1.9;
+    const plotBox = horizontal
+      ? { x: area.x + valueGut, y: area.y, w: area.w - valueGut, h: area.h - catGut }
+      : { x: area.x + valueGut, y: area.y, w: area.w - valueGut, h: area.h - catGut };
+    if (plotBox.w <= 2 || plotBox.h <= 2) return;
+
+    const STEPS = 4;
+    // Gridlines and their labels, along whichever axis carries the values.
+    for (let i = 0; i <= STEPS; i += 1) {
+      const value = bottom + (span * i) / STEPS;
+      const label = percent ? `${Math.round(value * 100)}%` : fmtTick(value);
+      if (horizontal) {
+        const x = plotBox.x + (plotBox.w * i) / STEPS;
+        pieces.push(`<line x1="${x.toFixed(2)}" y1="${plotBox.y.toFixed(2)}" x2="${x.toFixed(2)}"`
+          + ` y2="${(plotBox.y + plotBox.h).toFixed(2)}" stroke="${ink}" stroke-opacity="0.22" stroke-width="1"/>`);
+        pieces.push(textEl(x, plotBox.y + plotBox.h + tick * 1.3, tick, ink, 'middle', font, label));
+      } else {
+        const y = plotBox.y + plotBox.h - (plotBox.h * i) / STEPS;
+        pieces.push(`<line x1="${plotBox.x.toFixed(2)}" y1="${y.toFixed(2)}"`
+          + ` x2="${(plotBox.x + plotBox.w).toFixed(2)}" y2="${y.toFixed(2)}"`
+          + ` stroke="${ink}" stroke-opacity="0.22" stroke-width="1"/>`);
+        pieces.push(textEl(plotBox.x - tick * 0.5, y + tick * 0.35, tick, ink, 'end', font, label));
+      }
+    }
+
+    const zero = horizontal
+      ? plotBox.x + ((0 - bottom) / span) * plotBox.w
+      : plotBox.y + plotBox.h - ((0 - bottom) / span) * plotBox.h;
+
+    const slot = (horizontal ? plotBox.h : plotBox.w) / count;
+
+    // Category labels. Crowded ones are thinned rather than overlapped.
+    const every = Math.ceil(count / Math.max(1, Math.floor((horizontal ? plotBox.h : plotBox.w) / (tick * 3.2))));
+    categories.forEach((name, i) => {
+      if (name === undefined || i % every) return;
+      if (horizontal) {
+        pieces.push(textEl(plotBox.x - tick * 0.5, plotBox.y + slot * (i + 0.5) + tick * 0.35,
+          tick, ink, 'end', font, String(name)));
+      } else {
+        pieces.push(textEl(plotBox.x + slot * (i + 0.5), plotBox.y + plotBox.h + tick * 1.4,
+          tick, ink, 'middle', font, String(name)));
+      }
+    });
+
+    const toLength = (v) => (Math.abs(v) / span) * (horizontal ? plotBox.w : plotBox.h);
+
+    if (kind === 'barChart') {
+      const inner = slot * 0.72;
+      const each = stacked ? inner : inner / seriesList.length;
+      const running = new Array(count).fill(0);
+
+      seriesList.forEach((series, si) => {
+        for (let i = 0; i < count; i += 1) {
+          const raw = series.values[i];
+          if (raw === null || raw === undefined) continue;
+          const value = percent
+            ? raw / (seriesList.reduce((a, s) => a + Math.abs(s.values[i] || 0), 0) || 1)
+            : raw;
+          const len = toLength(value);
+          if (horizontal) {
+            const y = plotBox.y + slot * i + (slot - inner) / 2 + (stacked ? 0 : each * si);
+            const x = value >= 0 ? zero + running[i] : zero - running[i] - len;
+            pieces.push(`<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${len.toFixed(2)}"`
+              + ` height="${each.toFixed(2)}" fill="${series.plotFill}"/>`);
+          } else {
+            const x = plotBox.x + slot * i + (slot - inner) / 2 + (stacked ? 0 : each * si);
+            const y = value >= 0 ? zero - running[i] - len : zero + running[i];
+            pieces.push(`<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${each.toFixed(2)}"`
+              + ` height="${len.toFixed(2)}" fill="${series.plotFill}"/>`);
+          }
+          if (stacked) running[i] += len;
+        }
+      });
+    } else {
+      // Lines, areas and scatter all reduce to a run of points.
+      seriesList.forEach((series) => {
+        const pts = [];
+        for (let i = 0; i < count; i += 1) {
+          const v = series.values[i];
+          if (v === null || v === undefined) continue;
+          const along = horizontal
+            ? plotBox.y + slot * (i + 0.5)
+            : plotBox.x + slot * (i + 0.5);
+          const across = horizontal
+            ? zero + ((v - 0) / span) * plotBox.w
+            : zero - ((v - 0) / span) * plotBox.h;
+          pts.push(horizontal ? [across, along] : [along, across]);
+        }
+        if (pts.length < 1) return;
+        const d = pts.map(([px, py], i) => `${i ? 'L' : 'M'}${px.toFixed(2)},${py.toFixed(2)}`).join(' ');
+
+        if (kind === 'areaChart') {
+          const first = pts[0];
+          const last = pts[pts.length - 1];
+          pieces.push(`<path d="${d} L${last[0].toFixed(2)},${zero.toFixed(2)}`
+            + ` L${first[0].toFixed(2)},${zero.toFixed(2)} Z" fill="${series.plotFill}"`
+            + ' fill-opacity="0.45"/>');
+        }
+        pieces.push(`<path d="${d}" fill="none" stroke="${series.plotFill}" stroke-width="2.5"`
+          + ' stroke-linejoin="round" stroke-linecap="round"/>');
+        if (pts.length <= 24) {
+          for (const [px, py] of pts) {
+            pieces.push(`<circle cx="${px.toFixed(2)}" cy="${py.toFixed(2)}" r="3"`
+              + ` fill="${series.plotFill}"/>`);
+          }
+        }
+      });
+    }
+
+    // The baseline sits on top of the bars so it doesn't get buried.
+    if (horizontal) {
+      pieces.push(`<line x1="${zero.toFixed(2)}" y1="${plotBox.y.toFixed(2)}" x2="${zero.toFixed(2)}"`
+        + ` y2="${(plotBox.y + plotBox.h).toFixed(2)}" stroke="${ink}" stroke-opacity="0.55" stroke-width="1.25"/>`);
+    } else {
+      pieces.push(`<line x1="${plotBox.x.toFixed(2)}" y1="${zero.toFixed(2)}"`
+        + ` x2="${(plotBox.x + plotBox.w).toFixed(2)}" y2="${zero.toFixed(2)}"`
+        + ` stroke="${ink}" stroke-opacity="0.55" stroke-width="1.25"/>`);
+    }
+  }
+
+  function drawPie(kind, series, area, font, ink, pieces) {
+    const total = series.values.reduce((a, v) => a + Math.abs(v || 0), 0);
+    if (!total) return;
+
+    const cx = area.x + area.w / 2;
+    const cy = area.y + area.h / 2;
+    const radius = Math.min(area.w, area.h) / 2 * 0.92;
+    const hole = kind === 'doughnutChart' ? radius * 0.5 : 0;
+
+    let angle = -Math.PI / 2;                    // twelve o'clock, as PowerPoint does
+    series.values.forEach((raw, i) => {
+      const value = Math.abs(raw || 0);
+      if (!value) return;
+      const sweep = (value / total) * Math.PI * 2;
+      const end = angle + sweep;
+      const large = sweep > Math.PI ? 1 : 0;
+      const p = (r, a) => `${(cx + r * Math.cos(a)).toFixed(2)},${(cy + r * Math.sin(a)).toFixed(2)}`;
+
+      // A single value fills the ring, and an arc cannot express a full circle.
+      const d = sweep >= Math.PI * 2 - 1e-9
+        ? `M${p(radius, 0)} A${radius},${radius} 0 1 1 ${p(radius, Math.PI)}`
+          + ` A${radius},${radius} 0 1 1 ${p(radius, 0)} Z`
+        : `M${p(hole, angle)} L${p(radius, angle)}`
+          + ` A${radius},${radius} 0 ${large} 1 ${p(radius, end)}`
+          + (hole
+            ? ` L${p(hole, end)} A${hole},${hole} 0 ${large} 0 ${p(hole, angle)} Z`
+            : ` L${cx.toFixed(2)},${cy.toFixed(2)} Z`);
+
+      pieces.push(`<path d="${d}" fill="${series.sliceFill(i)}" stroke="#FFFFFF" stroke-width="1"/>`);
+      angle = end;
+    });
+  }
+
+  function drawLegend(entries, box, area, pos, legendW, font, ink, pieces) {
+    const size = Math.max(8, Math.min(11, box.h * 0.045));
+    const swatch = size * 0.85;
+    if (pos === 'b' || pos === 't') {
+      const y = pos === 'b' ? box.y + box.h - size * 0.8 : box.y + size * 1.4;
+      const width = entries.reduce((a, e) => a + swatch + 6 + e.name.length * size * 0.5 + 12, 0);
+      let x = box.x + Math.max(0, (box.w - width) / 2);
+      for (const entry of entries) {
+        pieces.push(`<rect x="${x.toFixed(2)}" y="${(y - swatch).toFixed(2)}"`
+          + ` width="${swatch.toFixed(2)}" height="${swatch.toFixed(2)}" rx="2" fill="${entry.fill}"/>`);
+        pieces.push(textEl(x + swatch + 5, y, size, ink, 'start', font, entry.name));
+        x += swatch + 6 + entry.name.length * size * 0.5 + 12;
+      }
+      return;
+    }
+    const x = pos === 'l' ? box.x + 4 : area.x + area.w + 8;
+    let y = area.y + size * 1.4;
+    for (const entry of entries) {
+      pieces.push(`<rect x="${x.toFixed(2)}" y="${(y - swatch).toFixed(2)}"`
+        + ` width="${swatch.toFixed(2)}" height="${swatch.toFixed(2)}" rx="2" fill="${entry.fill}"/>`);
+      pieces.push(textEl(x + swatch + 5, y, size, ink, 'start', font,
+        entry.name.length > 18 ? `${entry.name.slice(0, 17)}…` : entry.name));
+      y += size * 1.7;
+      if (y > area.y + area.h) break;
+    }
+  }
+
+  function chartTitle(chartXml) {
+    if (X.attr(X.find(chartXml, 'c:autoTitleDeleted'), 'val') === '1') return '';
+    const title = X.find(chartXml, 'c:title');
+    if (!title) return '';
+    return X.findAll(title, 'a:t').map((node) => X.allText(node)).join('').trim();
+  }
+
+  function renderChart(chartXml, box, theme, out) {
+    const plotArea = X.find(chartXml, 'c:plotArea');
+    if (!plotArea) return false;
+
+    let kind = null;
+    let plot = null;
+    for (const name of CHART_KINDS) {
+      const found = X.find(plotArea, `c:${name}`);
+      if (found) { kind = name; plot = found; break; }
+    }
+    if (!plot) return false;
+
+    const seriesList = X.children(plot, 'c:ser').map((ser, i) => readSeries(ser, theme, i));
+    if (!seriesList.length || !seriesList.some((s) => s.values.some((v) => v !== null))) return false;
+    seriesList.forEach((s, i) => { s.plotFill = seriesColor(s, i, theme); });
+
+    const pie = kind === 'pieChart' || kind === 'doughnutChart';
+    if (pie) {
+      const first = seriesList[0];
+      first.sliceFill = (i) => first.points.get(i)
+        || seriesColor(null, i, theme);
+    }
+
+    const font = fontStack(theme.fonts.minor);
+    const ink = chartInk(chartXml, theme);
+    const title = chartTitle(chartXml);
+    const hasLegend = Boolean(X.find(chartXml, 'c:legend'));
+    const legendPos = X.attr(X.find(chartXml, 'c:legendPos'), 'val', 'r');
+
+    const legendEntries = pie
+      ? (seriesList[0].categories || [])
+        .map((name, i) => ({ name: String(name ?? ''), fill: seriesList[0].sliceFill(i) }))
+        .filter((e) => e.name)
+      : seriesList.map((s) => ({ name: s.name, fill: s.plotFill }));
+    const showLegend = hasLegend && legendEntries.length > 1;
+
+    const pad = Math.min(box.w, box.h) * 0.06;
+    const titleH = title ? Math.max(12, Math.min(22, box.h * 0.1)) : 0;
+    const sideways = legendPos === 'r' || legendPos === 'l';
+    const legendH = showLegend && !sideways ? Math.max(14, box.h * 0.09) : 0;
+    const legendW = showLegend && sideways ? Math.min(box.w * 0.3, 130) : 0;
+
+    const area = {
+      x: box.x + pad + (legendPos === 'l' ? legendW : 0),
+      y: box.y + pad + titleH + (legendPos === 't' ? legendH : 0),
+      w: box.w - pad * 2 - legendW,
+      h: box.h - pad * 2 - titleH - legendH,
+    };
+    if (area.w <= 8 || area.h <= 8) return false;
+
+    const pieces = [];
+    if (title) {
+      pieces.push(textEl(box.x + box.w / 2, box.y + pad + titleH * 0.78,
+        titleH * 0.75, ink, 'middle', font, title, '600'));
+    }
+
+    if (pie) drawPie(kind, seriesList[0], area, font, ink, pieces);
+    else drawAxes(kind, plot, seriesList, area, font, ink, pieces);
+
+    if (showLegend) drawLegend(legendEntries, box, area, legendPos, legendW, font, ink, pieces);
+
+    out.push(pieces.join(''));
+    return true;
+  }
+
+  function renderChartFrame(node, ctx, box, out) {
+    const ref = X.find(node, 'c:chart');
+    const id = ref && (X.attr(ref, 'r:id') || X.attr(ref, 'r:embed'));
+    const rel = id && ctx.rels.get(id);
+    if (!rel || rel.external) return false;
+
+    let chartXml = null;
+    try {
+      chartXml = partXml(ctx.files, rel.path);
+    } catch {
+      return false;                      // a malformed chart falls back to the placeholder
+    }
+    if (!chartXml) return false;
+
+    try {
+      return renderChart(chartXml, box, ctx.theme, out);
+    } catch {
+      return false;
+    }
+  }
+
   function renderGraphicFrame(node, ctx, out) {
     const xfrm = X.path(node, 'p:xfrm');
     const off = X.child(xfrm, 'a:off');
@@ -580,9 +1113,12 @@
 
     if (renderTable(node, ctx, out, box)) return;
 
-    // Charts and SmartArt aren't rendered; leave a labelled space so the slide
-    // still reads the way it was laid out instead of showing a blank gap.
     const uri = X.attr(X.find(node, 'a:graphicData'), 'uri', '');
+    if (uri.includes('chart') && renderChartFrame(node, ctx, box, out)) return;
+
+    // SmartArt and embedded objects still aren't rendered; leave a labelled
+    // space so the slide reads the way it was laid out rather than showing a
+    // blank gap.
     const label = uri.includes('chart') ? 'Chart' : uri.includes('diagram') ? 'Diagram' : 'Embedded object';
     out.push(`<rect x="${box.x.toFixed(2)}" y="${box.y.toFixed(2)}" width="${box.w.toFixed(2)}"`
       + ` height="${box.h.toFixed(2)}" fill="#f2f4f8" stroke="#c9ccd4" stroke-width="1"`
