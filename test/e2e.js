@@ -303,6 +303,92 @@ async function guardTargetServer() {
   ok('caps how many handed-off shows one account can leave standing', r.res.status === 409, r.res.status);
   await call(host, `/api/broadcast/${third.code}`, { method: 'DELETE' });
 
+  console.log('\n— a screen seeds to one that joins later —');
+
+  /*
+   * Eight photos, because the relay caches six. Whatever it still holds could
+   * answer on its own, so the proof has to be a slide it has already evicted.
+   */
+  const MANY = Array.from({ length: 8 }, (unused, i) =>
+    Buffer.from(`SEED-PHOTO-${i}-` + String.fromCharCode(97 + i).repeat(40)));
+
+  r = await call(host, '/api/broadcast', {
+    method: 'POST', json: { title: 'Seeded', photoCount: MANY.length, mode: 'handoff' },
+  });
+  const seeded = r.body;
+
+  let hostServing = true;
+  (async function seedHostLoop() {
+    while (hostServing) {
+      try {
+        const { res, body } = await call(host, `/api/broadcast/${seeded.code}/requests`);
+        if (res.status !== 200) { await new Promise(r2 => setTimeout(r2, 50)); continue; }
+        for (const job of body.requests) {
+          if (!hostServing) return;
+          await call(host, `/api/broadcast/${seeded.code}/frame/${job.reqId}`, {
+            method: 'PUT', body: MANY[job.index], headers: { 'Content-Type': 'image/png' },
+          });
+        }
+      } catch { if (hostServing) await new Promise(r2 => setTimeout(r2, 50)); }
+    }
+  })();
+
+  // First screen takes its copy while the presenter is still here.
+  const screenA = jar();
+  await call(screenA, '/api/watch/join', { method: 'POST', json: { code: seeded.code, password: seeded.password } });
+  const copyA = new Map();
+  for (let i = 0; i < MANY.length; i += 1) {
+    const got2 = await call(screenA, `/api/watch/${seeded.code}/photo/${i}`, { raw: true });
+    if (got2.res.status === 200) copyA.set(i, got2.buf);
+  }
+  ok('the first screen takes a full copy', copyA.size === MANY.length, `${copyA.size}/${MANY.length}`);
+
+  r = await call(screenA, `/api/watch/${seeded.code}/cached`, { method: 'POST', json: { have: copyA.size } });
+  ok('and says so', r.body.have === MANY.length, JSON.stringify(r.body));
+
+  r = await call(screenA, `/api/watch/${seeded.code}/state`);
+  ok('the relay counts it as a source', r.body.seeds === 1, JSON.stringify({ seeds: r.body.seeds }));
+
+  // The presenter closes the tab.
+  hostServing = false;
+
+  // That screen now answers on the presenter's behalf.
+  let seedServed = 0;
+  (async function screenSeedLoop() {
+    while (seedServed < 4) {
+      try {
+        const { res, body } = await call(screenA, `/api/watch/${seeded.code}/requests`);
+        if (res.status !== 200) { await new Promise(r2 => setTimeout(r2, 50)); continue; }
+        for (const job of body.requests) {
+          seedServed += 1;
+          await call(screenA, `/api/watch/${seeded.code}/frame/${job.reqId}`, {
+            method: 'PUT', body: copyA.get(job.index), headers: { 'Content-Type': 'image/png' },
+          });
+        }
+      } catch { await new Promise(r2 => setTimeout(r2, 50)); }
+    }
+  })();
+
+  const screenB = jar();
+  r = await call(screenB, '/api/watch/join', { method: 'POST', json: { code: seeded.code, password: seeded.password } });
+  ok('a screen can still join after the presenter has gone', r.res.status === 200, r.res.status);
+
+  // 0 and 1 are the slides the relay evicted, so these can only come from screen A.
+  got = await call(screenB, `/api/watch/${seeded.code}/photo/0`, { raw: true });
+  ok('and is served a slide the relay no longer holds',
+    got.res.status === 200 && got.buf.equals(MANY[0]), got.res.status);
+
+  got = await call(screenB, `/api/watch/${seeded.code}/photo/1`, { raw: true });
+  ok('and another', got.res.status === 200 && got.buf.equals(MANY[1]), got.res.status);
+  ok('which came from the other screen, not the presenter', seedServed > 0, `${seedServed} served`);
+
+  // A screen that holds nothing must not be allowed to pose as a source.
+  r = await call(screenB, `/api/watch/${seeded.code}/requests`);
+  ok('a screen without a full copy cannot seed', r.res.status === 409, r.res.status);
+
+  seedServed = 99;
+  await call(host, `/api/broadcast/${seeded.code}`, { method: 'DELETE' });
+
   r = await call(host, `/api/broadcast/${capped.code}`, { method: 'DELETE' });
   ok('the presenter can take it down early', r.res.status === 200, r.res.status);
   r = await call(tv2, `/api/watch/${capped.code}/state`);

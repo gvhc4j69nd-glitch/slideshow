@@ -280,6 +280,31 @@ async function handleHostFrame(req, res, session, reqId) {
   sendJson(res, delivered ? 200 : 410, delivered ? { ok: true } : { error: 'Nobody was waiting for that photo.' });
 }
 
+/** Long-poll for a seeding screen: same shape as the host's, different source. */
+function handleSeedRequests(req, res, session, viewerId) {
+  let settled = false;
+  const waiter = broadcast.waitForSeedRequests(session, viewerId, (jobs) => {
+    if (settled) return;
+    settled = true;
+    sendJson(res, 200, { requests: jobs, viewers: session.viewers.size, code: session.code });
+  });
+  res.on('close', () => {
+    if (settled) return;
+    settled = true;
+    broadcast.cancelSeedWaiter(session, waiter);
+  });
+}
+
+async function handleSeedFrame(req, res, session, reqId) {
+  const buffer = await readRawBody(req, MAX_FRAME_BYTES);
+  if (buffer === null) return sendError(res, 413, 'That photo is too large to stream.');
+  if (!buffer.length) return sendError(res, 400, 'Empty photo body.');
+
+  const contentType = String(req.headers['content-type'] || 'application/octet-stream').split(';')[0].trim();
+  const delivered = broadcast.deliverFrame(session, reqId, buffer, contentType, { fromHost: false });
+  sendJson(res, delivered ? 200 : 410, delivered ? { ok: true } : { error: 'Nobody was waiting for that photo.' });
+}
+
 /* ── Broadcast: viewer endpoints ──────────────────────────────────────────── */
 
 async function handleWatchJoin(req, res) {
@@ -480,6 +505,35 @@ const server = http.createServer(async (req, res) => {
         const viewer = viewerFor(req, session.code);
         const held = broadcast.recordCached(session, viewer.vid, body.have);
         return sendJson(res, 200, { have: held, of: session.photoCount });
+      }
+
+      /*
+       * Seeding: a screen that holds the whole show can answer requests from
+       * screens that join later, which is what keeps a handed-off slideshow
+       * joinable after the presenter's tab has gone.
+       */
+      if (segments[3] === 'requests' && method === 'GET') {
+        const viewer = viewerFor(req, session.code);
+        if (!broadcast.canSeed(session, viewer.vid)) {
+          return sendError(res, 409, 'This screen does not hold a full copy yet.');
+        }
+        return handleSeedRequests(req, res, session, viewer.vid);
+      }
+
+      if (segments[3] === 'frame' && segments.length >= 5) {
+        const viewer = viewerFor(req, session.code);
+        if (!broadcast.canSeed(session, viewer.vid)) {
+          return sendError(res, 409, 'This screen does not hold a full copy yet.');
+        }
+        const reqId = decodeURIComponent(segments[4]);
+        if (segments.length === 6 && segments[5] === 'error' && method === 'POST') {
+          const body = await readJsonBody(req);
+          broadcast.failFrame(session, reqId, body && body.message, { fromHost: false });
+          return sendJson(res, 200, { ok: true });
+        }
+        if (method === 'PUT' || method === 'POST') {
+          return await handleSeedFrame(req, res, session, reqId);
+        }
       }
       return sendError(res, 404, 'Unknown endpoint.');
     }

@@ -38,9 +38,15 @@ const state = {
   held: 0,            // slides copied so far
   store: null,        // the Cache API bucket holding them
   clockTimer: null,
+  seeding: false,     // this screen is answering other screens' requests
 };
 
 const MAX_CACHED = 6;
+const PRECACHE_ATTEMPTS = 4;      // sweeps over the slides that didn't arrive
+const PRECACHE_RETRY_MS = 1500;   // multiplied by the attempt, so it backs off
+const SEED_RETRY_MS = 2000;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /* ── Keeping a copy, for hand-off ─────────────────────────────────────────── */
 
@@ -51,6 +57,9 @@ async function openStore() {
   if (!('caches' in window)) return null;
   try {
     if (navigator.storage && navigator.storage.persist) await navigator.storage.persist();
+    // A screen keeps one show at a time. Anything left over from a slideshow
+    // this screen watched last week is somebody's photos, so it goes now.
+    await dropOtherStores();
     return await caches.open(storeName());
   } catch {
     return null;
@@ -78,6 +87,19 @@ async function writeStored(index, blob) {
     // Out of room. Whatever is already held still plays; the loop just gets
     // shorter, which beats failing outright on a television with little space.
     return false;
+  }
+}
+
+/** Delete copies of every show but this one. */
+async function dropOtherStores() {
+  if (!('caches' in window)) return;
+  const keep = storeName();
+  try {
+    for (const name of await caches.keys()) {
+      if (name.startsWith('vinboo-') && name !== keep) await caches.delete(name);
+    }
+  } catch {
+    // Nothing useful to do if the browser refuses.
   }
 }
 
@@ -112,21 +134,83 @@ async function reportHeld() {
  */
 async function precacheAll() {
   state.store = await openStore();
-  let held = 0;
-  for (let i = 0; i < state.photoCount && state.running; i += 1) {
-    try {
-      await fetchSlide(i);
-      held += 1;
-      if (held !== state.held) {
-        state.held = held;
-        if (held % 5 === 0 || held === state.photoCount) await reportHeld();
+
+  /*
+   * Slides can fail individually — the presenter's tab may be busy sending the
+   * same photo to three other screens — so missing ones are swept up again
+   * rather than left behind. A copy with a hole in it is not a copy, and this
+   * screen cannot seed to anyone until it has the lot.
+   */
+  let missing = Array.from({ length: state.photoCount }, (unused, i) => i);
+  for (let attempt = 0; attempt < PRECACHE_ATTEMPTS && missing.length && state.running; attempt += 1) {
+    if (attempt) await sleep(PRECACHE_RETRY_MS * attempt);
+    const failed = [];
+    for (const index of missing) {
+      if (!state.running) return;
+      try {
+        await fetchSlide(index);
+      } catch {
+        failed.push(index);
       }
+    }
+    const held = state.photoCount - failed.length;
+    if (held !== state.held) {
+      state.held = held;
+      await reportHeld();
+    }
+    missing = failed;
+  }
+
+  state.held = state.photoCount - missing.length;
+  await reportHeld();
+  if (!missing.length) startSeeding();
+}
+
+/* ── Seeding: passing the show on to screens that arrive later ────────────── */
+
+/**
+ * Once this screen holds every slide it can answer requests itself, so a
+ * television switched on an hour after the presenter left still gets the show.
+ * The relay only routes work here when no presenting tab is listening.
+ */
+async function startSeeding() {
+  if (state.seeding || state.mode !== 'handoff') return;
+  state.seeding = true;
+
+  while (state.running && state.mode === 'handoff') {
+    try {
+      const res = await fetch(`/api/watch/${state.code}/requests`);
+      if (!res.ok) {
+        if (res.status === 404) return;             // the show has ended
+        await sleep(SEED_RETRY_MS);
+        continue;
+      }
+      const { requests } = await res.json();
+      for (const job of requests) await serveSlide(job);
     } catch {
-      // A slide that will not come now may come later; keep going.
+      if (!state.running) return;
+      await sleep(SEED_RETRY_MS);
     }
   }
-  state.held = held;
-  await reportHeld();
+  state.seeding = false;
+}
+
+async function serveSlide(job) {
+  const blob = await readStored(job.index).catch(() => null);
+  const path = `/api/watch/${state.code}/frame/${encodeURIComponent(job.reqId)}`;
+  if (!blob) {
+    await fetch(`${path}/error`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'That screen no longer holds this photo.' }),
+    }).catch(() => {});
+    return;
+  }
+  await fetch(path, {
+    method: 'PUT',
+    headers: { 'Content-Type': blob.type || 'application/octet-stream' },
+    body: blob,
+  }).catch(() => {});
 }
 
 /* ── Running the show without a presenter ─────────────────────────────────── */

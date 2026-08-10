@@ -825,6 +825,7 @@ async function shareCurrentShow({ mode = 'live', ttlMs } = {}) {
     title: state.folder,
     photos: state.photos,     // the live playlist, so a reshuffle stays in step
     gen: 0,
+    pushedGen: 0,      // hand-off only pushes state when this moves
     mode: info.mode,
     expiresAt: info.expiresAt,
     viewers: 0,
@@ -1054,6 +1055,19 @@ async function sendFrame(bc, job) {
 function pushBroadcastState() {
   const bc = state.broadcast;
   if (!bc || !bc.running) return;
+
+  /*
+   * Handed-off screens work out the slide from the clock, so telling them which
+   * one to show is noise — a request per slide that nothing reads. A reshuffle
+   * is different: it changes what an index means, and every screen has to know
+   * to throw its copy away. So that one still goes.
+   */
+  if (bc.mode === 'handoff') {
+    const gen = bc.gen || 0;
+    if (gen === bc.pushedGen) return;
+    bc.pushedGen = gen;
+  }
+
   api(`/api/broadcast/${bc.code}/state`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1305,7 +1319,15 @@ function shufflePhotos() {
   // Reordering changes what each index means, so viewers must drop their cache.
   // The swap above is in place, which keeps the broadcast's view of the
   // playlist pointing at the same array the player is using.
-  if (state.broadcast) state.broadcast.gen = (state.broadcast.gen || 0) + 1;
+  //
+  // This has to be told to the screens straight away. A live show would carry
+  // the new generation along with its next slide change, but a handed-off one
+  // sends no slide changes at all — so without this the screens would keep
+  // showing the old order from their copies.
+  if (state.broadcast) {
+    state.broadcast.gen = (state.broadcast.gen || 0) + 1;
+    pushBroadcastState();
+  }
 }
 
 /* ── Player controls ──────────────────────────────────────────────────────── */

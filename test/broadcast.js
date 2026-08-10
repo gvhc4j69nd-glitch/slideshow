@@ -147,6 +147,158 @@ check('a screen that goes away stops counting', () => {
   assert.strictEqual(b.cacheProgress(session).screens, 0);
 });
 
+console.log('\n— a screen seeds to screens that arrive later —');
+
+check('a screen may only seed once it holds the whole show', () => {
+  const b = relay();
+  const session = start(b, { photoCount: 3, mode: 'handoff' });
+  watching(session, 'tv-1');
+  b.recordCached(session, 'tv-1', 2);
+  assert.strictEqual(b.canSeed(session, 'tv-1'), false, 'a partial copy must not seed');
+  b.recordCached(session, 'tv-1', 3);
+  assert.strictEqual(b.canSeed(session, 'tv-1'), true);
+});
+
+check('a live show never promotes a screen to seed', () => {
+  const b = relay();
+  const session = start(b, { photoCount: 3 });
+  watching(session, 'tv-1');
+  b.recordCached(session, 'tv-1', 3);
+  assert.strictEqual(b.canSeed(session, 'tv-1'), false);
+});
+
+check('with the presenter gone, a request goes to a seeding screen', () => {
+  const b = relay();
+  const session = start(b, { photoCount: 3, mode: 'handoff' });
+  watching(session, 'tv-1');
+  b.recordCached(session, 'tv-1', 3);
+  session.hostSeenAt = Date.now() - HOST_TIMEOUT_MS * 10;   // the tab closed hours ago
+
+  let handed = null;
+  b.waitForSeedRequests(session, 'tv-1', (jobs) => { handed = jobs; });
+  b.requestPhoto(session, 2, () => {});
+
+  assert.ok(handed && handed.length === 1, 'the seeder should have been given the job');
+  assert.strictEqual(handed[0].index, 2);
+});
+
+check('the presenting tab still gets first refusal', () => {
+  const b = relay();
+  const session = start(b, { photoCount: 3, mode: 'handoff' });
+  watching(session, 'tv-1');
+  b.recordCached(session, 'tv-1', 3);
+
+  let toSeeder = null;
+  let toHost = null;
+  b.waitForSeedRequests(session, 'tv-1', (jobs) => { toSeeder = jobs; });
+  b.waitForRequests(session, (jobs) => { toHost = jobs; });
+  b.requestPhoto(session, 1, () => {});
+
+  assert.ok(toHost && toHost.length === 1, 'the host should have been given the job');
+  assert.strictEqual(toSeeder, null, 'the seeder should still be parked');
+});
+
+check('a seeder answering does not make the presenter look present', () => {
+  const b = relay();
+  const session = start(b, { photoCount: 3, mode: 'handoff' });
+  watching(session, 'tv-1');
+  b.recordCached(session, 'tv-1', 3);
+
+  session.hostSeenAt = Date.now() - HOST_TIMEOUT_MS * 5;
+  const stale = session.hostSeenAt;
+
+  let job = null;
+  b.waitForSeedRequests(session, 'tv-1', (jobs) => { [job] = jobs; });
+  let served = null;
+  b.requestPhoto(session, 0, (result) => { served = result; });
+  b.deliverFrame(session, job.reqId, Buffer.from('bytes'), 'image/png', { fromHost: false });
+
+  assert.ok(served && served.buffer.equals(Buffer.from('bytes')), 'the photo should have been relayed');
+  assert.strictEqual(session.hostSeenAt, stale, 'host liveness must not have been touched');
+});
+
+check('a late joiner is told plainly when no screen can serve it', () => {
+  const b = relay();
+  const session = start(b, { photoCount: 3, mode: 'handoff' });
+  session.hostSeenAt = Date.now() - HOST_TIMEOUT_MS * 10;
+  assert.strictEqual(b.hasSource(session), false);
+  assert.match(b.timeoutMessage(session), /no screen with a copy/i);
+
+  watching(session, 'tv-1');
+  b.recordCached(session, 'tv-1', 3);
+  assert.strictEqual(b.hasSource(session), true);
+  assert.match(b.timeoutMessage(session), /did not arrive in time/i);
+});
+
+check('and is told at once rather than after a long wait', () => {
+  const b = relay();
+  const session = start(b, { photoCount: 3, mode: 'handoff' });
+  session.hostSeenAt = Date.now() - HOST_TIMEOUT_MS * 10;
+
+  let answer = null;
+  b.requestPhoto(session, 0, (result) => { answer = result; });
+  assert.ok(answer && /no screen with a copy/i.test(answer.error), JSON.stringify(answer));
+  assert.strictEqual(session.pending.size, 0, 'nothing should have been left queued');
+});
+
+check('a screen that was switched off stops counting as a source', () => {
+  const b = relay();
+  const session = start(b, { photoCount: 2, mode: 'handoff' });
+  session.hostSeenAt = Date.now() - HOST_TIMEOUT_MS * 10;
+  watching(session, 'tv-1');
+  b.recordCached(session, 'tv-1', 2);
+  assert.strictEqual(b.hasSource(session), true);
+
+  // The television is unplugged: it stops answering, without telling anyone.
+  session.viewers.set('tv-1', Date.now() - 60 * 1000);
+  assert.strictEqual(b.hasSource(session), false, 'a silent screen must not count');
+});
+
+check('a job the presenter never answered is offered to a screen instead', () => {
+  const b = relay();
+  const session = start(b, { photoCount: 3, mode: 'handoff' });
+  watching(session, 'tv-1');
+  b.recordCached(session, 'tv-1', 3);
+
+  // The presenting tab has a poll parked but is about to die without answering.
+  b.waitForRequests(session, () => {});
+  b.requestPhoto(session, 2, () => {});
+  assert.strictEqual(session.queue.length, 0, 'the host should have taken it');
+
+  let handed = null;
+  b.waitForSeedRequests(session, 'tv-1', (jobs) => { handed = jobs; });
+  assert.strictEqual(handed, null, 'the seeder should still be parked');
+
+  // Time passes and no bytes arrive.
+  for (const entry of session.pending.values()) {
+    entry.dispatchedAt = Date.now() - 30 * 1000;
+  }
+  b.sweep();
+
+  assert.ok(handed && handed.length === 1, 'the seeder should have been offered the job');
+  assert.strictEqual(handed[0].index, 2);
+});
+
+check('a live show keeps its own timeout wording', () => {
+  const b = relay();
+  const session = start(b, { photoCount: 3 });
+  assert.match(b.timeoutMessage(session), /host did not send/i);
+});
+
+check('seedCount only counts screens still watching', () => {
+  const b = relay();
+  const session = start(b, { photoCount: 2, mode: 'handoff' });
+  watching(session, 'tv-1');
+  watching(session, 'tv-2');
+  b.recordCached(session, 'tv-1', 2);
+  b.recordCached(session, 'tv-2', 1);
+  assert.strictEqual(b.seedCount(session), 1);
+
+  session.viewers.set('tv-1', Date.now() - 10 * 60 * 1000);
+  b.sweep();
+  assert.strictEqual(b.seedCount(session), 0);
+});
+
 console.log('\n— what a screen is told —');
 
 check('a handed-off show hands out the clock, not a slide index', () => {

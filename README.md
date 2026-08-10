@@ -105,8 +105,9 @@ Vinboo loses as well as where it wins.
 
 The short version: nothing else found does photos *and* PowerPoint, and nothing
 else streams from the presenter's own device instead of uploading first. The
-sharpest weakness is that the presenting tab has to stay open, which is exactly
-what the party use case wants least.
+sharpest weakness used to be that the presenting tab had to stay open, which is
+exactly what the party use case wants least; hand-off mode addresses that for
+shows of up to 50 photos.
 
 ## Run it locally
 
@@ -223,9 +224,23 @@ Code 6QAHVF · password EY82-MYH9-6SAX · 3 screens · ends in 23h 40m
 Safe to close this tab — all screens have a full copy.
 ```
 
-Any screen that joins later, while the tab is still open, gets its copy the same
-way. Once you have gone, no new screen can join — there is nothing left to copy
-from.
+Screens can still join after you have gone. Once a screen holds the whole show
+it becomes a source itself, so a television switched on an hour later gets the
+photos from a screen that already has them. The relay only routes work to a
+screen when no presenting tab is listening, so while your tab is open the
+originals stay the source.
+
+**If no screen with a copy is there, nobody new can join.** A screen that is
+switched off stops counting as a source within about a minute, and a joiner is
+told so at once rather than being left on a spinner:
+
+> No screen with a copy of this slideshow is here to send it. Ask the presenter
+> to open the slideshow again to add this screen.
+
+The show is not torn down when that happens — it still runs to its deadline. A
+screen that comes back still holds its copy in its own browser storage, so it
+rejoins, finds every slide locally, and starts serving again without needing the
+presenter or any other screen.
 
 Hand-off is deliberately hemmed in, because copies on other people's devices are
 harder to take back than a stream:
@@ -242,9 +257,35 @@ harder to take back than a stream:
   is the one exception to one-broadcast-per-account.
 
 The screens delete their copies when the show ends — whether it timed out, you
-pressed **Stop sharing**, or you never came back. Nothing is uploaded in either
-mode; the difference is only whether the copies live on the screens or stream
-from your tab.
+pressed **Stop sharing**, or you never came back. A screen also drops any older
+show's copy when it joins a new one, so a television holds at most one slideshow
+at a time. Nothing is uploaded in either mode; the difference is only whether
+the copies live on the screens or stream from your tab.
+
+### What a handed-off show costs the server
+
+Nothing durable — the server never holds the slideshow. What it keeps is
+bookkeeping plus a small, short-lived relay cache. Measured on this machine with
+200 concurrent 50-slide shows of eight screens each, using a 1.16 MB median
+photo:
+
+| | Per show | Held for |
+| --- | --- | --- |
+| Session bookkeeping (code, hashes, screen list, deadline) | ~2.9 KB | the full 1–48 hours |
+| Relay cache, while screens are copying | up to 6 photos ≈ 6.6 MB | minutes |
+| Relay cache, once copying stops | 0 | dropped after 5 minutes idle |
+
+The relay cache is a fan-out optimisation, not storage: it holds the last six
+photos so that ten screens copying the same slide cost one upload rather than
+ten. It is capped at six frames and 64 MB, it never grows with the length of the
+show, and it is cleared once a show goes quiet — the screens have their own
+copies, so there is nothing there worth keeping. An idle handed-off show
+therefore costs about three kilobytes a day.
+
+For contrast: actually storing a 50-photo show on the server for its full life
+would be roughly 58 MB per show, or 5.7 GB across a hundred concurrent shows.
+That is the cost the hand-off design avoids, and the reason the photo cap exists
+on the screens rather than on a disk somewhere.
 
 ## Casting to a television
 
@@ -603,6 +644,10 @@ derived from the source logo.
   access to a screen has those photos until then. If that isn't acceptable for a
   particular set of pictures, use **Keep this tab open** instead.
 - Only the account that started a broadcast can drive it or end it.
+- A screen can only serve photos to other screens once it holds the whole show,
+  and only for a handed-off slideshow. Everyone involved already holds the same
+  code and password, so a screen can pass on what it was given — but a screen
+  that has copied nothing cannot pose as a source.
 - Rendered slides are built as escaped SVG and shown through `<img>`, so a
   booby-trapped deck can't run script — in the presenter's browser or in a
   viewer's.
