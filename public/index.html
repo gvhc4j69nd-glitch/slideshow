@@ -233,9 +233,12 @@
       <p class="dialog-help" id="gateHelp">Sign in to your account to continue.</p>
 
       <label class="stack">
-        <span>Username</span>
-        <input type="text" id="gateUser" autocomplete="username" required
-               minlength="3" maxlength="32" pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{2,31}">
+        <span id="gateUserLabel">Email</span>
+        <!-- type=email gives phones the right keyboard and the browser its own
+             check; the server does the one that counts. -->
+        <input type="email" id="gateUser" autocomplete="username" inputmode="email"
+               autocapitalize="off" spellcheck="false" required maxlength="254"
+               placeholder="you@example.com">
       </label>
 
       <label class="stack">

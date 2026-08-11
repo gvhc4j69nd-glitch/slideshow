@@ -36,6 +36,7 @@ const el = {
   folderLabel: $('folderLabel'), counter: $('counter'), sourceTag: $('sourceTag'),
   gate: $('gate'), gateForm: $('gateForm'), gateUser: $('gateUser'), gatePass: $('gatePass'),
   gateSignupCode: $('gateSignupCode'), signupCodeRow: $('signupCodeRow'), gateHelp: $('gateHelp'),
+  gateUserLabel: $('gateUserLabel'),
   gateError: $('gateError'), gateSubmit: $('gateSubmit'),
   tabSignIn: $('tabSignIn'), tabRegister: $('tabRegister'),
   whoami: $('whoami'), signOutBtn: $('signOutBtn'),
@@ -1679,9 +1680,13 @@ function setAuthMode(mode) {
   el.tabRegister.setAttribute('aria-selected', String(registering));
   el.gateSubmit.textContent = registering ? 'Create account' : 'Sign in';
   el.gateHelp.textContent = registering
-    ? 'Pick a username and a password of at least 8 characters.'
+    ? 'Use your email address and a password of at least 8 characters.'
     : 'Sign in to your account to continue.';
   el.gatePass.autocomplete = registering ? 'new-password' : 'current-password';
+  // Accounts made before this rule are not email addresses, so only sign-up
+  // insists on one — signing in must still accept what someone already has.
+  el.gateUser.type = registering ? 'email' : 'text';
+  el.gateUserLabel.textContent = registering ? 'Email' : 'Email or username';
   el.signupCodeRow.hidden = !(registering && state.signupCodeRequired);
   el.gateError.hidden = true;
 }
@@ -1695,6 +1700,7 @@ el.gateForm.addEventListener('submit', async (event) => {
   el.gateSubmit.disabled = true;
   try {
     const payload = { username: el.gateUser.value.trim(), password: el.gatePass.value };
+    if (authMode === 'register') payload.username = payload.username.toLowerCase();
     if (authMode === 'register' && state.signupCodeRequired) payload.signupCode = el.gateSignupCode.value;
 
     const result = await api(authMode === 'register' ? '/api/auth/register' : '/api/auth/login', {

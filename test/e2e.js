@@ -66,7 +66,7 @@ async function guardTargetServer() {
   let r = await call(anon, '/api/broadcast/mine');
   ok('the api requires an account', r.res.status === 401, r.res.status);
 
-  r = await call(host, '/api/auth/register', { method: 'POST', json: { username: 'ab', password: 'longenough1' } });
+  r = await call(host, '/api/auth/register', { method: 'POST', json: { username: 'presenter', password: 'longenough1' } });
   if (r.res.status === 429) {
     // Sign-ups are rate limited per IP, so a re-used server poisons the run.
     console.error('\nThis server has already used its sign-up allowance.'
@@ -74,26 +74,31 @@ async function guardTargetServer() {
       + '\n  PORT=4399 DATA_ROOT=$(mktemp -d) node server.js\n');
     process.exit(1);
   }
-  ok('rejects short username', r.res.status === 400, JSON.stringify(r.body));
+  ok('a name that is not an email is refused', r.res.status === 400, JSON.stringify(r.body));
 
-  r = await call(host, '/api/auth/register', { method: 'POST', json: { username: 'presenter', password: 'short' } });
+  r = await call(host, '/api/auth/register', { method: 'POST', json: { username: 'joe@example', password: 'longenough1' } });
+  ok('and so is an address with no real domain', r.res.status === 400, JSON.stringify(r.body));
+
+  r = await call(host, '/api/auth/register', { method: 'POST', json: { username: 'presenter@example.com', password: 'short' } });
   ok('rejects short password', r.res.status === 400, JSON.stringify(r.body));
 
-  r = await call(host, '/api/auth/register', { method: 'POST', json: { username: 'presenter', password: 'correct-horse' } });
-  ok('registers an account', r.res.status === 201 && r.body.user.username === 'presenter', JSON.stringify(r.body));
+  r = await call(host, '/api/auth/register', { method: 'POST', json: { username: 'Presenter@Example.com ', password: 'correct-horse' } });
+  ok('registers with an email address', r.res.status === 201, JSON.stringify(r.body));
+  ok('and stores it in one spelling', r.body.user && r.body.user.username === 'presenter@example.com',
+    JSON.stringify(r.body.user));
 
-  r = await call(anon, '/api/auth/register', { method: 'POST', json: { username: 'PRESENTER', password: 'another-one' } });
-  ok('username uniqueness is case-insensitive', r.res.status === 409, JSON.stringify(r.body));
+  r = await call(anon, '/api/auth/register', { method: 'POST', json: { username: 'PRESENTER@EXAMPLE.COM', password: 'another-one' } });
+  ok('so the same address cannot register twice', r.res.status === 409, JSON.stringify(r.body));
 
   r = await call(host, '/api/broadcast/mine');
   ok('a signed-in user reaches the api', r.res.status === 200, r.res.status);
 
   const other = jar();
-  r = await call(other, '/api/auth/login', { method: 'POST', json: { username: 'presenter', password: 'wrong-password' } });
+  r = await call(other, '/api/auth/login', { method: 'POST', json: { username: 'presenter@example.com', password: 'wrong-password' } });
   ok('wrong password rejected', r.res.status === 401, r.res.status);
 
-  r = await call(other, '/api/auth/login', { method: 'POST', json: { username: 'presenter', password: 'correct-horse' } });
-  ok('correct password signs in', r.res.status === 200, r.res.status);
+  r = await call(other, '/api/auth/login', { method: 'POST', json: { username: ' PRESENTER@example.com ', password: 'correct-horse' } });
+  ok('correct password signs in, however it is typed', r.res.status === 200, r.res.status);
 
   console.log('\n— the address a presenter reads out —');
 
@@ -162,6 +167,10 @@ async function guardTargetServer() {
   r = await call(viewer, '/api/watch/join', { method: 'POST', json: { code: share.code.toLowerCase(), password: share.password.toLowerCase() } });
   ok('join accepts lowercase input', r.res.status === 200, JSON.stringify(r.body));
   ok('viewer sees the title', r.body.title === 'Holiday', r.body.title);
+  ok('viewer is told who is presenting', r.body.host === 'presenter', r.body.host);
+  ok("but never the presenter's email address",
+    !String(r.body.host).includes('@') && !JSON.stringify(r.body).includes('example.com'),
+    JSON.stringify(r.body.host));
   ok('viewer sees photo count', r.body.photoCount === 3, r.body.photoCount);
   ok('viewer needs no account', true);
 
@@ -235,7 +244,7 @@ async function guardTargetServer() {
 
   console.log('\n— ownership + shutdown —');
   const intruder = jar();
-  await call(intruder, '/api/auth/register', { method: 'POST', json: { username: 'intruder', password: 'correct-horse' } });
+  await call(intruder, '/api/auth/register', { method: 'POST', json: { username: 'intruder@example.com', password: 'correct-horse' } });
   r = await call(intruder, `/api/broadcast/${share.code}/state`, { method: 'POST', json: { index: 0 } });
   ok("another account can't drive the broadcast", r.res.status === 403, r.res.status);
   r = await call(intruder, `/api/broadcast/${share.code}`, { method: 'DELETE' });

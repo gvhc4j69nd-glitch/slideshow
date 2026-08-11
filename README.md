@@ -141,6 +141,20 @@ Then open <http://localhost:4321>. The schema is created on first boot.
 Accounts live in Postgres. On Railway, adding a Postgres service injects
 `DATABASE_URL` and the app picks it up with no further configuration.
 
+**An account is an email address.** Sign-up validates the shape people actually
+type — deliberately not RFC 5322, whose grammar admits quoted strings and address
+literals no sign-up form should take — and stores it lower-cased, so one address
+is one account however it was typed. Signing in still accepts anything, because
+accounts created before this rule are not addresses and must keep working. The
+only real proof an address exists is sending something to it, which this does not
+yet do.
+
+**Viewers never see the address.** The presenter's name goes to every screen
+watching, so what travels is the part before the `@` — enough to say who is
+presenting, not enough to contact them. `auth.displayName` is the single place
+that decides this, and there is a test asserting no `@` and no domain reaches a
+viewer.
+
 Passwords are hashed with scrypt. The key used to sign session cookies is
 generated once and kept in the database rather than on disk, so cookies survive
 a redeploy with no volume attached, and every instance signs identically.
@@ -538,7 +552,7 @@ to the counter shows which one is playing.
 
 ## Tests
 
-Four suites.
+Five suites.
 
 The deck tests (ZIP reader, XML parser, PowerPoint rendering) need nothing
 running — the fixture presentation is built in memory:
@@ -554,6 +568,14 @@ whose name doesn't end in `_test`:
 ```bash
 createdb vinboo_test
 DATABASE_URL=postgres://localhost/vinboo_test npm run test:db
+```
+
+The account tests cover what counts as an email address — including the shapes a
+naive regex lets through, like a quoted local part or two addresses separated by
+a comma — and that only the name half of an address is ever shown to a viewer:
+
+```bash
+npm run test:auth
 ```
 
 The relay tests cover the bookkeeping that the clock drives — a live show dying
@@ -573,7 +595,7 @@ DATABASE_URL=postgres://localhost/vinboo_test PORT=4399 node server.js &
 sleep 2 && npm run test:e2e
 ```
 
-`npm test` runs all four; it expects `DATABASE_URL` to point at a `_test`
+`npm test` runs all five; it expects `DATABASE_URL` to point at a `_test`
 database and a server already listening on 4399.
 
 Both suites that touch data refuse to run against anything that isn't a `_test`
@@ -755,8 +777,11 @@ derived from the source logo.
   and revoked as playback moves on, so a large folder isn't held in memory all
   at once.
 - Passwords are hashed with scrypt and compared in constant time. A sign-in
-  attempt for an unknown username still does the hashing work, so a miss can't
+  attempt for an unknown account still does the hashing work, so a miss can't
   be spotted by how fast it fails.
+- An account name is an email address, and an email address is a way to reach
+  somebody, so it never leaves the account that owns it: screens are told the
+  part before the `@` and nothing else.
 - Share codes and temporary passwords are generated from `crypto.randomBytes`
   with unbiased character mapping, and only their hashes are kept in memory.
 - Streamed photos are sent with `Cache-Control: no-store` so no proxy retains a

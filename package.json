@@ -1,16 +1,17 @@
 {
   "name": "vinboo",
   "version": "1.0.0",
-  "description": "Vinboo — play photos and presentations from any device, and share them live to other browsers.",
+  "description": "Vinboo \u2014 play photos and presentations from any device, and share them live to other browsers.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "migrate": "node scripts/migrate.js",
-    "test": "node test/deck.js && node test/broadcast.js && node test/db.js && node test/e2e.js",
+    "test": "node test/deck.js && node test/auth.js && node test/broadcast.js && node test/db.js && node test/e2e.js",
     "test:deck": "node test/deck.js",
     "test:broadcast": "node test/broadcast.js",
     "test:db": "node test/db.js",
-    "test:e2e": "node test/e2e.js"
+    "test:e2e": "node test/e2e.js",
+    "test:auth": "node test/auth.js"
   },
   "engines": {
     "node": ">=20.12.0"

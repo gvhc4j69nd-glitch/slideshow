@@ -170,22 +170,22 @@ async function handleRegister(req, res) {
     if (!ok) return sendError(res, 403, 'That sign-up code is not right.');
   }
 
-  const username = auth.validateUsername(body.username);
+  const username = auth.validateEmail(body.username);
   if (username.error) return sendError(res, 400, username.error);
 
   const password = auth.validatePassword(body.password);
   if (password.error) return sendError(res, 400, password.error);
 
-  if (await store.findUser(username.value)) return sendError(res, 409, 'That username is taken.');
+  if (await store.findUser(username.value)) return sendError(res, 409, 'That email already has an account.');
 
   const passwordHash = await auth.hashPassword(password.value);
   let user;
   try {
     user = await store.addUser({ username: username.value, passwordHash });
   } catch (err) {
-    // Two sign-ups for the same name can pass the check above simultaneously;
+    // Two sign-ups for the same address can pass the check above at once;
     // the unique index is what actually settles it.
-    if (err.taken) return sendError(res, 409, 'That username is taken.');
+    if (err.taken) return sendError(res, 409, 'That email already has an account.');
     throw err;
   }
 
@@ -204,7 +204,7 @@ async function handleLogin(req, res) {
   const stored = user ? user.passwordHash : await auth.hashPassword('placeholder-for-timing');
   const ok = await auth.verifyPassword(String(body.password || ''), stored);
 
-  if (!user || !ok) return sendError(res, 401, 'Wrong username or password.');
+  if (!user || !ok) return sendError(res, 401, 'Wrong email or password.');
 
   loginLimiter.reset(ip);
   sendJson(res, 200, { user: publicUser(user) }, { 'Set-Cookie': userCookie(req, user) });
@@ -246,7 +246,7 @@ async function handleCreateBroadcast(req, res, user) {
   try {
     created = broadcast.create({
       userId: user.id,
-      username: user.username,
+      username: auth.displayName(user.username),
       title,
       photoCount,
       mode,
