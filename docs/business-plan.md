@@ -186,7 +186,8 @@ rather than a premium feature.
 | Railway RAM | **$10.14** /GB-month | derived from $0.00000386/GB/s [sourced] |
 | Railway vCPU | **$20.29** /vCPU-month | derived from $0.00000772/vCPU/s [sourced] |
 | Railway volume | **$0.158** /GB-month | derived from $0.00000006/GB/s [sourced] |
-| Railway egress | **$0.05** /GB | [sourced] |
+| Railway egress | **$0.05** /GB — i.e. **$50/TB** | [sourced] |
+| Railway ingress | **free** — presenter uploads cost nothing | [sourced] |
 | Railway object storage | **$0.015** /GB-month, **free egress** | [sourced] |
 | Cloudflare R2 | **$0.015** /GB-month, **free egress**, 10 GB free | [sourced] |
 | GitHub | **$0** on Free (unlimited private repos, 2,000 Actions min/mo) | [sourced] |
@@ -194,6 +195,12 @@ rather than a premium feature.
 
 GitHub is free at this size and stays under $50/month even with a small team at
 $4/user. It is not a cost driver and is not modelled further.
+
+Two details about egress that change how the rate should be read. **Only
+outbound traffic is charged**, so the presenter's upload into the relay is free
+and only the relay's delivery out to each screen costs anything. And there is
+**no free egress allowance** on any plan — the $5 Hobby and $20 Pro credits are
+general resource credits that egress simply eats into alongside RAM and CPU.
 
 ### What a show actually costs
 
@@ -210,6 +217,68 @@ For a 40-slide show on 4 screens, each screen taking one copy:
 
 Six ad impressions at $2.50 RPM earn **$0.015** per show. So a cached show earns
 about **5× what it costs to serve**. The free tier works.
+
+### When egress becomes worth acting on
+
+The reassuring part first: with each slide fetched once, **egress is a fixed
+share of revenue rather than a growing one**, because both scale with the number
+of screens. It sits at **18% of what a show earns in advertising** and stays
+there. Egress does not structurally *become* a problem; only its absolute size
+grows.
+
+So the thresholds below are cash-flow milestones, not cliffs:
+
+| Egress bill | Traffic | Shows/month | Presenters |
+|---|---|---|---|
+| $5 — consumes the whole Hobby credit | 100 GB | ~1,900 | ~940 |
+| $20 — consumes the whole Pro credit | 400 GB | ~7,500 | ~3,700 |
+| $25 — matches a small compute bill | 500 GB | ~9,400 | ~4,700 |
+| $100 | 2 TB | ~37,000 | ~19,000 |
+| $500 | 10 TB | ~187,000 | ~94,000 |
+| $1,000 | 20 TB | ~374,000 | ~187,000 |
+
+#### The threshold that is a cliff
+
+It is not a scale at all — it is whether the viewer-page ad works. If networks
+decline the television placement, which §3 says to expect, revenue falls to the
+presenter's two impressions while egress still scales with every screen:
+
+| | Revenue per show | Egress | Egress as a share |
+|---|---|---|---|
+| Viewer-page ads running | $0.0150 | $0.0027 | 18% |
+| Viewer-page ads declined | $0.0050 | $0.0027 | **53%** |
+
+And in that case **a show stops paying for itself above about 7.5 screens** — the
+better the product does at its own core promise of unlimited screens, the worse
+each show performs. This arrives at any scale, on day one, and it is the reason
+the viewer placement should be measured separately from the other two rather than
+assumed into the blended figure.
+
+#### The levers, in the order worth pulling
+
+1. **Send fewer bytes.** No migration and no new vendor. The wire is currently
+   2560px JPEG q0.9 (~350 KB a slide); the 2048px WebP q82 setting measured at a
+   **145 KB median** [measured] would cut **59% off every byte at every scale** —
+   $1,335/month becomes $553. The cost is some quality on a large television,
+   which is a judgement call rather than a technical one.
+2. **Serve stored and premium shows from object storage.** Railway's own is
+   $0.015/GB-month with **free egress**, so this is free from the first day and
+   has no threshold to wait for. It is also Finding 2 restated: premium traffic
+   need never touch the metered path.
+3. **Move the relay to a host with included bandwidth.** Railway is **$50/TB**; a
+   Hetzner-class VPS includes 20 TB and then charges **$1/TB** [sourced] — 50× on
+   marginal bytes. The gap reaches roughly $100/month at about **40,000
+   shows/month**, which is where a day of migration pays back within a quarter.
+   Below that the saving does not cover losing managed Postgres, deploys and
+   health checks.
+
+#### What would invalidate all of this
+
+**Video.** Every figure here assumes photographs. Video is one to two orders of
+magnitude more bytes and brings **no additional ad impressions** with it, which
+would move egress from a fixed 18% of revenue to the dominant cost of the
+business. The competitive analysis lists video as a parity gap worth closing; if
+it is closed, this section has to be rewritten before it ships, not after.
 
 ### Stripe eats low-priced monthly subscriptions
 
@@ -347,7 +416,8 @@ Carried from the competitive analysis, with financial consequences attached.
 | **Ad networks decline the TV placement** | A third of impressions disappear | Model without viewer-page ads as the downside case |
 | **Consent compliance** | Engineering cost, lower EEA fill | Budget a CMP before EU traffic matters |
 | **Ads undermine the privacy claim** | Weakens the one defensible position | Keep Private tag-free; consider making all paid tiers ad-free |
-| **Railway egress at $0.05/GB** | Above commodity rates; 26.7 TB/mo is $1,335 that a cheaper host or object storage would not charge | Serve premium from object storage; revisit host if free-tier egress dominates |
+| **Railway egress at $0.05/GB** | $50/TB, against $1/TB on a VPS with included bandwidth | Cut wire bytes first (−59%, no migration); object storage for premium; move the relay above ~40,000 shows/month — see §5 |
+| **Viewer-page ads declined** | Egress goes from 18% to 53% of ad revenue, and a show above ~7.5 screens loses money | Measure that placement separately from day one; it is the one threshold that does not wait for scale |
 
 ---
 
@@ -383,7 +453,9 @@ slides.
 270M/14M participant-to-presenter figures and $38M revenue; AdSense RPM ranges;
 consumer freemium conversion benchmarks; Present Live's retirement.
 
-**Assumed, and least reliable:** 350 KB per slide on the wire; $2.50 blended RPM;
+**Assumed, and least reliable:** 350 KB per slide on the wire — the egress
+thresholds in §5 move in direct proportion to it, so it is the single number most
+worth replacing with a real measurement of real photographs; $2.50 blended RPM;
 2.5% conversion; 4 screens per show; 40 slides per show; 2 shows per presenter per
 month; $200/month compute; and every user-count figure in §7 — those are
 scenarios chosen to show the shape of the model, not forecasts.
@@ -397,6 +469,8 @@ distribution is the thing most likely to decide the outcome.
 ## Sources
 
 - [Railway pricing](https://railway.com/pricing)
+- [Railway plans and per-unit rates](https://docs.railway.com/reference/pricing/plans) (egress only, no included allowance)
+- [Hetzner Cloud](https://www.hetzner.com/cloud/) — 20 TB included, then ~$1/TB, per [2026 pricing summaries](https://onedollarvps.com/pricing/hetzner-cloud-pricing)
 - [Cloudflare R2 pricing](https://developers.cloudflare.com/r2/pricing/)
 - [GitHub pricing](https://github.com/pricing)
 - [Mentimeter plans](https://www.mentimeter.com/plans)
