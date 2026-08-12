@@ -15,9 +15,12 @@ at once, streamed from the presenter's own device, with nothing uploaded and no
 account needed to watch.
 
 **The model.** Free, funded by three ad placements — the landing page, the
-signed-in library, and the viewer page. Premium subscriptions remove the ads and
-add the things the free architecture cannot do: a show that survives everyone
-going offline, end-to-end encryption, and event-scale use.
+signed-in library, and the viewer page. Paid tiers remove the ads and add what
+the free architecture cannot do: **Plus** ($3.99) for a show that survives
+everyone going offline, **Pro** ($15) for exact PowerPoint fidelity and the tools
+a professional presenter needs, **Private** ($8.99) for end-to-end encryption,
+and **Event** ($19 once) for a weekend. Pro and Private are alternatives rather
+than rungs — a server cannot both render your deck and be unable to read it.
 
 **The finding that matters most.** Ads are not the business. At a realistic
 consumer display RPM, ads produce roughly a third of revenue at scale and cover
@@ -125,6 +128,10 @@ Priced against the anchors above, and limited to things the free architecture
 genuinely cannot do — a paid tier that only removes an artificial limit invites
 resentment.
 
+**These are not four rungs of one ladder.** Plus is the consumer tier. Pro and
+Private branch off it in opposite directions and a customer picks one, because
+they cannot coexist — see the note under Private.
+
 ### Vinboo Plus — $3.99/month or $29/year
 
 The unattended tier. It closes the single biggest weakness in the competitive
@@ -144,19 +151,70 @@ analysis and directly answers Pixo.
 Plus is unlimited screens at $3.99, which beats Pixo outright for anyone with
 three or more TVs and reads as inexpensive against Sync at $12.50.
 
+### Vinboo Pro — $15/month or $149/year
+
+The business tier, and a different buyer from everything above: someone who
+presents for a living, expenses the tool, and compares it against **Mentimeter at
+$11.99–24.99** and **Sync at $12.50** rather than against Pixo. $15 sits inside
+that band and is unambiguously a different product from a $3.99 consumer plan.
+
+- **Exact deck fidelity.** The deck is converted server-side by LibreOffice, so
+  SmartArt, embedded Visio and Windows metafiles all come through. On the one
+  real enterprise deck tested in this repository that is the difference between
+  **13 of 35 slides showing a grey box** and none.
+- **PDF as an input** — nearly free once a converter exists, and PDF is what most
+  people already have to hand.
+- **Speaker notes and a presenter view.** Verified missing today, and a real gap
+  for anyone presenting professionally.
+- **A saved deck library.** A sales rep shows the same deck every week; today
+  every show starts from a file picker. This is the feature that creates habit,
+  and it is only possible once shows live on the server.
+- **Your logo on the viewer page**, not Vinboo's. Cheap to build and it matters
+  in front of a client.
+- **Who joined, and for how long.** The relay already counts screens. Light
+  attendance only — polls and engagement analytics are Sync's category and §4's
+  last section says to stay out of it.
+- **Team seats.** One champion at a company brings a team rather than a friend,
+  which is where expansion revenue comes from.
+
+*Why the bundle matters:* exact rendering alone is not worth $15/month. The
+combination of fidelity, notes, a reusable library and branding is.
+
+**Build it by buying it first.** A conversion API costs roughly a fraction of a
+cent per deck against **$36–81/month of always-on capacity** self-hosted (§5), and
+it avoids the part that should worry you most: **LibreOffice parsing untrusted
+uploads is a classic remote-code-execution surface.** Self-hosting it properly
+means a sandboxed container with no network, hard memory and time limits and
+dropped privileges. Move in-house when volume justifies it — or when a
+procurement team objects to the deck touching a third party, which is a better
+objection to answer with "our server, deleted after" than with a vendor name.
+
 ### Vinboo Private — $8.99/month or $79/year
 
 End-to-end encryption. The competitive analysis is explicit that **no competitor
 in the set offers it**, and the design already exists in
 [architecture-e2ee.svg](architecture-e2ee.svg).
 
-Storing photos on a server (Plus) and being unable to read them (Private) is a
-natural bundle: the same feature that makes the show survive offline is the one
-that creates the privacy exposure, and encryption is the answer to it. Sell
-Private as Plus plus a promise: *we hold your slideshow and we cannot open it.*
-
-This tier also resolves the contradiction in §3.4 — Private carries no ads and no
+Sell it as Plus plus a promise: *we hold your slideshow and we cannot open it.*
+It also resolves the contradiction in §3.4 — Private carries no ads and no
 third-party tags at all.
+
+**Private and Pro are mutually exclusive, and this is not a packaging choice.**
+A server has to read a deck in order to convert it. If the slides arrive
+encrypted, LibreOffice has nothing to work with, so Private cannot offer exact
+fidelity, server-side rendering, or a preview of anything. It is deliberately
+*less* capable than Pro, which is why it is cheaper:
+
+| | Pro — $15 | Private — $8.99 |
+|---|---|---|
+| The fear it answers | "my deck will look wrong" | "my photos will be read" |
+| Server can read your files | **yes**, and deletes them after | **no**, ever |
+| Exact PowerPoint fidelity | yes | no — own renderer, with the §4 warning |
+| Stored shows survive offline | yes | yes, as ciphertext |
+
+A customer picks one per show. Selling both to the same person on the same
+slideshow is not possible, and any marketing that implies otherwise will be found
+out on first use.
 
 ### Vinboo Event — $19 one-off, 7 days
 
@@ -281,6 +339,30 @@ magnitude more bytes and brings **no additional ad impressions** with it, which
 would move egress from a fixed 18% of revenue to the dominant cost of the
 business. The competitive analysis lists video as a parity gap worth closing; if
 it is closed, this section has to be rewritten before it ships, not after.
+
+### What server-side conversion costs
+
+The Pro tier's anchor feature is the only part of the product that needs real
+compute. The arithmetic is unusual: the work itself is free, and the *readiness*
+to do it is not.
+
+| | Cost |
+|---|---|
+| One conversion — 35 slides, ~15 seconds, 1 GB and 1 vCPU | **$0.00017** — about 5,700 per dollar |
+| Capacity reserved for one at a time | **$36/month**, used or not |
+| Capacity reserved for three at a time | **$81/month**, used or not |
+| 10,000 converted decks kept | **$1.03/month**, egress free |
+
+So it is a **fixed floor of roughly $60/month** rather than a per-unit cost, and
+**five subscribers at $15 cover it**. Conversions themselves never become the
+expense; idle headroom is.
+
+Which is the argument for **not building it first**. A conversion API costs on the
+order of a fraction of a cent per deck with a ~$9/month floor [sourced], so a
+thousand decks a month runs to about $12 all-in — cheaper than the reserved
+capacity, and it avoids standing up a sandbox around a document parser. The
+reasons to bring it in-house later are volume, and the day a procurement team
+asks where the deck goes.
 
 ### Stripe eats low-priced monthly subscriptions
 
@@ -431,12 +513,15 @@ Carried from the competitive analysis, with financial consequences attached.
    carries a single-use ticket, so nothing reusable is in the URL.
 3. **Ads and consent.** Landing and library placements first; treat the viewer
    placement as an experiment and measure it separately.
-4. **Vinboo Plus.** Server-stored shows, longer life, no ads, QR. This is the
-   first real revenue and it answers Pixo directly.
-5. **Vinboo Event.** Cheap to build once Plus exists — it is Plus with a clock.
-6. **Vinboo Private.** The E2EE tier. Highest engineering cost, strongest
+4. **Vinboo Plus.** Server-stored shows, longer life, no ads. This is the first
+   real revenue and it answers Pixo directly.
+5. **Vinboo Pro**, if the business segment validates. Buy the conversion rather
+   than building it, and lead with exact fidelity plus a saved deck library.
+6. **Vinboo Event.** Cheap to build once Plus exists — it is Plus with a clock.
+7. **Vinboo Private.** The E2EE tier. Highest engineering cost, strongest
    position, and the only feature here that no competitor can answer quickly.
-7. **Video.** Free tier, parity, only if the party use case is being taken
+   Note that it forecloses Pro's rendering for anyone who takes it.
+8. **Video.** Free tier, parity, only if the party use case is being taken
    seriously.
 
 ---
@@ -455,7 +540,9 @@ slides.
 270M/14M participant-to-presenter figures and $38M revenue; AdSense RPM ranges;
 consumer freemium conversion benchmarks; Present Live's retirement.
 
-**Assumed, and least reliable:** 350 KB per slide on the wire — the egress
+**Assumed, and least reliable:** that a 35-slide conversion takes about 15
+seconds in 1 GB — plausible for headless LibreOffice but unmeasured here, and the
+capacity floor moves with it; 350 KB per slide on the wire — the egress
 thresholds in §5 move in direct proportion to it, so it is the single number most
 worth replacing with a real measurement of real photographs; $2.50 blended RPM;
 2.5% conversion; 4 screens per show; 40 slides per show; 2 shows per presenter per
@@ -472,6 +559,7 @@ distribution is the thing most likely to decide the outcome.
 
 - [Railway pricing](https://railway.com/pricing)
 - [Railway plans and per-unit rates](https://docs.railway.com/reference/pricing/plans) (egress only, no included allowance)
+- [CloudConvert pricing](https://www.capterra.com/p/157495/CloudConvert/) — conversion-API floor and per-minute rate
 - [Hetzner Cloud](https://www.hetzner.com/cloud/) — 20 TB included, then ~$1/TB, per [2026 pricing summaries](https://onedollarvps.com/pricing/hetzner-cloud-pricing)
 - [Cloudflare R2 pricing](https://developers.cloudflare.com/r2/pricing/)
 - [GitHub pricing](https://github.com/pricing)
