@@ -549,6 +549,27 @@ metafile — both leave a labelled placeholder so the slide still reads the way 
 was laid out. Rendering a metafile faithfully means implementing a Windows
 drawing interpreter, which is a poor trade for the number of slides it affects.
 
+### When a deck does not come through whole
+
+The renderer counts what it could not draw and says so, naming the fix:
+
+> **13 of 35 slides in "IT Arch Mobilization" did not come through.** They
+> contain an embedded object, an embedded drawing and a Windows metafile, which
+> Vinboo cannot draw — those slides show a marked box where it should be.
+>
+> For an exact copy, open the deck in PowerPoint and choose **File → Export →
+> PNG** ("All Slides"), then drop that folder in here instead.
+
+That export is the highest-fidelity path there is and it needs no code at all:
+PowerPoint draws the slides itself, so SmartArt, embedded Visio and metafiles all
+come through exactly. Vinboo then plays them as ordinary photos, and the
+numeric-aware sort puts `Slide2` before `Slide10` where a plain sort would not.
+
+The warning appears only when something was actually lost — four of the five real
+decks tested here render whole and say nothing. A warning that cries wolf is
+worse than no warning, so it counts *slides a presenter has to do something
+about*, not objects.
+
 ## Playback controls
 
 | Control | Keyboard | What it does |

@@ -54,6 +54,8 @@ const el = {
   shareCopyBtn: $('shareCopyBtn'), shareDoneBtn: $('shareDoneBtn'),
   localPanel: $('localPanel'), localGrid: $('localGrid'), localDrop: $('localDrop'),
   localStatus: $('localStatus'), localHelp: $('localHelp'), localCrumbs: $('localCrumbs'),
+  deckWarning: $('deckWarning'), deckWarningText: $('deckWarningText'),
+  deckWarningDismiss: $('deckWarningDismiss'),
   chooseLocalBtn: $('chooseLocalBtn'), choosePhotosBtn: $('choosePhotosBtn'),
   chooseDeckBtn: $('chooseDeckBtn'), clearLocalBtn: $('clearLocalBtn'),
   localDirInput: $('localDirInput'), photoInput: $('photoInput'), deckInput: $('deckInput'),
@@ -487,6 +489,33 @@ function playLocalFolder(node) {
 }
 
 /** Convert a .pptx to slides the first time it's played, then cache them. */
+/**
+ * Say so when a deck did not come through whole.
+ *
+ * PowerPoint can draw everything this renderer cannot — SmartArt, embedded
+ * Visio, Windows metafiles — so the useful thing is not to apologise but to
+ * point at the export that works. Better the presenter finds this now than in
+ * front of a room.
+ */
+function warnAboutDeck(name, rendered) {
+  const { incomplete, kinds, slides } = rendered;
+  if (!incomplete) {
+    el.deckWarning.hidden = true;
+    return;
+  }
+
+  const list = kinds.length > 1
+    ? `${kinds.slice(0, -1).join(', ')} and ${kinds[kinds.length - 1]}`
+    : kinds[0];
+  el.deckWarningText.innerHTML = `<strong>${incomplete} of ${slides.length} slides in `
+    + `“${escapeHtml(name)}” did not come through.</strong> They contain ${escapeHtml(list)}, `
+    + 'which Vinboo cannot draw — those slides show a marked box where it should be.';
+  el.deckWarning.hidden = false;
+}
+
+const escapeHtml = (text) => String(text)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 async function loadDeck(deck) {
   if (deck.slides) return deck.slides;
   setLocalStatus(`Opening “${deck.name}”…`);
@@ -500,6 +529,7 @@ async function loadDeck(deck) {
     file: new Blob([slide.svg], { type: 'image/svg+xml' }),
   }));
   setLocalStatus(`“${deck.name}” — ${deck.slides.length} slides, converted in your browser.`);
+  warnAboutDeck(deck.name, rendered);
   return deck.slides;
 }
 
@@ -1022,6 +1052,7 @@ function showShareDialog(info) {
 el.bcShowBtn.addEventListener('click', () => {
   if (state.broadcast) showShareDialog(state.broadcast);
 });
+el.deckWarningDismiss.addEventListener('click', () => { el.deckWarning.hidden = true; });
 el.shareDoneBtn.addEventListener('click', () => el.shareDialog.close());
 el.shareDialog.addEventListener('close', stopJoinQr);
 el.bcStopBtn.addEventListener('click', () => stopBroadcast({}));

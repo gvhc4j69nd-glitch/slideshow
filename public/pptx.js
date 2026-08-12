@@ -600,8 +600,13 @@
     if (!bytes) return;
     const ext = rel.path.split('.').pop().toLowerCase();
     const mime = IMAGE_MIME[ext] || 'image/png';
-    // EMF/WMF are vector formats browsers can't draw; skip rather than show a broken image.
-    if (mime === 'image/emf' || mime === 'image/wmf') return;
+    // EMF and WMF are Windows vector formats no browser draws. Skipping is still
+    // the right call, but it is recorded so the presenter can be told rather
+    // than left to discover a hole in their deck in front of an audience.
+    if (mime === 'image/emf' || mime === 'image/wmf') {
+      note(ctx, ext === 'wmf' ? 'a Windows metafile' : 'an embedded drawing');
+      return;
+    }
 
     const href = `data:${mime};base64,${toBase64(bytes)}`;
     const flip = [];
@@ -1081,6 +1086,17 @@
     return true;
   }
 
+  /**
+   * Record something this renderer could not draw.
+   *
+   * A grey box on a slide is a small problem in a living room and a large one in
+   * front of a client. Counting them lets the presenter be told plainly, and
+   * pointed at the export that renders everything exactly.
+   */
+  function note(ctx, what) {
+    if (ctx && ctx.missing) ctx.missing.push(what);
+  }
+
   function renderChartFrame(node, ctx, box, out) {
     const ref = X.find(node, 'c:chart');
     const id = ref && (X.attr(ref, 'r:id') || X.attr(ref, 'r:embed'));
@@ -1120,6 +1136,7 @@
     // space so the slide reads the way it was laid out rather than showing a
     // blank gap.
     const label = uri.includes('chart') ? 'Chart' : uri.includes('diagram') ? 'Diagram' : 'Embedded object';
+    note(ctx, uri.includes('diagram') ? 'SmartArt' : uri.includes('chart') ? 'a chart' : 'an embedded object');
     out.push(`<rect x="${box.x.toFixed(2)}" y="${box.y.toFixed(2)}" width="${box.w.toFixed(2)}"`
       + ` height="${box.h.toFixed(2)}" fill="#f2f4f8" stroke="#c9ccd4" stroke-width="1"`
       + ' stroke-dasharray="6 5"/>');
@@ -1255,6 +1272,8 @@
         + ` fill="${background.none ? '#FFFFFF' : background.hex}"/>`);
 
       // Decorative furniture from the layout and master sits behind the slide's
+      const missing = [];
+
       // own shapes. Placeholders are skipped: unfilled ones carry prompt text.
       for (const [xml, rels] of [[masterXml, masterRels], [layoutXml, layoutRels]]) {
         const tree = xml && X.find(xml, 'p:spTree');
@@ -1264,23 +1283,31 @@
           children: tree.children.filter((n) => !X.path(n, 'p:nvSpPr', 'p:nvPr', 'p:ph')
             && !X.path(n, 'p:nvPicPr', 'p:nvPr', 'p:ph')),
         };
-        renderTree(decorative, { files, rels, theme, measure, defaults, groups: [] }, body);
+        renderTree(decorative, { files, rels, theme, measure, defaults, groups: [], missing }, body);
       }
 
       const spTree = X.find(slideXml, 'p:spTree');
       if (spTree) {
-        renderTree(spTree, { files, rels: slideRels, theme, measure, defaults, groups: [] }, body);
+        renderTree(spTree, { files, rels: slideRels, theme, measure, defaults, groups: [], missing }, body);
       }
 
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"`
         + ` width="${width.toFixed(0)}" height="${height.toFixed(0)}"`
         + ` viewBox="0 0 ${width.toFixed(2)} ${height.toFixed(2)}">${body.join('')}</svg>`;
 
-      slides.push({ index: slides.length, title: slideTitle(slideXml), svg });
+      slides.push({ index: slides.length, title: slideTitle(slideXml), svg, missing });
     }
 
     if (!slides.length) throw new Error('That presentation has no slides.');
-    return { width, height, slides };
+
+    /*
+     * What could not be drawn, summarised. PowerPoint's own export renders all
+     * of it, so the honest thing is to say so rather than let a grey box be
+     * discovered on the night.
+     */
+    const incomplete = slides.filter((slide) => slide.missing.length);
+    const kinds = [...new Set(incomplete.flatMap((slide) => slide.missing))];
+    return { width, height, slides, incomplete: incomplete.length, kinds };
   }
 
   return { render, approximateMeasure };

@@ -725,3 +725,21 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; margin: 20px 0
 }
 .qr-art svg { width: 172px; height: 172px; display: block; }
 .qr figcaption { font-size: 13px; color: var(--muted); }
+
+/* ── When a deck did not come through whole ───────────────────────────────── */
+
+.deck-warning {
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--amber);
+  border-left-width: 4px;
+  border-radius: 12px;
+  background: rgba(253, 202, 92, .12);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.deck-warning p { margin: 0; }
+.deck-warning-fix { color: var(--muted); font-size: 14px; }
+.btn-sm { padding: 5px 12px; font-size: 13px; }

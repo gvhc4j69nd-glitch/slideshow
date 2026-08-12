@@ -381,6 +381,18 @@
 
       <p class="local-status" id="localStatus" hidden></p>
 
+      <!-- Said only when a deck actually lost something, and it names the fix. -->
+      <div class="deck-warning" id="deckWarning" hidden>
+        <p id="deckWarningText"></p>
+        <p class="deck-warning-fix">
+          For an exact copy, open the deck in PowerPoint and choose
+          <strong>File → Export → PNG</strong> (“All Slides”), then drop that
+          folder in here instead. PowerPoint draws the slides itself, so
+          everything comes through — and nothing is uploaded either way.
+        </p>
+        <button type="button" class="btn btn-sm" id="deckWarningDismiss">Got it</button>
+      </div>
+
       <nav class="crumbs" id="localCrumbs" aria-label="Folder path" hidden></nav>
 
       <div class="folder-grid" id="localGrid"></div>

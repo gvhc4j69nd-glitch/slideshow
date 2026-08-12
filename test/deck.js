@@ -123,7 +123,7 @@ function makeDeck() {
       + '<p:presentation xmlns:p="p" xmlns:r="r">'
       + '<p:sldIdLst><p:sldId id="256" r:id="rId1"/><p:sldId id="257" r:id="rId2"/>'
       + '<p:sldId id="258" r:id="rId3"/><p:sldId id="259" r:id="rId4"/>'
-      + '<p:sldId id="260" r:id="rId5"/></p:sldIdLst>'
+      + '<p:sldId id="260" r:id="rId5"/><p:sldId id="261" r:id="rId6"/></p:sldIdLst>'
       + '<p:sldSz cx="9144000" cy="5143500"/>'
       + '</p:presentation>',
 
@@ -133,6 +133,7 @@ function makeDeck() {
       + `<Relationship Id="rId3" Type="${OFFICE_REL}/slide" Target="slides/slide3.xml"/>`
       + `<Relationship Id="rId4" Type="${OFFICE_REL}/slide" Target="slides/slide4.xml"/>`
       + `<Relationship Id="rId5" Type="${OFFICE_REL}/slide" Target="slides/slide5.xml"/>`
+      + `<Relationship Id="rId6" Type="${OFFICE_REL}/slide" Target="slides/slide6.xml"/>`
       + `<Relationship Id="rId9" Type="${OFFICE_REL}/theme" Target="theme/theme1.xml"/>`
       + '</Relationships>',
 
@@ -246,6 +247,25 @@ function makeDeck() {
       + '<c:txPr><a:p><a:pPr><a:defRPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>'
       + '</a:defRPr></a:pPr></a:p></c:txPr>'
       + '</c:chartSpace>',
+
+    // Slide 6: an embedded object and a Windows metafile — the two things a
+    // corporate deck carries that this renderer cannot draw. Both should be
+    // counted once, as one slide the presenter has to do something about.
+    'ppt/slides/slide6.xml': '<?xml version="1.0"?><p:sld xmlns:p="p" xmlns:a="a" xmlns:r="r">'
+      + '<p:cSld><p:spTree>'
+      + '<p:graphicFrame><p:xfrm><a:off x="457200" y="457200"/><a:ext cx="4000000" cy="2000000"/></p:xfrm>'
+      + '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/presentationml/2006/ole">'
+      + '<p:oleObj name="Visio"/></a:graphicData></a:graphic></p:graphicFrame>'
+      + '<p:pic><p:blipFill><a:blip r:embed="rIdM"/></p:blipFill>'
+      + '<p:spPr><a:xfrm><a:off x="4800000" y="457200"/><a:ext cx="2000000" cy="2000000"/></a:xfrm></p:spPr>'
+      + '</p:pic>'
+      + '</p:spTree></p:cSld></p:sld>',
+
+    'ppt/slides/_rels/slide6.xml.rels': `<Relationships xmlns="${RELS_NS}">`
+      + `<Relationship Id="rIdM" Type="${OFFICE_REL}/image" Target="../media/diagram.wmf"/>`
+      + '</Relationships>',
+
+    'ppt/media/diagram.wmf': 'not something a browser can draw',
 
     // Slide 3: text that cannot possibly fit, plus markup that must stay inert.
     'ppt/slides/slide3.xml': '<?xml version="1.0"?><p:sld xmlns:p="p" xmlns:a="a">'
@@ -365,7 +385,7 @@ function svgText(svg) {
 
   const deck = makeDeck();
   const rendered = await Pptx.render(deck.buffer.slice(deck.byteOffset, deck.byteOffset + deck.byteLength));
-  const [slide1, slide2, slide3, slide4, slide5] = rendered.slides;
+  const [slide1, slide2, slide3, slide4, slide5, slide6] = rendered.slides;
 
   check('reads the slide size', () => {
     assert.strictEqual(Math.round(rendered.width), 960);
@@ -373,7 +393,7 @@ function svgText(svg) {
   });
 
   check('renders every slide in presentation order', () => {
-    assert.strictEqual(rendered.slides.length, 5);
+    assert.strictEqual(rendered.slides.length, 6);
     assert.ok(svgText(slide1.svg).includes('Hello & welcome'));
     assert.ok(svgText(slide2.svg).includes('narrow shape'));
   });
@@ -554,7 +574,30 @@ function svgText(svg) {
     );
   });
 
-  console.log('\n— identifying an image from its bytes —');
+  console.log('\n— saying what did not come through —');
+
+check('a deck that renders whole says nothing', () => {
+  // Slides 1 to 4 of the fixture are shapes, text, a picture and a chart, all
+  // of which this renderer draws. Crying wolf would be worse than silence.
+  const whole = [slide1, slide2, slide3, slide4, slide5];
+  for (const slide of whole) assert.deepStrictEqual(slide.missing, [], slide.title || '');
+});
+
+check('an embedded object and a metafile are both counted', () => {
+  assert.strictEqual(slide6.missing.length, 2, JSON.stringify(slide6.missing));
+  assert.ok(slide6.missing.some((k) => /embedded object/.test(k)), JSON.stringify(slide6.missing));
+  assert.ok(slide6.missing.some((k) => /metafile/.test(k)), JSON.stringify(slide6.missing));
+});
+
+check('the summary counts slides, not objects', () => {
+  // Two objects on one slide is still one slide the presenter has to fix.
+  assert.strictEqual(rendered.incomplete, rendered.slides.filter((s) => s.missing.length).length);
+  assert.ok(rendered.incomplete >= 1);
+  assert.ok(Array.isArray(rendered.kinds) && rendered.kinds.length >= 1, JSON.stringify(rendered.kinds));
+  assert.strictEqual(new Set(rendered.kinds).size, rendered.kinds.length, 'kinds are not repeated');
+});
+
+console.log('\n— identifying an image from its bytes —');
 
 // The wrong type here is invisible on a phone or a laptop, which sniff and
 // render anyway, and fatal on a television, which does not.
