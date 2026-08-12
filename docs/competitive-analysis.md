@@ -138,8 +138,8 @@ anyone could copy in a sprint.
 2. **The presenter's upload is the bottleneck.** A cloud CDN serving ten TVs is
    not constrained by a home connection; Vinboo is.
 3. **No video.** Common in both photo sharing and presentations.
-4. **No QR code to join.** Every direct competitor has one. Typing a six-character
-   code plus a password onto a TV remote is the worst input experience in the set.
+4. ~~**No QR code to join.**~~ **Closed.** The share dialog shows a QR carrying a
+   single-use ticket, so a screen joins without typing anything.
 5. **No audience interaction or analytics.** Sync's entire business.
 6. **PowerPoint fidelity is approximate** — no charts, SmartArt or animation.
 7. **Privacy positioning outruns the implementation.** The pitch says "your files
@@ -157,8 +157,8 @@ anyone could copy in a sprint.
 - **Microsoft is leaving the standalone niche.** Present Live is being retired
   and the replacement requires a Teams meeting. Anyone who wants audience-follows-
   along *without* a meeting now has fewer options.
-- **QR codes are cheap and expected.** A generated QR next to the share code
-  closes a table-stakes gap in a day's work.
+- ~~**QR codes are cheap and expected.**~~ **Done** — a generated QR sits beside
+  the share code and carries a single-use ticket rather than the credentials.
 - **End-to-end encryption is unclaimed here.** No competitor in this set offers
   it. The design sketch already exists in this repo; shipping it would make the
   privacy claim unassailable rather than merely accurate.
@@ -185,8 +185,8 @@ anyone could copy in a sprint.
 **Differentiate on:** nothing uploaded, unlimited screens, photos *and* decks in
 one tool. These are architectural, not features to be copied in a quarter.
 
-**Reach parity on:** QR-code joining (cheap, expected), and video if the party
-use case is to be taken seriously.
+**Reach parity on:** video, if the party use case is to be taken seriously.
+QR-code joining is done.
 
 **Decide deliberately about the party use case.** The landing page leads with
 "photos on every TV all evening", which is precisely what a tab-must-stay-open

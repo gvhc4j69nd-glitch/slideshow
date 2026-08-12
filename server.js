@@ -45,7 +45,7 @@ const { Store } = require('./lib/store');
 const dbase = require('./lib/db');
 const migrate = require('./lib/migrate');
 const {
-  Broadcast, HANDOFF_MAX_PHOTOS, HANDOFF_MIN_TTL_MS, HANDOFF_MAX_TTL_MS,
+  Broadcast, HANDOFF_MAX_PHOTOS, HANDOFF_MIN_TTL_MS, HANDOFF_MAX_TTL_MS, QR_TICKET_TTL_MS,
 } = require('./lib/broadcast');
 const auth = require('./lib/auth');
 
@@ -611,6 +611,19 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, {
           ...broadcast.publicState(session),
           ...broadcast.cacheProgress(session),
+        });
+      }
+
+      /*
+       * The QR code carries a single-use ticket, never the code and password.
+       * A URL ends up in history, in logs and on a screen behind someone; a
+       * ticket that dies on first use does not matter if it does.
+       */
+      if (segments[3] === 'join-code' && method === 'POST') {
+        const { ticket, expiresAt } = broadcast.createTicket(session, QR_TICKET_TTL_MS);
+        return sendJson(res, 201, {
+          url: `${publicOrigin(req)}/watch?ticket=${encodeURIComponent(ticket)}`,
+          expiresAt,
         });
       }
 

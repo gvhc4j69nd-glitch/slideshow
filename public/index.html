@@ -511,6 +511,12 @@
         <div class="credential-value" id="sharePass">————</div>
       </div>
 
+      <!-- The fast way in: scan instead of typing a code into a remote. -->
+      <figure class="qr" id="qrBox" hidden>
+        <div class="qr-art" id="qrArt"></div>
+        <figcaption id="qrCaption">Scan to join</figcaption>
+      </figure>
+
       <p class="dialog-help" id="shareExpiry"></p>
       <p class="dialog-help" id="shareMode">
         The photos are streamed live from this browser. They are not uploaded or
@@ -533,6 +539,7 @@
          multiple hidden>
 
   <script src="/imagetype.js"></script>
+  <script src="/qr.js"></script>
   <script src="/zip.js"></script>
   <script src="/xml.js"></script>
   <script src="/pptx.js"></script>

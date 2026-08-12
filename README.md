@@ -240,6 +240,22 @@ Both credentials are needed, wrong guesses are rate-limited to 10 per IP per 15
 minutes, and the failure message is identical for a bad code and a bad
 password, so neither can be probed independently.
 
+### Or just scan it
+
+The share dialog also shows a **QR code**, because typing `9PVZ-BH4Z-T66G` into
+a television remote is the worst part of using this app.
+
+The code carries a **single-use ticket**, never the share code and password. A
+URL ends up in browser history, in server logs, and on a screen behind somebody
+— a ticket that dies the first time it is used does not matter if it does. It is
+good for 20 minutes, long enough for a room to find its laptops, and it renews
+itself while the dialog is open.
+
+The encoder is in [public/qr.js](public/qr.js): byte mode at error-correction
+level M, versions 1 to 6, which is 106 bytes against a join link of about sixty.
+Written out rather than depended on, and checked against the browser's own
+`BarcodeDetector` — every test string encodes and decodes back unchanged.
+
 ### The address a presenter reads out
 
 The share dialog names the site, not the hostname the app happens to be answering
@@ -552,7 +568,7 @@ to the counter shows which one is playing.
 
 ## Tests
 
-Five suites.
+Six suites.
 
 The deck tests (ZIP reader, XML parser, PowerPoint rendering) need nothing
 running — the fixture presentation is built in memory:
@@ -578,6 +594,14 @@ a comma — and that only the name half of an address is ever shown to a viewer:
 npm run test:auth
 ```
 
+The QR tests check the structure a scanner hunts for — the three finder squares,
+the timing patterns, the quiet zone — and that too much data is refused rather
+than silently mangled:
+
+```bash
+npm run test:qr
+```
+
 The relay tests cover the bookkeeping that the clock drives — a live show dying
 when the presenting tab goes quiet while a handed-off one survives, the photo cap
 and the 1-to-48-hour clamp, and the fact that extending never stacks up. They
@@ -595,7 +619,7 @@ DATABASE_URL=postgres://localhost/vinboo_test PORT=4399 node server.js &
 sleep 2 && npm run test:e2e
 ```
 
-`npm test` runs all five; it expects `DATABASE_URL` to point at a `_test`
+`npm test` runs all six; it expects `DATABASE_URL` to point at a `_test`
 database and a server already listening on 4399.
 
 Both suites that touch data refuse to run against anything that isn't a `_test`

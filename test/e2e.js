@@ -218,6 +218,30 @@ async function guardTargetServer() {
 
   console.log('\n— casting to a television —');
 
+  console.log('\n— joining by QR —');
+
+  r = await call(host, `/api/broadcast/${share.code}/join-code`, { method: 'POST' });
+  const joinCode = r.body;
+  ok('the presenter can mint a link to scan', r.res.status === 201 && /\/watch\?ticket=/.test(joinCode.url || ''),
+    JSON.stringify(joinCode));
+  ok('which carries no code and no password',
+    !joinCode.url.includes(share.code) && !joinCode.url.includes(share.password), joinCode.url);
+  // Long enough for a room to find its laptops, unlike the 3 minutes a cast gets.
+  const qrLife = (joinCode.expiresAt - Date.now()) / 60000;
+  ok('and lasts long enough to be scanned', qrLife > 15 && qrLife <= 20, `${qrLife.toFixed(1)} min`);
+
+  const scanner = jar();
+  const qrTicket = new URL(joinCode.url).searchParams.get('ticket');
+  r = await call(scanner, '/api/watch/redeem', { method: 'POST', json: { ticket: qrTicket } });
+  ok('scanning it joins without typing anything', r.res.status === 200 && r.body.code === share.code,
+    JSON.stringify(r.body));
+
+  r = await call(anon, '/api/watch/redeem', { method: 'POST', json: { ticket: qrTicket } });
+  ok('and a photograph of the screen is worthless afterwards', r.res.status === 401, r.res.status);
+
+  r = await call(anon, `/api/broadcast/${share.code}/join-code`, { method: 'POST' });
+  ok('only the owner can mint one', r.res.status === 401, r.res.status);
+
   r = await call(host, `/api/broadcast/${share.code}/cast-ticket`, { method: 'POST' });
   ok('owner can mint a cast link', r.res.status === 201 && /\/watch\?ticket=/.test(r.body.url), JSON.stringify(r.body));
   const castUrl = r.body.url;

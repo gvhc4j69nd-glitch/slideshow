@@ -136,7 +136,9 @@ analysis and directly answers Pixo.
 - **Longer life**: 7 days instead of 48 hours, and more than three standing shows.
 - **No photo cap** on hand-off (free is 50).
 - **No ads**, anywhere.
-- **QR-code joining** — table stakes that every direct competitor already has.
+- *(QR-code joining was listed here and has instead shipped free for everyone —
+  it is table stakes, and paywalling table stakes is how a free tier gets a
+  reputation for being crippled.)*
 
 *Why this price:* Pixo is $1.49/month for **one** television and caps at six.
 Plus is unlimited screens at $3.99, which beats Pixo outright for anyone with
@@ -425,8 +427,8 @@ Carried from the competitive analysis, with financial consequences attached.
 
 1. ~~**Fix live-mode caching.**~~ **Done.** A 100 MB byte budget, verified at 12
    requests for 36 slide-views. This was the dominant running cost.
-2. **QR-code joining.** A day's work, closes a table-stakes gap named in the
-   analysis, and makes the TV experience bearable. Free tier.
+2. ~~**QR-code joining.**~~ **Done**, and free rather than part of Plus. The code
+   carries a single-use ticket, so nothing reusable is in the URL.
 3. **Ads and consent.** Landing and library placements first; treat the viewer
    placement as an experiment and measure it separately.
 4. **Vinboo Plus.** Server-stored shows, longer life, no ads, QR. This is the

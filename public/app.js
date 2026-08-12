@@ -50,6 +50,7 @@ const el = {
   shareDialog: $('shareDialog'), shareCode: $('shareCode'), sharePass: $('sharePass'),
   shareUrl: $('shareUrl'), shareExpiry: $('shareExpiry'),
   shareTitle: $('shareTitle'), shareIntro: $('shareIntro'), shareMode: $('shareMode'),
+  qrBox: $('qrBox'), qrArt: $('qrArt'), qrCaption: $('qrCaption'),
   shareCopyBtn: $('shareCopyBtn'), shareDoneBtn: $('shareDoneBtn'),
   localPanel: $('localPanel'), localGrid: $('localGrid'), localDrop: $('localDrop'),
   localStatus: $('localStatus'), localHelp: $('localHelp'), localCrumbs: $('localCrumbs'),
@@ -949,6 +950,45 @@ function renderBroadcastBar() {
         + ' — keep this tab open.';
 }
 
+/* ── The join QR ──────────────────────────────────────────────────────────── */
+
+/*
+ * The QR carries a single-use ticket rather than the code and password, so a
+ * photograph of the screen is worth nothing once somebody has joined with it.
+ * Tickets expire, so it is renewed while the dialog is open rather than left to
+ * go stale in front of a room.
+ */
+let qrTimer = null;
+
+async function showJoinQr(code) {
+  stopJoinQr();
+  el.qrBox.hidden = false;
+  el.qrArt.innerHTML = '';
+  el.qrCaption.textContent = 'Preparing a code to scan…';
+
+  try {
+    const { url, expiresAt } = await api(`/api/broadcast/${code}/join-code`, { method: 'POST' });
+    el.qrArt.innerHTML = Qr.svg(url, { dark: '#2A2440', light: '#FFFFFF' });
+    el.qrCaption.textContent = 'Scan to join — no code to type';
+
+    // Renew a little before it lapses, for as long as anyone is looking at it.
+    const renewIn = Math.max(30000, (expiresAt - Date.now()) - 60000);
+    qrTimer = setTimeout(() => {
+      if (!el.shareDialog.open || !state.broadcast) return stopJoinQr();
+      showJoinQr(code);
+    }, renewIn);
+  } catch (err) {
+    // The code and password are right there; a missing QR is a small loss.
+    el.qrBox.hidden = true;
+    stopJoinQr();
+  }
+}
+
+function stopJoinQr() {
+  clearTimeout(qrTimer);
+  qrTimer = null;
+}
+
 function showShareDialog(info) {
   el.shareCode.textContent = info.code;
   el.sharePass.textContent = info.password;
@@ -976,12 +1016,14 @@ function showShareDialog(info) {
       + 'stored on the server, so this tab has to stay open.';
 
   el.shareDialog.showModal();
+  showJoinQr(info.code);
 }
 
 el.bcShowBtn.addEventListener('click', () => {
   if (state.broadcast) showShareDialog(state.broadcast);
 });
 el.shareDoneBtn.addEventListener('click', () => el.shareDialog.close());
+el.shareDialog.addEventListener('close', stopJoinQr);
 el.bcStopBtn.addEventListener('click', () => stopBroadcast({}));
 
 el.shareCopyBtn.addEventListener('click', async () => {

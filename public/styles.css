@@ -704,3 +704,24 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; margin: 20px 0
   .live-dot { animation: none; }
   .btn:hover:not(:disabled), .folder-card:hover { transform: none; }
 }
+
+/* ── The join QR ──────────────────────────────────────────────────────────── */
+
+.qr {
+  margin: 14px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+/* A quiet zone is built into the SVG; this is just the card it sits on. */
+.qr-art {
+  background: #FFFFFF;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 6px;
+  line-height: 0;
+  box-shadow: var(--shadow-sm);
+}
+.qr-art svg { width: 172px; height: 172px; display: block; }
+.qr figcaption { font-size: 13px; color: var(--muted); }
