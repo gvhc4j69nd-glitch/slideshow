@@ -288,9 +288,9 @@ async function guardTargetServer() {
 
   r = await call(host, '/api/broadcast', {
     method: 'POST',
-    json: { title: 'Party', photoCount: 51, mode: 'handoff', ttlMs: 3600000 },
+    json: { title: 'Party', photoCount: 151, mode: 'handoff', ttlMs: 3600000 },
   });
-  ok('refuses more than 50 photos', r.res.status === 400 && /50 photos/.test(r.body.error || ''), JSON.stringify(r.body));
+  ok('refuses more than 150 photos', r.res.status === 400 && /150 photos/.test(r.body.error || ''), JSON.stringify(r.body));
 
   r = await call(host, '/api/broadcast', {
     method: 'POST',

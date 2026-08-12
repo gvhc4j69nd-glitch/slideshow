@@ -141,7 +141,7 @@ analysis and directly answers Pixo.
   everyone going offline. Today a handed-off show stops being joinable when the
   last screen with a copy switches off.
 - **Longer life**: 7 days instead of 48 hours, and more than three standing shows.
-- **No photo cap** on hand-off (free is 50).
+- **No photo cap** on hand-off (free is 150).
 - **No ads**, anywhere.
 - *(QR-code joining was listed here and has instead shipped free for everyone —
   it is table stakes, and paywalling table stakes is how a free tier gets a
@@ -443,7 +443,7 @@ Object storage is $0.015/GB-month **with free egress**; relayed traffic is
 $0.05/GB. So a stored premium show costs almost nothing to serve, while a free
 relayed show costs real money every time a screen watches it.
 
-- 50 slides stored = **17 MB per show**
+- 50 slides stored = **17 MB per show**; at the 150-photo cap, 51 MB
 - **10,000 stored shows = 167 GB = $2.50/month**, egress free
 
 This inverts the usual freemium worry. The premium tier does not need to subsidise

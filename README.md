@@ -116,7 +116,7 @@ The short version: nothing else found does photos *and* PowerPoint, and nothing
 else streams from the presenter's own device instead of uploading first. The
 sharpest weakness used to be that the presenting tab had to stay open, which is
 exactly what the party use case wants least; hand-off mode addresses that for
-shows of up to 50 photos.
+shows of up to 150 photos.
 
 ## Run it locally
 
@@ -369,7 +369,11 @@ After that it is genuinely empty.
 Hand-off is deliberately hemmed in, because copies on other people's devices are
 harder to take back than a stream:
 
-- **50 photos at most.** Above that the option is greyed out and says why.
+- **150 photos at most.** Above that the option is greyed out and says why.
+  Worth knowing what that costs at the top end: 150 real photos is about 51 MB
+  per screen, so on a home connection every screen takes roughly 40 seconds to
+  copy and four screens take a few minutes — all of it while the presenting tab
+  has to stay open. Fifty photos is a third of that.
 - **1 to 48 hours**, chosen when you share, 24 hours by default. When the time
   is up the server drops the show and every screen deletes its copy.
 - **Extending is not cumulative.** **Extend 48h** moves the deadline to 48 hours
@@ -834,7 +838,7 @@ derived from the source logo.
 - **Hand-off is the one place a copy leaves your device.** In that mode each
   viewing browser deliberately writes the photos into its own Cache Storage so
   it can keep playing without you. The server still never sees a file, but the
-  screens hold real copies, which is why the mode is capped at 50 photos and 48
+  screens hold real copies, which is why the mode is capped at 150 photos and 48
   hours and why the copies are deleted when the show ends. Anyone with physical
   access to a screen has those photos until then. If that isn't acceptable for a
   particular set of pictures, use **Keep this tab open** instead.

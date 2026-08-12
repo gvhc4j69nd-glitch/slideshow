@@ -6,7 +6,7 @@ const state = {
   user: null,
   signupCodeRequired: false,
   broadcast: null,   // {code, password, photos, mode, expiresAt} while sharing
-  handoffLimits: { maxPhotos: 50, maxTtlMs: 48 * 60 * 60 * 1000 },
+  handoffLimits: { maxPhotos: 150, maxTtlMs: 48 * 60 * 60 * 1000 },
   siteHost: location.host,   // the name to read out, not the host we are on
   localRoot: null,   // tree of folders picked off this device — never uploaded
   localPath: [],     // where we are in that tree

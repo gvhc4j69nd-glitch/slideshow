@@ -99,7 +99,7 @@ check('hand-off refuses more than the photo cap', () => {
   const b = relay();
   assert.throws(
     () => start(b, { photoCount: HANDOFF_MAX_PHOTOS + 1, mode: 'handoff' }),
-    /50 photos/,
+    /150 photos/,
   );
 });
 
