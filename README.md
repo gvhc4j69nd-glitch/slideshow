@@ -163,6 +163,31 @@ Set `SIGNUP_CODE` to stop strangers registering on a public instance. When it's
 set, the sign-up form asks for it. (The old `ACCESS_CODE` variable still works
 as the sign-up code.)
 
+## Feedback
+
+There is a **Feedback** button in the signed-in header and a *"Something wrong,
+or an idea?"* link in the sign-in card. Both open the same form, and both write
+to the `feedback` table.
+
+**Signed-out visitors can send it, deliberately.** The most useful message this
+app can receive is that somebody could not make it work at all, and that person
+does not have an account — requiring one filters out exactly the feedback worth
+having.
+
+- **Subject and description are required**; whitespace does not count as either.
+- **Email is optional**, because asking for one costs more messages than it gains
+  replies. If it is given it is validated and lower-cased by the same rule
+  accounts use, so a typo does not masquerade as a way to reply.
+- **The sender's account is recorded when there is one**, as a reference that
+  survives the account being deleted, so the message is not lost with it.
+- **The browser's user agent is stored**, truncated to 500 characters. "It does
+  not work on my television" is unanswerable without it.
+- Five per IP per hour, and a message that lands resets the count — the limit is
+  there to stop a flood, not to ration genuine reports.
+
+Read what has come in with `store.recentFeedback()`, newest first. There is no
+admin page; this is a table you query.
+
 ### Schema changes
 
 Migrations are numbered SQL files in `migrations/`, applied in filename order

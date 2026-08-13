@@ -54,7 +54,9 @@ function guardTargetDatabase() {
   }
 }
 
-const wipe = () => db.query('TRUNCATE users, app_settings RESTART IDENTITY');
+// feedback references users, so it has to go in the same statement — Postgres
+// refuses to truncate one side of a foreign key on its own.
+const wipe = () => db.query('TRUNCATE users, app_settings, feedback RESTART IDENTITY');
 
 (async () => {
   guardTargetDatabase();
@@ -345,6 +347,42 @@ const wipe = () => db.query('TRUNCATE users, app_settings RESTART IDENTITY');
   });
 
   await wipe();
+  console.log('\n— feedback —');
+  
+  await check('records a message and hands back its id', async () => {
+    const saved = await store.addFeedback({
+      subject: 'It would not show on my TV',
+      body: 'Blank screen after entering the code.',
+      email: 'guest@example.com',
+      userAgent: 'Mozilla/5.0 (SmartTV)',
+    });
+    assert.ok(saved.id, 'no id came back');
+    assert.ok(saved.createdAt instanceof Date, String(saved.createdAt));
+  });
+  
+  await check('an anonymous message keeps no account and no address', async () => {
+    await store.addFeedback({ subject: 'Anonymous', body: 'No way to reply to this.' });
+    const [latest] = await store.recentFeedback(1);
+    assert.strictEqual(latest.subject, 'Anonymous');
+    assert.strictEqual(latest.email, null);
+    assert.strictEqual(latest.from, null);
+  });
+  
+  await check('a signed-in sender is tied to their account', async () => {
+    const user = await store.addUser({ username: 'feedback@example.com', passwordHash: 'x' });
+    await store.addFeedback({ subject: 'From an account', body: 'Sent while signed in.', userId: user.id });
+    const [latest] = await store.recentFeedback(1);
+    assert.strictEqual(latest.from, 'feedback@example.com');
+  });
+  
+  await check('the newest message comes back first', async () => {
+    await store.addFeedback({ subject: 'Older', body: 'first' });
+    await store.addFeedback({ subject: 'Newer', body: 'second' });
+    const recent = await store.recentFeedback(2);
+    assert.strictEqual(recent[0].subject, 'Newer');
+    assert.strictEqual(recent[1].subject, 'Older');
+  });
+
   await db.close();
 
   await check('queries after close fail loudly', async () => {

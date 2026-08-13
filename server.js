@@ -89,6 +89,9 @@ let broadcast = null;
 const loginLimiter = createLimiter({ max: 10, windowMs: 15 * 60 * 1000 });
 const joinLimiter = createLimiter({ max: 10, windowMs: 15 * 60 * 1000 });
 const registerLimiter = createLimiter({ max: 10, windowMs: 60 * 60 * 1000 });
+// Anyone may send feedback, including signed-out visitors, so the only thing
+// standing between this and a flood is the limit.
+const feedbackLimiter = createLimiter({ max: 5, windowMs: 60 * 60 * 1000 });
 
 /* ── Session helpers ──────────────────────────────────────────────────────── */
 
@@ -152,6 +155,65 @@ function displayHost(req) {
   const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
   if (host && (LOCAL_HOST.test(host) || PRIVATE_HOST.test(host))) return host;
   return CANONICAL_HOST || host;
+}
+
+/* ── Feedback ─────────────────────────────────────────────────────────────── */
+
+const FEEDBACK_SUBJECT_MAX = 200;
+const FEEDBACK_BODY_MAX = 5000;
+
+/**
+ * Take a message.
+ *
+ * Open to signed-out visitors on purpose: the most useful thing anyone can
+ * report is that they could not make the app work at all, and that person has
+ * no account. An email address is optional, because asking for one costs more
+ * messages than it gains replies — but if it is given it has to be real, or it
+ * is just a typo that looks like a way to reply.
+ */
+async function handleFeedback(req, res) {
+  const ip = clientIp(req);
+  if (feedbackLimiter.hit(ip)) {
+    return sendError(res, 429, 'That is a lot of feedback at once. Try again later.');
+  }
+
+  const body = await readJsonBody(req);
+  if (body === null) return sendError(res, 400, 'Invalid request.');
+
+  const subject = String(body.subject == null ? '' : body.subject).trim();
+  const message = String(body.body == null ? '' : body.body).trim();
+
+  if (!subject) return sendError(res, 400, 'Give it a subject.');
+  if (subject.length > FEEDBACK_SUBJECT_MAX) {
+    return sendError(res, 400, `Keep the subject under ${FEEDBACK_SUBJECT_MAX} characters.`);
+  }
+  if (!message) return sendError(res, 400, 'Say what happened.');
+  if (message.length > FEEDBACK_BODY_MAX) {
+    return sendError(res, 400, `Keep it under ${FEEDBACK_BODY_MAX} characters.`);
+  }
+
+  let email = null;
+  const supplied = String(body.email == null ? '' : body.email).trim();
+  if (supplied) {
+    const checked = auth.validateEmail(supplied);
+    if (checked.error) return sendError(res, 400, checked.error);
+    email = checked.value;
+  }
+
+  // Whoever is signed in, if anyone — a message is worth more when it can be
+  // tied to an account, and this costs the sender nothing.
+  const user = await currentUser(req).catch(() => null);
+
+  const saved = await store.addFeedback({
+    subject,
+    body: message,
+    email,
+    userId: user ? user.id : null,
+    userAgent: String(req.headers['user-agent'] || '').slice(0, 500) || null,
+  });
+
+  feedbackLimiter.reset(ip);        // a message that lands is not an attempt
+  sendJson(res, 201, { id: saved.id, thanks: true });
 }
 
 /* ── Accounts ─────────────────────────────────────────────────────────────── */
@@ -505,6 +567,7 @@ const server = http.createServer(async (req, res) => {
         siteHost: displayHost(req),
       });
     }
+    if (pathname === '/api/feedback' && method === 'POST') return await handleFeedback(req, res);
     if (pathname === '/api/auth/register' && method === 'POST') return await handleRegister(req, res);
     if (pathname === '/api/auth/login' && method === 'POST') return await handleLogin(req, res);
     if (pathname === '/api/auth/logout' && method === 'POST') {

@@ -255,6 +255,10 @@
       <button type="submit" class="btn btn-primary" id="gateSubmit">Sign in</button>
 
       <p class="gate-foot">Just watching? <a href="/watch">Enter a share code</a>.</p>
+      <p class="gate-foot">
+        Something wrong, or an idea?
+        <button type="button" class="linkish" id="feedbackOpenGate">Tell us</button>.
+      </p>
       <p class="gate-foot">vinboo.com</p>
     </form>
       </aside>
@@ -326,6 +330,8 @@
            title="Open the viewer in a new tab, so a slideshow you are sharing keeps running">
           Watch a show
         </a>
+        <button type="button" class="btn" id="feedbackOpenBtn"
+                title="Report a problem or suggest something">Feedback</button>
         <button type="button" class="btn" id="signOutBtn">Sign out</button>
       </div>
     </header>
@@ -549,6 +555,46 @@
   <input type="file" id="deckInput"
          accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
          multiple hidden>
+
+  <!-- ── Feedback ─────────────────────────────────────────────────────────── -->
+  <dialog id="feedbackDialog">
+    <form class="share-body" id="feedbackForm" method="dialog">
+      <h2>Tell us what happened</h2>
+      <p class="dialog-help">
+        Bugs, confusion, things you wish it did. It goes straight to whoever
+        works on this.
+      </p>
+
+      <label class="stack">
+        <span>Subject</span>
+        <input type="text" id="feedbackSubject" required maxlength="200"
+               placeholder="It would not show on my TV">
+      </label>
+
+      <label class="stack">
+        <span>What happened</span>
+        <textarea id="feedbackBody" required maxlength="5000" rows="6"
+                  placeholder="What you did, what you expected, and what you got instead."></textarea>
+      </label>
+
+      <label class="stack">
+        <span>Email <em class="optional">— optional, only so we can reply</em></span>
+        <input type="email" id="feedbackEmail" autocomplete="email" inputmode="email"
+               autocapitalize="off" spellcheck="false" maxlength="254"
+               placeholder="you@example.com">
+      </label>
+
+      <p class="dialog-error" id="feedbackError" hidden></p>
+      <p class="dialog-help" id="feedbackThanks" hidden>
+        Thank you — that has been recorded.
+      </p>
+
+      <menu>
+        <button type="button" class="btn" id="feedbackCancel">Close</button>
+        <button type="submit" class="btn btn-primary" id="feedbackSend">Send</button>
+      </menu>
+    </form>
+  </dialog>
 
   <script src="/imagetype.js"></script>
   <script src="/qr.js"></script>

@@ -61,6 +61,12 @@ const el = {
   localDirInput: $('localDirInput'), photoInput: $('photoInput'), deckInput: $('deckInput'),
   shareNowBtn: $('shareNowBtn'), castBtn: $('castBtn'),
   howToBtn: $('howToBtn'), howToMenu: $('howToMenu'), howToSteps: $('howToSteps'),
+  feedbackDialog: $('feedbackDialog'), feedbackForm: $('feedbackForm'),
+  feedbackSubject: $('feedbackSubject'), feedbackBody: $('feedbackBody'),
+  feedbackEmail: $('feedbackEmail'), feedbackError: $('feedbackError'),
+  feedbackThanks: $('feedbackThanks'), feedbackSend: $('feedbackSend'),
+  feedbackCancel: $('feedbackCancel'), feedbackOpenBtn: $('feedbackOpenBtn'),
+  feedbackOpenGate: $('feedbackOpenGate'),
   libraryHowto: $('libraryHowto'),
 };
 
@@ -758,6 +764,55 @@ el.localDrop.addEventListener('drop', (event) => {
   handleLocalDrop(event.dataTransfer).catch((err) => {
     setLocalStatus(`Could not read that folder: ${err.message}`, true);
   });
+});
+
+/* ── Feedback ─────────────────────────────────────────────────────────────── */
+
+/*
+ * Reachable signed in or not. Somebody who cannot get past the sign-in card is
+ * exactly the person worth hearing from, so the link is in that card's footer
+ * as well as the library header.
+ */
+function openFeedback() {
+  el.feedbackError.hidden = true;
+  el.feedbackThanks.hidden = true;
+  el.feedbackSend.disabled = false;
+  // Signed in? Then the address is already known and need not be asked for.
+  if (state.user && state.user.username && state.user.username.includes('@')) {
+    el.feedbackEmail.value = state.user.username;
+  }
+  el.feedbackDialog.showModal();
+  el.feedbackSubject.focus();
+}
+
+el.feedbackOpenBtn.addEventListener('click', openFeedback);
+el.feedbackOpenGate.addEventListener('click', openFeedback);
+el.feedbackCancel.addEventListener('click', () => el.feedbackDialog.close());
+
+el.feedbackForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  el.feedbackError.hidden = true;
+  el.feedbackSend.disabled = true;
+  try {
+    await api('/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subject: el.feedbackSubject.value.trim(),
+        body: el.feedbackBody.value.trim(),
+        email: el.feedbackEmail.value.trim(),
+      }),
+    });
+    // Clear it, so a second thought does not resend the first.
+    el.feedbackSubject.value = '';
+    el.feedbackBody.value = '';
+    el.feedbackThanks.hidden = false;
+    setTimeout(() => el.feedbackDialog.close(), 1400);
+  } catch (err) {
+    el.feedbackError.textContent = err.message;
+    el.feedbackError.hidden = false;
+    el.feedbackSend.disabled = false;
+  }
 });
 
 /* ── Sharing: stream this device's slideshow to other browsers ────────────── */

@@ -120,6 +120,57 @@ async function guardTargetServer() {
   ok('but a home network still shows the address that works there',
     r.body.siteHost === '192.168.1.40:4321', r.body.siteHost);
 
+  console.log('\n— feedback —');
+
+  r = await call(anon, '/api/feedback', {
+    method: 'POST', json: { subject: 'It would not show on my TV', body: 'Blank screen after the code.' },
+  });
+  ok('a signed-out visitor can send feedback', r.res.status === 201 && r.body.id, JSON.stringify(r.body));
+
+  r = await call(anon, '/api/feedback', { method: 'POST', json: { body: 'no subject here' } });
+  ok('a subject is required', r.res.status === 400, JSON.stringify(r.body));
+
+  r = await call(anon, '/api/feedback', { method: 'POST', json: { subject: 'no body here' } });
+  ok('a description is required', r.res.status === 400, JSON.stringify(r.body));
+
+  r = await call(anon, '/api/feedback', { method: 'POST', json: { subject: '   ', body: '   ' } });
+  ok('whitespace does not count as either', r.res.status === 400, JSON.stringify(r.body));
+
+  r = await call(anon, '/api/feedback', {
+    method: 'POST', json: { subject: 'fine', body: 'fine', email: 'not-an-email' },
+  });
+  ok('a supplied email still has to be one', r.res.status === 400, JSON.stringify(r.body));
+
+  r = await call(anon, '/api/feedback', {
+    method: 'POST', json: { subject: 'Loved it', body: 'Worked at the party.', email: 'Guest@Example.COM' },
+  });
+  ok('but an email is optional, and normalised when given', r.res.status === 201, JSON.stringify(r.body));
+
+  r = await call(anon, '/api/feedback', {
+    method: 'POST', json: { subject: 'x'.repeat(201), body: 'fine' },
+  });
+  ok('an overlong subject is refused', r.res.status === 400, JSON.stringify(r.body));
+
+  r = await call(anon, '/api/feedback', {
+    method: 'POST', json: { subject: 'fine', body: 'x'.repeat(5001) },
+  });
+  ok('and so is an overlong description', r.res.status === 400, JSON.stringify(r.body));
+
+  // A signed-in sender is recorded against their account.
+  r = await call(host, '/api/feedback', {
+    method: 'POST', json: { subject: 'From an account', body: 'Sent while signed in.' },
+  });
+  ok('a signed-in user can send it too', r.res.status === 201, JSON.stringify(r.body));
+
+  // Five an hour per address, and a message that lands resets the count.
+  let flooded = 0;
+  const flooder = jar();
+  for (let i = 0; i < 12; i += 1) {
+    const attempt = await call(flooder, '/api/feedback', { method: 'POST', json: { subject: 'spam' } });
+    if (attempt.res.status === 429) { flooded += 1; break; }
+  }
+  ok('a flood of rejected attempts is rate limited', flooded === 1, `${flooded}`);
+
   console.log('\n— starting a broadcast —');
   const PHOTOS = [
     Buffer.from('PHOTO-ZERO-' + 'a'.repeat(50)),
