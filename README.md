@@ -896,4 +896,6 @@ derived from the source logo.
 
 ## License
 
-MIT
+All rights reserved. The source is readable here, and in every browser that
+loads the app, but reading it is not permission to reuse it: no licence to copy,
+modify, or redistribute this code is granted.
