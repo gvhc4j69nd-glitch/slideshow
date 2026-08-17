@@ -397,15 +397,43 @@ async function guardTargetServer() {
   r = await call(host, `/api/broadcast/${liveOne.code}/extend`, { method: 'POST', json: {} });
   ok('extending a live show is refused', r.res.status === 400, r.res.status);
 
-  r = await call(host, '/api/broadcast', {
-    method: 'POST', json: { title: 'Third', photoCount: 2, mode: 'handoff' },
-  });
-  const third = r.body;
-  r = await call(host, '/api/broadcast', {
-    method: 'POST', json: { title: 'Fourth', photoCount: 2, mode: 'handoff' },
-  });
-  ok('caps how many handed-off shows one account can leave standing', r.res.status === 409, r.res.status);
-  await call(host, `/api/broadcast/${third.code}`, { method: 'DELETE' });
+  console.log('\n— several shows at once —');
+
+  // Starting a live show used to end every other live show this account had.
+  r = await call(host, '/api/broadcast', { method: 'POST', json: { title: 'Live two', photoCount: 2 } });
+  const liveTwo = r.body;
+  ok('a second live show starts', r.res.status === 201, r.res.status);
+
+  r = await call(host, `/api/broadcast/${liveOne.code}/progress`);
+  ok('and the first one is still running', r.res.status === 200, r.res.status);
+
+  r = await call(host, '/api/broadcast/mine');
+  const running = (r.body.sessions || []).map((sessionState) => sessionState.code);
+  ok('both live shows are listed as this account\'s',
+    running.includes(liveOne.code) && running.includes(liveTwo.code), running.join(','));
+  ok('handed-off shows are listed alongside them',
+    running.includes(handoff.code), running.join(','));
+  ok('and the limit is published', r.body.maxShows > 1, JSON.stringify(r.body.maxShows));
+
+  // Codes are listed, but a password only ever exists in the tab that made it.
+  const listed = (r.body.sessions || [])[0] || {};
+  ok('a listed show never carries its password', !('password' in listed), Object.keys(listed).join(','));
+
+  // Fill to the cap, then check the next one is refused rather than replacing.
+  const max = r.body.maxShows;
+  const spares = [];
+  for (let i = running.length; i < max; i += 1) {
+    const extra = await call(host, '/api/broadcast', { method: 'POST', json: { title: `Filler ${i}`, photoCount: 1 } });
+    if (extra.res.status === 201) spares.push(extra.body.code);
+  }
+  r = await call(host, '/api/broadcast', { method: 'POST', json: { title: 'One too many', photoCount: 1 } });
+  ok(`refuses show number ${max + 1}`, r.res.status === 409, r.res.status);
+
+  r = await call(host, `/api/broadcast/${liveOne.code}/progress`);
+  ok('and refusing does not disturb what is already running', r.res.status === 200, r.res.status);
+
+  for (const code of spares) await call(host, `/api/broadcast/${code}`, { method: 'DELETE' });
+  await call(host, `/api/broadcast/${liveTwo.code}`, { method: 'DELETE' });
 
   console.log('\n— a screen seeds to one that joins later —');
 

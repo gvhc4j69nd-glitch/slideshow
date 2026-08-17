@@ -7,6 +7,7 @@ const state = {
   signupCodeRequired: false,
   broadcast: null,   // {code, password, photos, mode, expiresAt} while sharing
   handoffLimits: { maxPhotos: 150, maxTtlMs: 48 * 60 * 60 * 1000 },
+  maxShows: 10,
   siteHost: location.host,   // the name to read out, not the host we are on
   localRoot: null,   // tree of folders picked off this device — never uploaded
   localPath: [],     // where we are in that tree
@@ -48,6 +49,8 @@ const el = {
   handoffLimit: $('handoffLimit'), handoffTtlRow: $('handoffTtlRow'), handoffTtl: $('handoffTtl'),
   bcHandoff: $('bcHandoff'), bcSafe: $('bcSafe'), bcExtendBtn: $('bcExtendBtn'),
   shareDialog: $('shareDialog'), shareCode: $('shareCode'), sharePass: $('sharePass'),
+  sharePassRow: $('sharePassRow'),
+  myShows: $('myShows'), myShowsList: $('myShowsList'), myShowsCount: $('myShowsCount'),
   shareUrl: $('shareUrl'), shareExpiry: $('shareExpiry'),
   shareTitle: $('shareTitle'), shareIntro: $('shareIntro'), shareMode: $('shareMode'),
   qrBox: $('qrBox'), qrArt: $('qrArt'), qrCaption: $('qrCaption'),
@@ -815,6 +818,104 @@ el.feedbackForm.addEventListener('submit', async (event) => {
   }
 });
 
+/* ── Everything this account has running ──────────────────────────────────── */
+
+/*
+ * A show started on a laptop is invisible from a phone unless it is listed, and
+ * since only the hash of its password is kept there is otherwise no way back
+ * into it at all. The QR button is the recovery path: minting a join ticket
+ * needs the account, not the password.
+ */
+let myShowsTimer = null;
+
+function showRow(show) {
+  const row = document.createElement('div');
+  row.className = 'show-row';
+  const here = state.broadcast && state.broadcast.code === show.code;
+  if (here) row.classList.add('is-here');
+
+  const main = document.createElement('div');
+  main.className = 'show-row-main';
+
+  const title = document.createElement('div');
+  title.className = 'show-row-title';
+  title.textContent = show.title || 'Slideshow';
+
+  const meta = document.createElement('div');
+  meta.className = 'show-row-meta';
+  const screens = show.viewers === 1 ? '1 screen' : `${show.viewers} screens`;
+  const kind = show.mode === 'handoff' ? 'handed off' : 'live';
+  const when = show.expiresAt ? ` · ends in ${remaining(show.expiresAt)}` : '';
+  meta.append(
+    Object.assign(document.createElement('span'), { className: 'show-row-code', textContent: show.code }),
+    document.createTextNode(` · ${kind} · ${screens}${when}${here ? ' · this tab' : ''}`),
+  );
+
+  main.append(title, meta);
+
+  const actions = document.createElement('div');
+  actions.className = 'show-row-actions';
+
+  const qr = document.createElement('button');
+  qr.type = 'button';
+  qr.className = 'btn btn-sm';
+  qr.textContent = 'Show code';
+  qr.addEventListener('click', () => {
+    // A show from another device has no password to print, only a way in.
+    showShareDialog(here ? state.broadcast : show);
+  });
+
+  const stop = document.createElement('button');
+  stop.type = 'button';
+  stop.className = 'btn btn-sm';
+  stop.textContent = 'Stop';
+  stop.addEventListener('click', async () => {
+    stop.disabled = true;
+    try {
+      if (here) await stopBroadcast({});
+      else await api(`/api/broadcast/${show.code}`, { method: 'DELETE' });
+    } catch {
+      // Already gone is the outcome we wanted anyway.
+    }
+    refreshMyShows();
+  });
+
+  actions.append(qr, stop);
+  row.append(main, actions);
+  return row;
+}
+
+async function refreshMyShows() {
+  if (!state.user) return;
+  let mine;
+  try {
+    mine = await api('/api/broadcast/mine');
+  } catch {
+    return;                       // offline or signed out; leave the last view alone
+  }
+  if (mine.handoff) state.handoffLimits = mine.handoff;
+  if (mine.maxShows) state.maxShows = mine.maxShows;
+
+  const shows = mine.sessions || [];
+  el.myShows.hidden = shows.length === 0;
+  el.myShowsCount.textContent = shows.length
+    ? `${shows.length} of ${state.maxShows} running`
+    : '';
+
+  el.myShowsList.replaceChildren(...shows
+    .sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0))
+    .map(showRow));
+}
+
+/** Keep it current while the library is on screen, and no more often. */
+function watchMyShows() {
+  clearInterval(myShowsTimer);
+  myShowsTimer = setInterval(() => {
+    if (el.library.hidden || document.hidden) return;
+    refreshMyShows();
+  }, 15000);
+}
+
 /* ── Sharing: stream this device's slideshow to other browsers ────────────── */
 
 /**
@@ -926,6 +1027,7 @@ async function shareCurrentShow({ mode = 'live', ttlMs } = {}) {
   };
 
   refreshShareUi();
+  refreshMyShows();
   showShareDialog(info);
   serveRequests();            // background loop, deliberately not awaited
   if (info.mode === 'handoff') watchHandoffProgress();
@@ -935,9 +1037,11 @@ async function shareCurrentShow({ mode = 'live', ttlMs } = {}) {
 /* ── Hand-off: watching the screens take their copies ─────────────────────── */
 
 const remaining = (until) => {
-  const ms = Math.max(0, until - Date.now());
-  const hours = Math.floor(ms / 3600000);
-  const mins = Math.round((ms % 3600000) / 60000);
+  // Round to whole minutes first, then split. Rounding the remainder on its own
+  // produces "5h 60m" whenever the leftover is above 59 and a half minutes.
+  const total = Math.round(Math.max(0, until - Date.now()) / 60000);
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
   return hours ? `${hours}h ${mins}m` : `${mins}m`;
 };
 
@@ -1076,7 +1180,14 @@ function stopJoinQr() {
 
 function showShareDialog(info) {
   el.shareCode.textContent = info.code;
-  el.sharePass.textContent = info.password;
+  /*
+   * Only the hash of a password is kept, so a show started on another device
+   * can never have its password shown again — the code and the QR are the way
+   * back in. Hiding the row is more honest than printing "unknown".
+   */
+  const knowsPassword = Boolean(info.password);
+  el.sharePassRow.hidden = !knowsPassword;
+  if (knowsPassword) el.sharePass.textContent = info.password;
   el.shareUrl.textContent = `${state.siteHost}/watch`;
 
   // The two modes make opposite promises about this tab, so the dialog has to
@@ -1088,7 +1199,10 @@ function showShareDialog(info) {
   el.shareTitle.textContent = handoff ? 'Handed off to the screens' : 'Slideshow is live';
   el.shareIntro.textContent = handoff
     ? 'Add every screen now, while this tab is still open.'
-    : 'They work until you stop sharing.';
+    : knowsPassword
+      ? 'They work until you stop sharing.'
+      : 'This show was started on another device, so its password cannot be shown '
+        + 'again — scan the code below to add a screen.';
   el.shareExpiry.textContent = handoff
     ? `The show takes itself down on ${when}, unless you come back and extend it.`
     : `The code stops working when you stop sharing, or at ${expires.toLocaleTimeString()} at the latest.`;
@@ -1142,6 +1256,7 @@ async function stopBroadcast({ silent } = {}) {
     // The session may already have expired server side; nothing to undo.
   }
   if (!silent) showNotice('Stopped sharing. That code and password no longer work.', 'ok');
+  refreshMyShows();
 }
 
 /** Long-poll for viewer requests and answer them with file bytes. */
@@ -1870,6 +1985,8 @@ function enterApp(user) {
   el.gate.hidden = true;
   el.library.hidden = false;
   renderLocalBrowser();
+  refreshMyShows();
+  watchMyShows();
 }
 
 /* ── Boot ─────────────────────────────────────────────────────────────────── */
@@ -1887,9 +2004,6 @@ state.interval = Number(el.speedSelect.value);
   }
   mountHowTo();
   setAuthMode('login');
-  api('/api/broadcast/mine')
-    .then((mine) => { if (mine.handoff) state.handoffLimits = mine.handoff; })
-    .catch(() => {});   // signed out, or offline; the defaults are fine
   if (me && me.user) {
     enterApp(me.user);
   } else {

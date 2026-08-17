@@ -55,9 +55,15 @@ const DATA_ROOT = path.resolve(process.env.DATA_ROOT || path.join(__dirname, 'da
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const MAX_FRAME_BYTES = Number(process.env.MAX_FRAME_BYTES) || 25 * 1024 * 1024;
 
-// Handed-off shows outlive the tab that made them, so cap how many one account
-// can leave standing at once.
-const MAX_HANDOFF_PER_USER = 3;
+/*
+ * How many slideshows one account may have running at once.
+ *
+ * A user can present from a laptop and a phone at the same time, or leave two
+ * handed-off shows going in different rooms, so there is no reason for one
+ * share to end another. The cap is only here so a single account cannot fill
+ * the relay.
+ */
+const MAX_SHOWS_PER_USER = 10;
 
 // ACCESS_CODE was the old whole-app gate; accounts replaced it, so it now acts
 // as the signup code if SIGNUP_CODE isn't set.
@@ -287,21 +293,15 @@ async function handleCreateBroadcast(req, res, user) {
   const mode = body.mode === 'handoff' ? 'handoff' : 'live';
 
   /*
-   * One *live* broadcast per user keeps the mental model simple — a live show
-   * needs this tab, and a tab can only present one thing. Handed-off shows are
-   * different: they are meant to keep running while you go and do something
-   * else, so starting a new share must not quietly kill them.
+   * Starting a show no longer ends the others. A presenting tab still shows one
+   * thing at a time — it has one playlist — and the client ends its own show
+   * before starting another, but that is the tab's business, not the account's.
    */
   const mine = broadcast.listForUser(user.id);
-  for (const existing of mine) {
-    if (existing.mode !== 'handoff') broadcast.end(existing.code, 'replaced');
-  }
-
-  const standing = mine.filter((sessionState) => sessionState.mode === 'handoff').length;
-  if (mode === 'handoff' && standing >= MAX_HANDOFF_PER_USER) {
+  if (mine.length >= MAX_SHOWS_PER_USER) {
     return sendError(res, 409,
-      `You already have ${standing} handed-off slideshows running. `
-      + 'Take one down before starting another.');
+      `You already have ${mine.length} slideshows running, which is the limit. `
+      + 'Stop one before starting another.');
   }
 
   let created;
@@ -639,6 +639,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/broadcast/mine' && method === 'GET') {
       return sendJson(res, 200, {
         sessions: broadcast.listForUser(user.id),
+        maxShows: MAX_SHOWS_PER_USER,
         handoff: {
           maxPhotos: HANDOFF_MAX_PHOTOS,
           minTtlMs: HANDOFF_MIN_TTL_MS,

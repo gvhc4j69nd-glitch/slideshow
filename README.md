@@ -265,6 +265,23 @@ Both credentials are needed, wrong guesses are rate-limited to 10 per IP per 15
 minutes, and the failure message is identical for a bad code and a bad
 password, so neither can be probed independently.
 
+### Several shows at once
+
+One account can have **up to ten slideshows running at the same time** — present
+from a laptop and a phone together, or leave a handed-off show going in the
+kitchen while starting another in the living room. Starting a share no longer
+ends the others. A presenting *tab* still shows one thing at a time, because it
+has one playlist, but that is the tab's business rather than the account's.
+
+The library lists them all under **Your running slideshows**, including shows
+started on another device, with the code, how many screens are watching and how
+long is left. Each row can show its code again or stop it.
+
+One thing that list cannot do is show a password. Only the hash of a temporary
+password is ever kept, so a show started on another device can never have its
+password printed again — which is why each row offers the **QR** instead:
+minting a join ticket needs the account, not the password.
+
 ### Or just scan it
 
 The share dialog also shows a **QR code**, because typing `9PVZ-BH4Z-T66G` into

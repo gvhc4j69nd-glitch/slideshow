@@ -364,6 +364,16 @@
     <div class="notice" id="notice" hidden></div>
 
     <!-- Play straight off the local machine — nothing is uploaded. -->
+    <!-- Every show this account has running, including ones started on another
+         device. Without this a show started elsewhere is unreachable. -->
+    <section class="my-shows" id="myShows" aria-label="Your running slideshows" hidden>
+      <div class="my-shows-head">
+        <h2>Your running slideshows</h2>
+        <span class="field" id="myShowsCount"></span>
+      </div>
+      <div class="my-shows-list" id="myShowsList"></div>
+    </section>
+
     <section class="local-panel" id="localPanel" aria-label="Play from this device">
       <div class="local-head">
         <div>
@@ -524,7 +534,7 @@
         <div class="credential-value" id="shareCode">——————</div>
       </div>
 
-      <div class="credential">
+      <div class="credential" id="sharePassRow">
         <span class="credential-label">Temporary password</span>
         <div class="credential-value" id="sharePass">————</div>
       </div>

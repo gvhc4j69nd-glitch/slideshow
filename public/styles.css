@@ -772,3 +772,39 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; margin: 20px 0
 }
 #feedbackForm textarea:focus-visible { outline: 3px solid var(--cyan); outline-offset: 1px; }
 .optional { color: var(--muted); font-style: normal; font-weight: 400; }
+
+/* ── Everything this account has running ──────────────────────────────────── */
+
+.my-shows {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 18px 20px;
+  margin: 0 0 18px;
+  box-shadow: var(--shadow-sm);
+}
+.my-shows-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.my-shows-head h2 { margin: 0; font-size: 19px; }
+.my-shows-list { display: flex; flex-direction: column; gap: 10px; }
+
+.show-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+.show-row-main { min-width: 0; flex: 1 1 220px; }
+.show-row-title { font-weight: 600; }
+.show-row-meta { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.show-row-code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  letter-spacing: .08em;
+  font-weight: 700;
+}
+.show-row-actions { display: flex; gap: 8px; }
+/* This tab's own show, so it is obvious which one the controls below drive. */
+.show-row.is-here { border-color: var(--cyan); }
