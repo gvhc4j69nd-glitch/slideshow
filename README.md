@@ -108,9 +108,10 @@ Vinboo loses as well as where it wins.
 `node scripts/md-to-docx.js docs/business-plan.md` — turns that into a plan: a free
 tier funded by three ad placements, premium tiers for stored shows and end-to-end
 encryption, and the infrastructure arithmetic at current Railway and object-storage
-rates. Its two findings are that advertising is a floor rather than the business,
-and that live mode's slide re-fetching would cost twice revenue at scale unless a
-viewer keeps the whole show the way hand-off already does.
+rates, and sizes each segment bottom-up from headcounts. Its sharpest finding is
+that **6,413 business presenters would out-earn 250,000 consumer ones** — 39×
+fewer people for 2.7× the revenue — which argues the product points at the wrong
+customer today.
 
 The short version: nothing else found does photos *and* PowerPoint, and nothing
 else streams from the presenter's own device instead of uploading first. The

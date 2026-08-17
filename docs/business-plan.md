@@ -38,6 +38,11 @@ run all evening it reaches $72,000/month and exceeds revenue outright. Having a
 viewer keep the show, which hand-off mode already does, is a few hours of work
 and is the single highest-value engineering task in this document.
 
+**Where the money most likely is.** Sized bottom-up in §2: **6,413 business
+presenters would out-earn 250,000 consumer ones — 39× fewer people for 2.7× the
+revenue.** The business segment is worth ~$115M/year serviceable in the US alone,
+and it is the one currently blocked by deck fidelity rather than by demand.
+
 **The pleasant surprise.** Premium is *cheaper to serve than free*. Object
 storage costs $0.015/GB-month with free egress on both Railway and Cloudflare
 R2, while relayed traffic costs $0.05/GB. A stored premium show serves at
@@ -46,7 +51,7 @@ slideshows cost **$2.50/month** to keep.
 
 ---
 
-## 2. What the competition proves
+## 2. The market, and what the competition proves
 
 The competitive analysis establishes the gap. Three of its findings carry
 directly into the financial plan.
@@ -72,6 +77,55 @@ Mentimeter charges $11.99–24.99 per presenter/month [sourced]. So the market p
 $1.50 at the ambient-photo end and $12–25 at the presentation end. Vinboo's
 premium belongs between them, and its unlimited-screens position is worth real
 money against a competitor that charges per screen and caps at six.
+
+### How big each segment is
+
+Sized bottom-up from headcounts rather than top-down from a category, because
+"the presentation software market is worth $X billion" says nothing about whether
+anyone pays $15 for this.
+
+**Business presenters.** The US has **1.3 million** wholesale and manufacturing
+sales representatives plus **303,200** in technical and scientific products —
+about **1.6 million** [sourced]. Assume 40% carry a deck into a client meeting
+[assumed]: a serviceable market of ~641,000 people, or **$115M/year** at Pro's
+$180.
+
+| Penetration | Users | Revenue |
+|---|---|---|
+| 0.5% | 3,206 | $577k/yr |
+| **1%** | **6,413** | **$1.15M/yr** |
+| 3% | 19,238 | $3.46M/yr |
+
+**Events.** About **2.5 million US weddings a year** [sourced]. At $19 a pass:
+1% attach is $475k/yr, 5% is $2.4M/yr — but it is one-time revenue from a
+customer who never returns, and it is reached through vendors rather than
+couples, since a wedding DJ works forty weddings a year and a couple works one.
+
+**Consumer, ad funded.** The largest population and the weakest economics: §7
+models 250,000 monthly presenters producing $434k/year in total.
+
+### The comparison that should decide the strategy
+
+| | People | Revenue |
+|---|---|---|
+| Business presenters at 1% | **6,413** | **$1.15M/yr** |
+| Consumer presenters (§7) | 250,000 | $434k/yr |
+
+**39× fewer people, 2.7× the revenue.** And 6,413 customers would be 8% of
+Mentimeter's 80,000 — aggressive for a niche, but not fantasy against a company
+doing $38M in an adjacent category.
+
+That single line argues the product should point at the business presenter, and
+that the party use case the landing page leads with is commercially the weakest
+of the three. It is also the segment currently blocked by the thing §5 prices:
+**37% of a real enterprise deck renders as grey boxes** until Pro exists.
+
+**The counterweight, which does not go away.** Microsoft retired Present Live for
+low usage — the closest analogue to the core feature, with a billion-seat
+channel, killed for lack of demand. What that argues is not that the segment is
+empty but that *audience-follows-along* is the wrong pitch for it. The durable
+one is different, and Present Live never offered it: **your deck never lands on
+their machine, and everyone in the room sees it on their own screen.**
 
 ---
 
@@ -209,7 +263,7 @@ fidelity, server-side rendering, or a preview of anything. It is deliberately
 |---|---|---|
 | The fear it answers | "my deck will look wrong" | "my photos will be read" |
 | Server can read your files | **yes**, and deletes them after | **no**, ever |
-| Exact PowerPoint fidelity | yes | no — own renderer, with the §4 warning |
+| Exact PowerPoint fidelity | yes | no — own renderer, and the warning when a deck loses something |
 | Stored shows survive offline | yes | yes, as ciphertext |
 
 A customer picks one per show. Selling both to the same person on the same
@@ -488,6 +542,24 @@ it because there is no data yet.
 
 ---
 
+### These scenarios are the consumer shape
+
+Everything above counts *presenters* and monetises them with advertising, which
+is the free tier's shape. §2 sizes the business one, and it reaches Year 3's
+revenue with **6,413 customers instead of 250,000 presenters** — 39× fewer people
+for 2.7× the money, with none of the egress that comes from 500,000 shows a
+month.
+
+Both are modelled because they are not exclusive: the free consumer tier is the
+funnel and the advertising floor, and Pro is where the revenue is. But if only
+one can be pursued, the arithmetic says the smaller audience.
+
+The reason the plan leads with the consumer model anyway is honesty about
+readiness: the consumer product **exists and works today**, and the business one
+is gated behind deck fidelity that has not been built.
+
+---
+
 ## 8. Risks
 
 Carried from the competitive analysis, with financial consequences attached.
@@ -540,7 +612,9 @@ slides.
 270M/14M participant-to-presenter figures and $38M revenue; AdSense RPM ranges;
 consumer freemium conversion benchmarks; Present Live's retirement.
 
-**Assumed, and least reliable:** that a 35-slide conversion takes about 15
+**Assumed, and least reliable:** that 40% of sales representatives carry a deck
+into a client meeting — the segment sizing in §2 scales directly with it, and it
+is a guess rather than a measurement; that a 35-slide conversion takes about 15
 seconds in 1 GB — plausible for headless LibreOffice but unmeasured here, and the
 capacity floor moves with it; 350 KB per slide on the wire — the egress
 thresholds in §5 move in direct proportion to it, so it is the single number most
@@ -563,6 +637,8 @@ distribution is the thing most likely to decide the outcome.
 - [Hetzner Cloud](https://www.hetzner.com/cloud/) — 20 TB included, then ~$1/TB, per [2026 pricing summaries](https://onedollarvps.com/pricing/hetzner-cloud-pricing)
 - [Cloudflare R2 pricing](https://developers.cloudflare.com/r2/pricing/)
 - [GitHub pricing](https://github.com/pricing)
+- [US Bureau of Labor Statistics — wholesale and manufacturing sales representatives](https://www.bls.gov/ooh/sales/wholesale-and-manufacturing-sales-representatives.htm) (1.3M + 303,200 jobs, 2024)
+- [US wedding volume, ~2.5M a year](https://www.zippia.com/advice/wedding-industry-statistics/)
 - [Mentimeter plans](https://www.mentimeter.com/plans)
 - [Mentimeter revenue and customer figures — GetLatka](https://getlatka.com/companies/mentimeter)
 - [Mentimeter — Wikipedia](https://en.wikipedia.org/wiki/Mentimeter) (270M participants / 14M presenters, end of 2021)
