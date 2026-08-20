@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 950" width="1200" height="950"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1210" width="1400" height="1210"
      font-family="ui-rounded, 'SF Pro Rounded', Nunito, 'Segoe UI', Helvetica, Arial, sans-serif">
 
   <defs>
@@ -11,198 +11,280 @@
     <marker id="arrow-auth" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M0 0 L10 5 L0 10 z" fill="#936A10"/>
     </marker>
+    <marker id="arrow-seed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#6B46C1"/>
+    </marker>
   </defs>
 
   <style>
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
   </style>
 
-  <rect x="0" y="0" width="1200" height="950" fill="#FFFAF5"/>
+  <rect x="0" y="0" width="1400" height="1210" fill="#FFFAF5"/>
 
-  <text x="600" y="44" text-anchor="middle" font-size="27" font-weight="700" fill="#2A2440">How Vinboo works</text>
-  <text x="600" y="72" text-anchor="middle" font-size="14.5" fill="#6B6480">
-    The slideshow lives on the presenter's device. The server passes bytes along; it never keeps them.
+  <text x="700" y="46" text-anchor="middle" font-size="28" font-weight="700" fill="#2A2440">How Vinboo works</text>
+  <text x="700" y="75" text-anchor="middle" font-size="14.5" fill="#6B6480">
+    The slideshow lives on the presenter's device — and in hand-off mode it goes on living on the screens.
   </text>
 
-  <!-- ── Presenter ───────────────────────────────────────────────────────── -->
-  <rect x="40" y="104" width="270" height="330" rx="18" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
-  <rect x="40" y="104" width="270" height="5" rx="2.5" fill="#FF8382"/>
-  <text x="62" y="138" font-size="16" font-weight="700" fill="#2A2440">Presenter's browser</text>
-  <text x="62" y="158" font-size="12.5" fill="#6B6480">phone · laptop · tablet</text>
+  <!-- ════ Row 1: while the presenter is there ═══════════════════════════════ -->
 
-  <rect x="62" y="174" width="226" height="46" rx="10" fill="#FFEDEC"/>
-  <text x="76" y="193" font-size="12.5" font-weight="600" fill="#C8362F">Photos and .pptx files</text>
-  <text x="76" y="210" font-size="11.5" fill="#C8362F">read straight off the device</text>
+  <text x="40" y="102" font-size="13" font-weight="700" fill="#6B6480" letter-spacing="1.2">WHILE THE PRESENTER IS THERE</text>
 
-  <text x="62" y="244" font-size="12" fill="#2A2440">• Renders PowerPoint into SVG slides</text>
-  <text x="62" y="264" font-size="12" fill="#2A2440">• Holds the playlist and running order</text>
-  <text x="62" y="284" font-size="12" fill="#2A2440">• Answers requests for single slides</text>
+  <!-- Presenter -->
+  <rect x="40" y="115" width="300" height="345" rx="18" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
+  <rect x="40" y="115" width="300" height="5" rx="2.5" fill="#FF8382"/>
+  <text x="62" y="149" font-size="16" font-weight="700" fill="#2A2440">Presenter's browser</text>
+  <text x="62" y="169" font-size="12.5" fill="#6B6480">phone · laptop · tablet</text>
 
-  <rect x="62" y="302" width="226" height="64" rx="10" fill="#FFF4DE"/>
-  <text x="76" y="322" font-size="12" font-weight="600" fill="#936A10">Must stay open and awake</text>
-  <text x="76" y="339" font-size="11.5" fill="#936A10">It is the only copy of the pictures,</text>
-  <text x="76" y="355" font-size="11.5" fill="#936A10">so if it closes the screens go quiet.</text>
+  <rect x="62" y="185" width="256" height="46" rx="10" fill="#FFEDEC"/>
+  <text x="76" y="204" font-size="12.5" font-weight="600" fill="#C8362F">Photos and .pptx files</text>
+  <text x="76" y="221" font-size="11.5" fill="#C8362F">read straight off the device</text>
 
-  <text x="62" y="392" font-size="11.5" fill="#6B6480">Everything here happens in the browser:</text>
-  <text x="62" y="408" font-size="11.5" fill="#6B6480">files are read locally, and a .pptx is</text>
-  <text x="62" y="424" font-size="11.5" fill="#6B6480">unzipped and drawn with no round trip.</text>
+  <text x="62" y="255" font-size="12" fill="#2A2440">• Renders PowerPoint into SVG slides</text>
+  <text x="62" y="275" font-size="12" fill="#2A2440">• Holds the playlist and running order</text>
+  <text x="62" y="295" font-size="12" fill="#2A2440">• Answers requests for single slides</text>
 
-  <!-- ── Server ──────────────────────────────────────────────────────────── -->
-  <rect x="460" y="104" width="270" height="330" rx="18" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
-  <rect x="460" y="104" width="270" height="5" rx="2.5" fill="#51D1E3"/>
-  <text x="482" y="138" font-size="16" font-weight="700" fill="#2A2440">Vinboo server</text>
-  <text x="482" y="158" font-size="12" fill="#6B6480">Node · HTTP/1.1 behind Railway's TLS edge</text>
+  <rect x="62" y="313" width="256" height="82" rx="10" fill="#E4F8FB"/>
+  <text x="76" y="333" font-size="12" font-weight="600" fill="#1F7884">Two ways to share, chosen here</text>
+  <text x="76" y="352" font-size="11.5" fill="#1F7884">Live — this tab is the only copy, so it</text>
+  <text x="76" y="368" font-size="11.5" fill="#1F7884">must stay open. Hand-off — every screen</text>
+  <text x="76" y="384" font-size="11.5" fill="#1F7884">takes a copy, and then it need not.</text>
 
-  <text x="482" y="186" font-size="12" fill="#2A2440">• Accounts, sign-in, sessions</text>
-  <text x="482" y="206" font-size="12" fill="#2A2440">• Issues share codes and passwords</text>
-  <text x="482" y="226" font-size="12" fill="#2A2440">• Parks each viewer's request for a slide</text>
-  <text x="482" y="246" font-size="12" fill="#2A2440">• Hands it on, relays the reply back</text>
+  <text x="62" y="418" font-size="11.5" fill="#6B6480">Everything here happens in the browser:</text>
+  <text x="62" y="434" font-size="11.5" fill="#6B6480">files are read locally, and a .pptx is</text>
+  <text x="62" y="450" font-size="11.5" fill="#6B6480">unzipped and drawn with no round trip.</text>
 
-  <rect x="482" y="264" width="226" height="82" rx="10" fill="#E4F8FB"/>
-  <text x="496" y="284" font-size="12" font-weight="600" fill="#1F7884">No media on disk, ever</text>
-  <text x="496" y="301" font-size="11.5" fill="#1F7884">A slide sits in memory only while</text>
-  <text x="496" y="317" font-size="11.5" fill="#1F7884">in flight, plus a cache of the last</text>
-  <text x="496" y="333" font-size="11.5" fill="#1F7884">few slides. No volume is attached.</text>
+  <!-- Server -->
+  <rect x="550" y="115" width="300" height="345" rx="18" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
+  <rect x="550" y="115" width="300" height="5" rx="2.5" fill="#51D1E3"/>
+  <text x="572" y="149" font-size="16" font-weight="700" fill="#2A2440">Vinboo server</text>
+  <text x="572" y="169" font-size="12" fill="#6B6480">Node · HTTP/1.1 behind Railway's TLS edge</text>
 
-  <text x="482" y="372" font-size="11.5" fill="#6B6480">Ten screens on one slide cost the</text>
-  <text x="482" y="388" font-size="11.5" fill="#6B6480">presenter a single upload: the reply</text>
-  <text x="482" y="404" font-size="11.5" fill="#6B6480">is fanned out to everyone waiting.</text>
+  <text x="572" y="197" font-size="12" fill="#2A2440">• Accounts, sign-in, sessions</text>
+  <text x="572" y="217" font-size="12" fill="#2A2440">• Issues share codes and passwords</text>
+  <text x="572" y="237" font-size="12" fill="#2A2440">• Parks each viewer's request for a slide</text>
+  <text x="572" y="257" font-size="12" fill="#2A2440">• Hands it to whoever can answer</text>
 
-  <!-- ── Viewers ─────────────────────────────────────────────────────────── -->
-  <rect x="880" y="104" width="270" height="330" rx="18" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
-  <rect x="880" y="104" width="270" height="5" rx="2.5" fill="#FDCA5C"/>
-  <text x="902" y="138" font-size="16" font-weight="700" fill="#2A2440">Viewers</text>
-  <text x="902" y="158" font-size="12.5" fill="#6B6480">as many as you like · no account</text>
+  <rect x="572" y="275" width="256" height="82" rx="10" fill="#E4F8FB"/>
+  <text x="586" y="295" font-size="12" font-weight="600" fill="#1F7884">No media on disk, ever</text>
+  <text x="586" y="314" font-size="11.5" fill="#1F7884">A slide sits in memory only while in</text>
+  <text x="586" y="330" font-size="11.5" fill="#1F7884">flight, plus the last six frames of a</text>
+  <text x="586" y="346" font-size="11.5" fill="#1F7884">show. No volume is attached.</text>
 
-  <rect x="902" y="180" width="96" height="60" rx="7" fill="#F1ECF6" stroke="rgba(42,36,64,.16)"/>
-  <rect x="909" y="187" width="82" height="41" rx="4" fill="#FF8382"/>
-  <rect x="938" y="240" width="24" height="8" fill="#DDD5E8"/>
-  <rect x="922" y="248" width="56" height="6" rx="3" fill="#DDD5E8"/>
-  <text x="950" y="272" text-anchor="middle" font-size="12" fill="#2A2440">Television</text>
+  <text x="572" y="382" font-size="11.5" fill="#6B6480">Ten screens on one slide cost a single</text>
+  <text x="572" y="398" font-size="11.5" fill="#6B6480">upload: the reply is fanned out to</text>
+  <text x="572" y="414" font-size="11.5" fill="#6B6480">everyone waiting on it.</text>
 
-  <rect x="1012" y="184" width="84" height="52" rx="6" fill="#F1ECF6" stroke="rgba(42,36,64,.16)"/>
-  <rect x="1018" y="190" width="72" height="40" rx="4" fill="#FF8382"/>
-  <path d="M1006 236 h96 l9 8 h-114 z" fill="#DDD5E8"/>
-  <text x="1054" y="272" text-anchor="middle" font-size="12" fill="#2A2440">Laptop</text>
+  <!-- Viewers -->
+  <rect x="1060" y="115" width="300" height="345" rx="18" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
+  <rect x="1060" y="115" width="300" height="5" rx="2.5" fill="#FDCA5C"/>
+  <text x="1082" y="149" font-size="16" font-weight="700" fill="#2A2440">Viewers</text>
+  <text x="1082" y="169" font-size="12.5" fill="#6B6480">as many as you like · no account</text>
 
-  <rect x="1110" y="180" width="34" height="62" rx="7" fill="#F1ECF6" stroke="rgba(42,36,64,.16)"/>
-  <rect x="1115" y="187" width="24" height="48" rx="3" fill="#FF8382"/>
-  <text x="1127" y="272" text-anchor="middle" font-size="12" fill="#2A2440">Phone</text>
+  <!-- device icons -->
+  <rect x="1086" y="190" width="96" height="64" rx="6" fill="#EFEAF6" stroke="rgba(42,36,64,.10)"/>
+  <rect x="1094" y="198" width="80" height="42" rx="3" fill="#FF8382"/>
+  <rect x="1124" y="254" width="20" height="8" rx="2" fill="#EFEAF6"/>
+  <rect x="1194" y="200" width="86" height="54" rx="6" fill="#EFEAF6" stroke="rgba(42,36,64,.10)"/>
+  <rect x="1201" y="207" width="72" height="36" rx="3" fill="#FF8382"/>
+  <rect x="1188" y="254" width="98" height="7" rx="3.5" fill="#EFEAF6"/>
+  <rect x="1296" y="196" width="38" height="62" rx="7" fill="#EFEAF6" stroke="rgba(42,36,64,.10)"/>
+  <rect x="1302" y="204" width="26" height="46" rx="3" fill="#FF8382"/>
+  <text x="1134" y="280" text-anchor="middle" font-size="11.5" fill="#6B6480">Television</text>
+  <text x="1237" y="280" text-anchor="middle" font-size="11.5" fill="#6B6480">Laptop</text>
+  <text x="1315" y="280" text-anchor="middle" font-size="11.5" fill="#6B6480">Phone</text>
 
-  <rect x="902" y="292" width="226" height="64" rx="10" fill="#FFF4DE"/>
-  <text x="916" y="312" font-size="12" font-weight="600" fill="#936A10">Chromecast</text>
-  <text x="916" y="329" font-size="11.5" fill="#936A10">Found over mDNS on the local net;</text>
-  <text x="916" y="345" font-size="11.5" fill="#936A10">the TV then loads /watch itself.</text>
+  <rect x="1082" y="296" width="256" height="64" rx="10" fill="#FFF4DE"/>
+  <text x="1096" y="316" font-size="12" font-weight="600" fill="#936A10">Every screen keeps a copy</text>
+  <text x="1096" y="334" font-size="11.5" fill="#936A10">In hand-off mode each screen quietly</text>
+  <text x="1096" y="350" font-size="11.5" fill="#936A10">stores the whole show as it plays.</text>
 
-  <text x="902" y="382" font-size="11.5" fill="#6B6480">Any browser will do, and nothing is</text>
-  <text x="902" y="398" font-size="11.5" fill="#6B6480">installed. Every screen shows the same</text>
-  <text x="902" y="414" font-size="11.5" fill="#6B6480">slide, because the presenter picks it.</text>
+  <text x="1082" y="384" font-size="11.5" fill="#6B6480">Any browser will do, and nothing is</text>
+  <text x="1082" y="400" font-size="11.5" fill="#6B6480">installed. Cast sends a television to</text>
+  <text x="1082" y="416" font-size="11.5" fill="#6B6480">/watch, which it then loads itself.</text>
 
-  <!-- ── Presenter ↔ server ──────────────────────────────────────────────── -->
-  <line x1="310" y1="170" x2="460" y2="170" stroke="#936A10" stroke-width="2" marker-end="url(#arrow-auth)"/>
-  <circle cx="322" cy="154" r="9" fill="#936A10"/><text x="322" y="158" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">1</text>
-  <text x="398" y="158" text-anchor="middle" font-size="11.5" fill="#936A10">sign in</text>
-  <text x="385" y="187" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">POST /api/auth/login</text>
-  <text x="385" y="199" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">HTTPS · JSON</text>
+  <!-- ── Arrows: presenter ↔ server ── -->
+  <circle cx="368" cy="196" r="11" fill="#936A10"/>
+  <text x="368" y="200" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">1</text>
+  <text x="445" y="192" text-anchor="middle" font-size="12" font-weight="600" fill="#936A10">sign in</text>
+  <line x1="388" y1="205" x2="540" y2="205" stroke="#936A10" stroke-width="2" marker-end="url(#arrow-auth)"/>
+  <text x="464" y="224" text-anchor="middle" font-size="10.5" class="mono" fill="#6B6480">POST /api/auth/login</text>
 
-  <line x1="310" y1="240" x2="460" y2="240" stroke="#1F7884" stroke-width="2" marker-end="url(#arrow-control)"/>
-  <circle cx="322" cy="224" r="9" fill="#1F7884"/><text x="322" y="228" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">2</text>
-  <text x="400" y="228" text-anchor="middle" font-size="11.5" fill="#1F7884">start sharing</text>
-  <text x="385" y="257" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">POST /api/broadcast</text>
-  <text x="385" y="269" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">→ code + password</text>
+  <circle cx="368" cy="256" r="11" fill="#1F7884"/>
+  <text x="368" y="260" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">2</text>
+  <text x="452" y="252" text-anchor="middle" font-size="12" font-weight="600" fill="#1F7884">start sharing</text>
+  <line x1="388" y1="265" x2="540" y2="265" stroke="#1F7884" stroke-width="2" marker-end="url(#arrow-control)"/>
+  <text x="464" y="284" text-anchor="middle" font-size="10.5" class="mono" fill="#6B6480">→ code + password</text>
 
-  <line x1="460" y1="310" x2="310" y2="310" stroke="#1F7884" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow-control)"/>
-  <circle cx="322" cy="294" r="9" fill="#1F7884"/><text x="322" y="298" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">4</text>
-  <text x="404" y="298" text-anchor="middle" font-size="11.5" fill="#1F7884">“slide 4, please”</text>
-  <text x="385" y="327" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">GET …/requests</text>
-  <text x="385" y="339" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">held open ≤ 25s</text>
+  <circle cx="368" cy="326" r="11" fill="#1F7884"/>
+  <text x="368" y="330" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">4</text>
+  <text x="452" y="322" text-anchor="middle" font-size="12" font-weight="600" fill="#1F7884">“slide 4, please”</text>
+  <line x1="540" y1="335" x2="388" y2="335" stroke="#1F7884" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#arrow-control)"/>
+  <text x="464" y="354" text-anchor="middle" font-size="10.5" class="mono" fill="#6B6480">GET …/requests ≤ 25s</text>
 
-  <line x1="310" y1="380" x2="460" y2="380" stroke="#C8362F" stroke-width="3" marker-end="url(#arrow-media)"/>
-  <circle cx="322" cy="364" r="9" fill="#C8362F"/><text x="322" y="368" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">5</text>
-  <text x="402" y="368" text-anchor="middle" font-size="11.5" font-weight="600" fill="#C8362F">the slide itself</text>
-  <text x="385" y="397" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">PUT …/frame/:id</text>
-  <text x="385" y="409" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">raw bytes · image/*</text>
+  <circle cx="368" cy="396" r="11" fill="#C8362F"/>
+  <text x="368" y="400" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">5</text>
+  <text x="452" y="392" text-anchor="middle" font-size="12" font-weight="600" fill="#C8362F">the slide itself</text>
+  <line x1="388" y1="405" x2="540" y2="405" stroke="#C8362F" stroke-width="2.4" marker-end="url(#arrow-media)"/>
+  <text x="464" y="424" text-anchor="middle" font-size="10.5" class="mono" fill="#6B6480">PUT …/frame/:id</text>
 
-  <!-- ── Server ↔ viewers ────────────────────────────────────────────────── -->
-  <line x1="880" y1="170" x2="730" y2="170" stroke="#1F7884" stroke-width="2" marker-end="url(#arrow-control)"/>
-  <circle cx="742" cy="154" r="9" fill="#1F7884"/><text x="742" y="158" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">3</text>
-  <text x="820" y="158" text-anchor="middle" font-size="11.5" fill="#1F7884">join with code</text>
-  <text x="805" y="187" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">POST /api/watch/join</text>
-  <text x="805" y="199" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">JSON → viewer cookie</text>
+  <!-- ── Arrows: server ↔ viewers ── -->
+  <circle cx="878" cy="196" r="11" fill="#1F7884"/>
+  <text x="878" y="200" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">3</text>
+  <text x="962" y="192" text-anchor="middle" font-size="12" font-weight="600" fill="#1F7884">join with code</text>
+  <line x1="1050" y1="205" x2="898" y2="205" stroke="#1F7884" stroke-width="2" marker-end="url(#arrow-control)"/>
+  <text x="974" y="224" text-anchor="middle" font-size="10.5" class="mono" fill="#6B6480">POST /api/watch/join</text>
 
-  <line x1="880" y1="240" x2="730" y2="240" stroke="#1F7884" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow-control)"/>
-  <text x="814" y="228" text-anchor="middle" font-size="11.5" fill="#1F7884">“which slide?”</text>
-  <text x="805" y="257" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">GET …/state?since=N</text>
-  <text x="805" y="269" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">held open ≤ 25s</text>
+  <text x="962" y="262" text-anchor="middle" font-size="12" font-weight="600" fill="#1F7884">“which slide?”</text>
+  <line x1="1050" y1="275" x2="898" y2="275" stroke="#1F7884" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#arrow-control)"/>
+  <text x="974" y="294" text-anchor="middle" font-size="10.5" class="mono" fill="#6B6480">GET …/state?since=N</text>
 
-  <line x1="730" y1="380" x2="880" y2="380" stroke="#C8362F" stroke-width="3" marker-end="url(#arrow-media)"/>
-  <circle cx="742" cy="364" r="9" fill="#C8362F"/><text x="742" y="368" text-anchor="middle" font-size="11" font-weight="700" fill="#FFF">6</text>
-  <text x="818" y="368" text-anchor="middle" font-size="11.5" font-weight="600" fill="#C8362F">passed on</text>
-  <text x="805" y="397" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">GET …/photo/:i</text>
-  <text x="805" y="409" text-anchor="middle" font-size="9.5" class="mono" fill="#6B6480">raw bytes · no-store</text>
+  <circle cx="878" cy="396" r="11" fill="#C8362F"/>
+  <text x="878" y="400" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">6</text>
+  <text x="968" y="392" text-anchor="middle" font-size="12" font-weight="600" fill="#C8362F">passed on</text>
+  <line x1="898" y1="405" x2="1050" y2="405" stroke="#C8362F" stroke-width="2.4" marker-end="url(#arrow-media)"/>
+  <text x="974" y="424" text-anchor="middle" font-size="10.5" class="mono" fill="#6B6480">GET …/photo/:i · no-store</text>
 
-  <!-- ── Postgres ────────────────────────────────────────────────────────── -->
-  <line x1="595" y1="434" x2="595" y2="486" stroke="#936A10" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrow-auth)"/>
-  <text x="614" y="456" font-size="9.5" class="mono" fill="#6B6480">Postgres wire protocol · TCP</text>
-  <text x="614" y="470" font-size="9.5" class="mono" fill="#6B6480">no TLS inside Railway's network</text>
+  <!-- Postgres -->
+  <line x1="700" y1="460" x2="700" y2="500" stroke="#936A10" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow-auth)"/>
+  <text x="716" y="484" font-size="10.5" class="mono" fill="#6B6480">accounts only · no media</text>
+  <ellipse cx="700" cy="516" rx="86" ry="13" fill="#FFFFFF" stroke="rgba(42,36,64,.14)"/>
+  <rect x="614" y="516" width="172" height="36" fill="#FFFFFF" stroke="rgba(42,36,64,.14)" stroke-width="0"/>
+  <line x1="614" y1="516" x2="614" y2="552" stroke="rgba(42,36,64,.14)"/>
+  <line x1="786" y1="516" x2="786" y2="552" stroke="rgba(42,36,64,.14)"/>
+  <ellipse cx="700" cy="552" rx="86" ry="13" fill="#FFFFFF" stroke="rgba(42,36,64,.14)"/>
+  <text x="700" y="540" text-anchor="middle" font-size="13" font-weight="700" fill="#2A2440">Postgres</text>
+  <text x="700" y="574" text-anchor="middle" font-size="11" fill="#6B6480">accounts + signing key only</text>
 
-  <ellipse cx="595" cy="506" rx="100" ry="17" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
-  <path d="M495 506 v54 a100 17 0 0 0 200 0 v-54" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
-  <text x="595" y="538" text-anchor="middle" font-size="14" font-weight="700" fill="#2A2440">Postgres</text>
-  <text x="595" y="556" text-anchor="middle" font-size="11.5" fill="#6B6480">accounts + signing key only</text>
+  <!-- ════ Row 2: after the presenter leaves ═════════════════════════════════ -->
 
-  <!-- ── Legend ──────────────────────────────────────────────────────────── -->
-  <line x1="62" y1="480" x2="102" y2="480" stroke="#C8362F" stroke-width="3"/>
-  <text x="112" y="484" font-size="12" fill="#6B6480">the pictures</text>
+  <rect x="40" y="600" width="1320" height="330" rx="20" fill="#FFFFFF" stroke="rgba(107,70,193,.30)"/>
+  <rect x="40" y="600" width="1320" height="5" rx="2.5" fill="#6B46C1"/>
 
-  <line x1="62" y1="506" x2="102" y2="506" stroke="#1F7884" stroke-width="2"/>
-  <text x="112" y="510" font-size="12" fill="#6B6480">control — who is watching, which slide</text>
+  <text x="70" y="636" font-size="13" font-weight="700" fill="#6B46C1" letter-spacing="1.2">AFTER THE PRESENTER LEAVES — HAND-OFF MODE</text>
+  <text x="70" y="660" font-size="13.5" fill="#6B6480">
+    The tab that started the show can close, provided one screen still holding a full copy is open. That screen becomes the source.
+  </text>
 
-  <line x1="62" y1="532" x2="102" y2="532" stroke="#936A10" stroke-width="2"/>
-  <text x="112" y="536" font-size="12" fill="#6B6480">accounts</text>
+  <!-- A: closed tab -->
+  <rect x="70" y="678" width="300" height="222" rx="14" fill="#F4F2F7" stroke="rgba(42,36,64,.10)"/>
+  <text x="92" y="708" font-size="14.5" font-weight="700" fill="#8B8598">Presenter's tab — closed</text>
+  <text x="92" y="730" font-size="11.5" fill="#8B8598">the laptop is shut, or gone home</text>
 
-  <line x1="62" y1="558" x2="102" y2="558" stroke="#1F7884" stroke-width="2" stroke-dasharray="6 4"/>
-  <text x="112" y="562" font-size="12" fill="#6B6480">held open, answered when something changes</text>
+  <line x1="300" y1="700" x2="344" y2="744" stroke="#B9B3C6" stroke-width="3" stroke-linecap="round"/>
+  <line x1="344" y1="700" x2="300" y2="744" stroke="#B9B3C6" stroke-width="3" stroke-linecap="round"/>
 
-  <!-- ── Transport ───────────────────────────────────────────────────────── -->
-  <rect x="40" y="600" width="550" height="320" rx="14" fill="#FFFFFF" stroke="rgba(42,36,64,.1)"/>
-  <text x="64" y="630" font-size="14" font-weight="700" fill="#2A2440">Transport</text>
+  <text x="92" y="762" font-size="11.5" fill="#6B6480">Nothing of the show is left behind on</text>
+  <text x="92" y="778" font-size="11.5" fill="#6B6480">it that anybody still needs. The photos</text>
+  <text x="92" y="794" font-size="11.5" fill="#6B6480">were never uploaded, and the copies</text>
+  <text x="92" y="810" font-size="11.5" fill="#6B6480">that matter are already on the screens.</text>
 
-  <text x="64" y="658" font-size="12" fill="#6B6480">Every hop between a browser and Vinboo is <tspan font-weight="600" fill="#2A2440">HTTPS</tspan>. Railway's</text>
-  <text x="64" y="676" font-size="12" fill="#6B6480">edge terminates TLS and forwards to the app over HTTP/1.1.</text>
+  <rect x="92" y="826" width="256" height="56" rx="10" fill="#FFEDEC"/>
+  <text x="106" y="846" font-size="12" font-weight="600" fill="#C8362F">If no copy is online</text>
+  <text x="106" y="864" font-size="11.5" fill="#C8362F">a late screen is told so plainly, rather</text>
+  <text x="106" y="878" font-size="11.5" fill="#C8362F">than left waiting for a photo.</text>
 
-  <text x="64" y="706" font-size="12" fill="#6B6480">Slides travel as <tspan font-weight="600" fill="#2A2440">raw binary bodies</tspan> carrying their own type —</text>
-  <text x="64" y="724" font-size="12" fill="#6B6480">image/jpeg, image/png, or image/svg+xml for PowerPoint.</text>
-  <text x="64" y="742" font-size="12" fill="#6B6480">No base64, no re-encoding, no transcoding.</text>
+  <!-- B: server -->
+  <rect x="470" y="678" width="360" height="222" rx="14" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
+  <rect x="470" y="678" width="360" height="4" rx="2" fill="#51D1E3"/>
+  <text x="494" y="710" font-size="14.5" font-weight="700" fill="#2A2440">Vinboo server — unchanged</text>
+  <text x="494" y="731" font-size="11.5" fill="#6B6480">the same relay, pointed at a new source</text>
 
-  <text x="64" y="772" font-size="12" fill="#6B6480">Waiting is <tspan font-weight="600" fill="#2A2440">long-polling</tspan>: a GET is held open for up to 25</text>
-  <text x="64" y="790" font-size="12" fill="#6B6480">seconds — 30 for a slide — and answered the instant</text>
-  <text x="64" y="808" font-size="12" fill="#6B6480">something changes.</text>
+  <text x="494" y="757" font-size="12" fill="#2A2440">• Parks the same requests as before</text>
+  <text x="494" y="777" font-size="12" fill="#2A2440">• Hands each job to a screen instead</text>
+  <text x="494" y="797" font-size="12" fill="#2A2440">• Still stores no pictures of its own</text>
 
-  <text x="64" y="838" font-size="12" fill="#6B6480">The database hop speaks the <tspan font-weight="600" fill="#2A2440">Postgres wire protocol over TCP</tspan>.</text>
-  <text x="64" y="856" font-size="12" fill="#6B6480">Inside Railway's private network it is unencrypted by design;</text>
-  <text x="64" y="874" font-size="12" fill="#6B6480">TLS is used for any host outside it.</text>
+  <rect x="494" y="811" width="312" height="82" rx="10" fill="#EFE9FB"/>
+  <text x="508" y="831" font-size="12" font-weight="600" fill="#6B46C1">The presenter keeps first refusal</text>
+  <text x="508" y="849" font-size="11.5" fill="#6B46C1">A screen is only given work when no</text>
+  <text x="508" y="865" font-size="11.5" fill="#6B46C1">presenter poll is parked, so while that</text>
+  <text x="508" y="881" font-size="11.5" fill="#6B46C1">tab is open the originals stay the source.</text>
 
-  <text x="64" y="904" font-size="12" fill="#6B6480">Casting adds <tspan font-weight="600" fill="#2A2440">mDNS</tspan> discovery on the local network — then the</text>
-  <text x="64" y="922" font-size="12" fill="#6B6480">TV fetches /watch over HTTPS on its own.</text>
+  <!-- C: seeding screens -->
+  <rect x="930" y="678" width="400" height="222" rx="14" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
+  <rect x="930" y="678" width="400" height="4" rx="2" fill="#6B46C1"/>
+  <text x="954" y="710" font-size="14.5" font-weight="700" fill="#2A2440">A screen with the whole show</text>
+  <text x="954" y="731" font-size="11.5" fill="#6B6480">any one will do · no account, still no app</text>
 
-  <!-- ── What it deliberately isn't ──────────────────────────────────────── -->
-  <rect x="610" y="600" width="550" height="320" rx="14" fill="#FFFFFF" stroke="rgba(42,36,64,.1)"/>
-  <text x="634" y="630" font-size="14" font-weight="700" fill="#2A2440">What it deliberately is not</text>
+  <rect x="954" y="746" width="110" height="70" rx="8" fill="#EFE9FB" stroke="#6B46C1" stroke-width="2"/>
+  <rect x="964" y="756" width="90" height="42" rx="3" fill="#FF8382"/>
+  <text x="1009" y="810" text-anchor="middle" font-size="10.5" font-weight="700" fill="#6B46C1">SOURCE</text>
 
-  <text x="634" y="658" font-size="12" fill="#6B6480"><tspan font-weight="600" fill="#2A2440">No WebSockets, no WebRTC.</tspan> Every exchange above is an</text>
-  <text x="634" y="676" font-size="12" fill="#6B6480">ordinary HTTP request and response, which is why it survives</text>
-  <text x="634" y="694" font-size="12" fill="#6B6480">corporate proxies and hotel Wi-Fi without special handling.</text>
+  <rect x="1080" y="752" width="86" height="58" rx="7" fill="#F4F2F7" stroke="rgba(42,36,64,.10)"/>
+  <rect x="1088" y="760" width="70" height="34" rx="3" fill="#FFC9C8"/>
+  <rect x="1182" y="752" width="40" height="58" rx="7" fill="#F4F2F7" stroke="rgba(42,36,64,.10)"/>
+  <rect x="1189" y="760" width="26" height="42" rx="3" fill="#FFC9C8"/>
 
-  <text x="634" y="724" font-size="12" fill="#6B6480"><tspan font-weight="600" fill="#2A2440">Not a media stream.</tspan> Each slide is one complete file transfer,</text>
-  <text x="634" y="742" font-size="12" fill="#6B6480">fetched when a screen needs it, not a continuous feed.</text>
+  <text x="1244" y="775" font-size="11.5" fill="#6B6480">others watch,</text>
+  <text x="1244" y="791" font-size="11.5" fill="#6B6480">and hold copies</text>
+  <text x="1244" y="807" font-size="11.5" fill="#6B6480">of their own</text>
 
-  <text x="634" y="772" font-size="12" fill="#6B6480"><tspan font-weight="600" fill="#2A2440">Not peer-to-peer.</tspan> Viewers never contact the presenter directly,</text>
-  <text x="634" y="790" font-size="12" fill="#6B6480">so no address of theirs is exposed and nothing has to be</text>
-  <text x="634" y="808" font-size="12" fill="#6B6480">opened on a home router.</text>
+  <rect x="954" y="826" width="352" height="56" rx="10" fill="#FFF4DE"/>
+  <text x="968" y="846" font-size="12" font-weight="600" fill="#936A10">Only a complete copy may serve</text>
+  <text x="968" y="864" font-size="11.5" fill="#936A10">A screen that holds every slide can answer for the</text>
+  <text x="968" y="878" font-size="11.5" fill="#936A10">rest; a half-copied screen is never asked.</text>
 
-  <rect x="634" y="830" width="502" height="72" rx="10" fill="#FFEDEC"/>
-  <text x="650" y="852" font-size="12" font-weight="600" fill="#C8362F">Not end-to-end encrypted</text>
-  <text x="650" y="870" font-size="11.5" fill="#C8362F">TLS protects each hop separately, so the server can read a</text>
-  <text x="650" y="887" font-size="11.5" fill="#C8362F">slide during the moment it passes through.</text>
+  <!-- Arrows inside row 2 -->
+  <circle cx="880" cy="742" r="11" fill="#6B46C1"/>
+  <text x="880" y="746" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">7</text>
+  <text x="880" y="772" text-anchor="middle" font-size="11.5" font-weight="600" fill="#6B46C1">offers to serve</text>
+  <line x1="924" y1="788" x2="836" y2="788" stroke="#6B46C1" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#arrow-seed)"/>
+  <text x="880" y="804" text-anchor="middle" font-size="10.5" class="mono" fill="#6B6480">GET …/requests</text>
+
+  <circle cx="880" cy="832" r="11" fill="#C8362F"/>
+  <text x="880" y="836" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">8</text>
+  <text x="880" y="862" text-anchor="middle" font-size="11.5" font-weight="600" fill="#C8362F">answers</text>
+  <line x1="836" y1="878" x2="924" y2="878" stroke="#C8362F" stroke-width="2.4" marker-end="url(#arrow-media)"/>
+  <text x="880" y="894" text-anchor="middle" font-size="10.5" class="mono" fill="#6B6480">PUT …/frame/:id</text>
+
+  <!-- a screen arriving after the presenter has gone -->
+  <text x="420" y="772" text-anchor="middle" font-size="11" font-weight="600" fill="#1F7884">a late screen</text>
+  <line x1="378" y1="788" x2="462" y2="788" stroke="#1F7884" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#arrow-control)"/>
+  <text x="420" y="806" text-anchor="middle" font-size="10.5" class="mono" fill="#6B6480">GET …/photo/:i</text>
+
+  <!-- lifetime note -->
+  <rect x="70" y="600" width="0" height="0"/>
+  <text x="1330" y="636" text-anchor="end" font-size="11.5" font-weight="600" fill="#6B46C1">150 slides · 1 to 48 hours, extendable once</text>
+
+  <!-- ════ Bottom cards ══════════════════════════════════════════════════════ -->
+
+  <rect x="40" y="955" width="650" height="200" rx="16" fill="#FFFFFF" stroke="rgba(42,36,64,.10)"/>
+  <text x="66" y="989" font-size="15" font-weight="700" fill="#2A2440">Transport</text>
+  <text x="66" y="1016" font-size="12" fill="#2A2440">Every hop between a browser and Vinboo is <tspan font-weight="700">HTTPS</tspan>. Railway's edge</text>
+  <text x="66" y="1034" font-size="12" fill="#2A2440">terminates TLS and forwards to the app over HTTP/1.1.</text>
+  <text x="66" y="1060" font-size="12" fill="#2A2440">Slides travel as <tspan font-weight="700">raw binary bodies</tspan> carrying their own type — no</text>
+  <text x="66" y="1078" font-size="12" fill="#2A2440">base64, no re-encoding, no transcoding.</text>
+  <text x="66" y="1104" font-size="12" fill="#2A2440">Waiting is <tspan font-weight="700">long-polling</tspan>: a GET is held open for up to 25 seconds</text>
+  <text x="66" y="1122" font-size="12" fill="#2A2440">— 30 for a slide — and answered the instant something changes.</text>
+  <text x="66" y="1142" font-size="11.5" fill="#6B6480">The seeding path in purple above uses exactly the same two calls.</text>
+
+  <rect x="710" y="955" width="650" height="200" rx="16" fill="#FFFFFF" stroke="rgba(42,36,64,.10)"/>
+  <text x="736" y="989" font-size="15" font-weight="700" fill="#2A2440">What it deliberately is not</text>
+  <text x="736" y="1016" font-size="12" fill="#2A2440"><tspan font-weight="700">No WebSockets, no WebRTC.</tspan> Every exchange above is an ordinary</text>
+  <text x="736" y="1034" font-size="12" fill="#2A2440">HTTP request and response, which is why it survives corporate</text>
+  <text x="736" y="1052" font-size="12" fill="#2A2440">proxies and hotel Wi-Fi without special handling.</text>
+  <text x="736" y="1078" font-size="12" fill="#2A2440"><tspan font-weight="700">Not peer-to-peer.</tspan> Even when one screen feeds another, it goes</text>
+  <text x="736" y="1096" font-size="12" fill="#2A2440">through the relay. No screen ever learns another's address.</text>
+
+  <rect x="736" y="1110" width="600" height="34" rx="9" fill="#FFEDEC"/>
+  <text x="750" y="1132" font-size="11.5" fill="#C8362F"><tspan font-weight="700">Not end-to-end encrypted.</tspan> TLS protects each hop separately, so the server can read a slide in passing.</text>
+
+  <!-- ════ Legend ════════════════════════════════════════════════════════════ -->
+
+  <line x1="44" y1="1182" x2="86" y2="1182" stroke="#C8362F" stroke-width="2.4"/>
+  <text x="96" y="1187" font-size="11.5" fill="#6B6480">the pictures</text>
+
+  <line x1="196" y1="1182" x2="238" y2="1182" stroke="#1F7884" stroke-width="2"/>
+  <text x="248" y="1187" font-size="11.5" fill="#6B6480">control — who is watching, which slide</text>
+
+  <line x1="524" y1="1182" x2="566" y2="1182" stroke="#936A10" stroke-width="2"/>
+  <text x="576" y="1187" font-size="11.5" fill="#6B6480">accounts</text>
+
+  <line x1="664" y1="1182" x2="706" y2="1182" stroke="#6B46C1" stroke-width="2"/>
+  <text x="716" y="1187" font-size="11.5" fill="#6B6480">a screen serving in the presenter's place</text>
+
+  <line x1="1010" y1="1182" x2="1052" y2="1182" stroke="#1F7884" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="1062" y="1187" font-size="11.5" fill="#6B6480">held open, answered when something changes</text>
+
 </svg>
