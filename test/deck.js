@@ -123,7 +123,8 @@ function makeDeck() {
       + '<p:presentation xmlns:p="p" xmlns:r="r">'
       + '<p:sldIdLst><p:sldId id="256" r:id="rId1"/><p:sldId id="257" r:id="rId2"/>'
       + '<p:sldId id="258" r:id="rId3"/><p:sldId id="259" r:id="rId4"/>'
-      + '<p:sldId id="260" r:id="rId5"/><p:sldId id="261" r:id="rId6"/></p:sldIdLst>'
+      + '<p:sldId id="260" r:id="rId5"/><p:sldId id="261" r:id="rId6"/>'
+      + '<p:sldId id="262" r:id="rId7"/><p:sldId id="263" r:id="rId8"/></p:sldIdLst>'
       + '<p:sldSz cx="9144000" cy="5143500"/>'
       + '</p:presentation>',
 
@@ -134,6 +135,8 @@ function makeDeck() {
       + `<Relationship Id="rId4" Type="${OFFICE_REL}/slide" Target="slides/slide4.xml"/>`
       + `<Relationship Id="rId5" Type="${OFFICE_REL}/slide" Target="slides/slide5.xml"/>`
       + `<Relationship Id="rId6" Type="${OFFICE_REL}/slide" Target="slides/slide6.xml"/>`
+      + `<Relationship Id="rId7" Type="${OFFICE_REL}/slide" Target="slides/slide7.xml"/>`
+      + `<Relationship Id="rId8" Type="${OFFICE_REL}/slide" Target="slides/slide8.xml"/>`
       + `<Relationship Id="rId9" Type="${OFFICE_REL}/theme" Target="theme/theme1.xml"/>`
       + '</Relationships>',
 
@@ -265,6 +268,65 @@ function makeDeck() {
       + `<Relationship Id="rIdM" Type="${OFFICE_REL}/image" Target="../media/diagram.wmf"/>`
       + '</Relationships>',
 
+    // Slide 7: SmartArt, written the way PowerPoint writes it — the frame
+    // points at a data part, and the drawing hangs off that part's own rels.
+    'ppt/slides/slide7.xml': '<?xml version="1.0"?>'
+      + '<p:sld xmlns:p="p" xmlns:a="a" xmlns:r="r" xmlns:dgm="dgm">'
+      + '<p:cSld><p:spTree>'
+      + '<p:graphicFrame><p:xfrm><a:off x="914400" y="457200"/><a:ext cx="4000000" cy="2000000"/></p:xfrm>'
+      + '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/diagram">'
+      + '<dgm:relIds r:dm="rIdD" r:lo="rIdL" r:qs="rIdQ" r:cs="rIdC"/>'
+      + '</a:graphicData></a:graphic></p:graphicFrame>'
+      + '</p:spTree></p:cSld></p:sld>',
+
+    'ppt/slides/_rels/slide7.xml.rels': `<Relationships xmlns="${RELS_NS}">`
+      + `<Relationship Id="rIdD" Type="${OFFICE_REL}/diagramData" Target="../diagrams/data1.xml"/>`
+      + '</Relationships>',
+
+    'ppt/diagrams/data1.xml': '<?xml version="1.0"?><dgm:dataModel xmlns:dgm="dgm"/>',
+
+    // The drawing is reached from the data part, not the slide.
+    'ppt/diagrams/_rels/data1.xml.rels': `<Relationships xmlns="${RELS_NS}">`
+      + '<Relationship Id="rIdDr"'
+      + ' Type="http://schemas.microsoft.com/office/2007/relationships/diagramDrawing"'
+      + ' Target="drawing1.xml"/>'
+      + '</Relationships>',
+
+    // Two boxes in the diagram's own coordinate space, which is the frame's.
+    'ppt/diagrams/drawing1.xml': '<?xml version="1.0"?>'
+      + '<dsp:drawing xmlns:dsp="dsp" xmlns:a="a">'
+      + '<dsp:spTree>'
+      + '<dsp:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="4000000" cy="2000000"/>'
+      + '<a:chOff x="0" y="0"/><a:chExt cx="4000000" cy="2000000"/></a:xfrm></dsp:grpSpPr>'
+      + '<dsp:sp><dsp:nvSpPr><dsp:cNvPr id="1" name="Node A"/></dsp:nvSpPr>'
+      + '<dsp:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="2000000" cy="1000000"/></a:xfrm>'
+      + '<a:prstGeom prst="roundRect"/><a:solidFill><a:srgbClr val="3366CC"/></a:solidFill></dsp:spPr>'
+      + '<dsp:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="1400"/><a:t>Plan</a:t></a:r></a:p></dsp:txBody>'
+      + '</dsp:sp>'
+      + '<dsp:sp><dsp:nvSpPr><dsp:cNvPr id="2" name="Node B"/></dsp:nvSpPr>'
+      + '<dsp:spPr><a:xfrm><a:off x="2000000" y="1000000"/><a:ext cx="2000000" cy="1000000"/></a:xfrm>'
+      + '<a:prstGeom prst="rect"/><a:solidFill><a:srgbClr val="CC3366"/></a:solidFill></dsp:spPr>'
+      + '<dsp:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="1400"/><a:t>Build</a:t></a:r></a:p></dsp:txBody>'
+      + '</dsp:sp>'
+      + '</dsp:spTree></dsp:drawing>',
+
+    // Slide 8: SmartArt with no drawing part, which is what a file written by
+    // something other than PowerPoint can look like. Still a placeholder.
+    'ppt/slides/slide8.xml': '<?xml version="1.0"?>'
+      + '<p:sld xmlns:p="p" xmlns:a="a" xmlns:r="r" xmlns:dgm="dgm">'
+      + '<p:cSld><p:spTree>'
+      + '<p:graphicFrame><p:xfrm><a:off x="914400" y="457200"/><a:ext cx="3000000" cy="1500000"/></p:xfrm>'
+      + '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/diagram">'
+      + '<dgm:relIds r:dm="rIdD"/>'
+      + '</a:graphicData></a:graphic></p:graphicFrame>'
+      + '</p:spTree></p:cSld></p:sld>',
+
+    'ppt/slides/_rels/slide8.xml.rels': `<Relationships xmlns="${RELS_NS}">`
+      + `<Relationship Id="rIdD" Type="${OFFICE_REL}/diagramData" Target="../diagrams/bare.xml"/>`
+      + '</Relationships>',
+
+    'ppt/diagrams/bare.xml': '<?xml version="1.0"?><dgm:dataModel xmlns:dgm="dgm"/>',
+
     'ppt/media/diagram.wmf': 'not something a browser can draw',
 
     // Slide 3: text that cannot possibly fit, plus markup that must stay inert.
@@ -385,7 +447,7 @@ function svgText(svg) {
 
   const deck = makeDeck();
   const rendered = await Pptx.render(deck.buffer.slice(deck.byteOffset, deck.byteOffset + deck.byteLength));
-  const [slide1, slide2, slide3, slide4, slide5, slide6] = rendered.slides;
+  const [slide1, slide2, slide3, slide4, slide5, slide6, slide7, slide8] = rendered.slides;
 
   check('reads the slide size', () => {
     assert.strictEqual(Math.round(rendered.width), 960);
@@ -393,7 +455,7 @@ function svgText(svg) {
   });
 
   check('renders every slide in presentation order', () => {
-    assert.strictEqual(rendered.slides.length, 6);
+    assert.strictEqual(rendered.slides.length, 8);
     assert.ok(svgText(slide1.svg).includes('Hello & welcome'));
     assert.ok(svgText(slide2.svg).includes('narrow shape'));
   });
@@ -595,6 +657,66 @@ check('the summary counts slides, not objects', () => {
   assert.ok(rendered.incomplete >= 1);
   assert.ok(Array.isArray(rendered.kinds) && rendered.kinds.length >= 1, JSON.stringify(rendered.kinds));
   assert.strictEqual(new Set(rendered.kinds).size, rendered.kinds.length, 'kinds are not repeated');
+});
+
+check('the breakdown says how much each kind costs', () => {
+  // Which kinds are missing does not say whether the hole is one expensive
+  // feature or several cheap ones; deciding what to build next needs the count.
+  const counts = rendered.counts;
+  assert.ok(counts && typeof counts === 'object', JSON.stringify(counts));
+  assert.deepStrictEqual(Object.keys(counts).sort(), [...rendered.kinds].sort());
+
+  const total = Object.values(counts).reduce((n, c) => n + c.occurrences, 0);
+  const everyMissing = rendered.slides.reduce((n, s) => n + s.missing.length, 0);
+  assert.strictEqual(total, everyMissing, 'occurrences must tally with what was recorded');
+
+  for (const [kind, entry] of Object.entries(counts)) {
+    assert.ok(entry.slides <= entry.occurrences, kind);
+    assert.ok(entry.slides >= 1, kind);
+  }
+});
+
+console.log('\n— SmartArt —');
+
+check('SmartArt is drawn from the picture PowerPoint already made', () => {
+  // The diagram's own parts are data and layout rules, but PowerPoint also
+  // writes the finished shapes. Finding those is the whole trick.
+  assert.deepStrictEqual(slide7.missing, [], JSON.stringify(slide7.missing));
+  assert.ok(!/Diagram<\/text>/.test(slide7.svg), 'a placeholder was drawn instead');
+  assert.ok(slide7.svg.includes('>Plan<'), 'first node text missing');
+  assert.ok(slide7.svg.includes('>Build<'), 'second node text missing');
+  assert.ok(slide7.svg.includes('#3366CC') && slide7.svg.includes('#CC3366'),
+    'node fills missing');
+});
+
+check('its shapes land inside the frame, not at the slide origin', () => {
+  // The drawing has coordinates of its own; they have to be mapped onto the
+  // frame the way a group transform maps its children.
+  const frameX = 914400 / 9525;      // EMU per px, as the renderer uses
+  const frameY = 457200 / 9525;
+  const frameW = 4000000 / 9525;
+
+  const xs = [...slide7.svg.matchAll(/<rect x="([\d.]+)" y="([\d.]+)"/g)]
+    .map((m) => ({ x: Number(m[1]), y: Number(m[2]) }))
+    .filter((p) => p.x !== 0 || p.y !== 0);   // drop the slide background rect
+
+  assert.ok(xs.length >= 1, 'no positioned shapes were drawn');
+  for (const p of xs) {
+    assert.ok(p.x >= frameX - 1 && p.x <= frameX + frameW + 1,
+      `shape at x=${p.x} is outside the frame starting at ${frameX}`);
+    assert.ok(p.y >= frameY - 1, `shape at y=${p.y} is above the frame at ${frameY}`);
+  }
+
+  // The second node sits half the frame across and half of it down.
+  const second = xs.find((p) => p.x > frameX + frameW / 4);
+  assert.ok(second, `no shape offset into the frame: ${JSON.stringify(xs)}`);
+});
+
+check('a diagram with no drawing part still says so', () => {
+  // Only PowerPoint is obliged to write that part. Anything else gets the
+  // labelled space, and the presenter gets told.
+  assert.deepStrictEqual(slide8.missing, ['SmartArt'], JSON.stringify(slide8.missing));
+  assert.ok(slide8.svg.includes('>Diagram<'), 'the placeholder label is missing');
 });
 
 console.log('\n— identifying an image from its bytes —');

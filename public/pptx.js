@@ -1118,6 +1118,77 @@
     }
   }
 
+  /*
+   * SmartArt, by way of the picture PowerPoint has already drawn.
+   *
+   * A diagram's own parts describe it as data plus layout rules, so drawing it
+   * from those would mean implementing the layout engine. There is no need:
+   * PowerPoint also writes a `diagramDrawing` part holding the finished result
+   * as ordinary shapes, precisely so that readers which cannot lay it out can
+   * still draw it. Find that part and the existing shape renderer does the rest
+   * without ever knowing it is looking at SmartArt.
+   *
+   * The part is a Microsoft extension rather than something the base standard
+   * promises, so a file without one still falls through to the placeholder.
+   */
+  function diagramDrawing(node, ctx) {
+    const relIds = X.find(node, 'dgm:relIds');
+    const dataRel = relIds && ctx.rels.get(X.attr(relIds, 'r:dm'));
+    if (!dataRel || dataRel.external) return null;
+
+    const drawingRel = [...relsFor(ctx.files, dataRel.path).values()]
+      .find((rel) => rel.type.endsWith('/diagramDrawing'));
+    if (!drawingRel || drawingRel.external) return null;
+
+    const xml = partXml(ctx.files, drawingRel.path);
+    const tree = xml && X.find(xml, 'dsp:spTree');
+    if (!tree) return null;
+    return { tree, rels: relsFor(ctx.files, drawingRel.path) };
+  }
+
+  /*
+   * The drawing part is DrawingML under a different prefix: dsp:sp holds an
+   * a:xfrm and an a:p exactly as p:sp does. Renaming the handful of wrappers is
+   * enough to hand it to the renderer that already draws shapes.
+   */
+  const DSP_TO_PML = new Map([
+    ['dsp:spTree', 'p:spTree'], ['dsp:sp', 'p:sp'], ['dsp:spPr', 'p:spPr'],
+    ['dsp:txBody', 'p:txBody'], ['dsp:grpSpPr', 'p:grpSpPr'], ['dsp:style', 'p:style'],
+    ['dsp:nvSpPr', 'p:nvSpPr'], ['dsp:cNvPr', 'p:cNvPr'], ['dsp:cNvSpPr', 'p:cNvSpPr'],
+  ]);
+
+  function asPresentationML(node) {
+    return {
+      ...node,
+      name: DSP_TO_PML.get(node.name) || node.name,
+      children: node.children.map(asPresentationML),
+    };
+  }
+
+  function renderDiagram(node, ctx, box, out) {
+    const found = diagramDrawing(node, ctx);
+    if (!found) return false;
+
+    const tree = asPresentationML(found.tree);
+    if (!X.children(tree, 'p:sp').length) return false;
+
+    /*
+     * The drawing has a coordinate space of its own. Mapping it onto the frame
+     * is exactly what a group transform does, so say so and reuse that: one
+     * group, already in slide coordinates, because `box` has been placed.
+     */
+    const grp = readTransform(X.child(tree, 'p:grpSpPr'));
+    const frameExt = X.child(X.path(node, 'p:xfrm'), 'a:ext');
+    const childOff = (grp && (grp.childOff || { x: grp.x, y: grp.y })) || { x: 0, y: 0 };
+    const childExt = (grp && (grp.childExt || { w: grp.w, h: grp.h }))
+      || { w: emu(X.attr(frameExt, 'cx', 0)), h: emu(X.attr(frameExt, 'cy', 0)) };
+    if (!childExt.w || !childExt.h) return false;
+
+    const group = { x: box.x, y: box.y, w: box.w, h: box.h, childOff, childExt };
+    renderTree(tree, { ...ctx, rels: found.rels, groups: [group] }, out);
+    return true;
+  }
+
   function renderGraphicFrame(node, ctx, out) {
     const xfrm = X.path(node, 'p:xfrm');
     const off = X.child(xfrm, 'a:off');
@@ -1131,6 +1202,7 @@
 
     const uri = X.attr(X.find(node, 'a:graphicData'), 'uri', '');
     if (uri.includes('chart') && renderChartFrame(node, ctx, box, out)) return;
+    if (uri.includes('diagram') && renderDiagram(node, ctx, box, out)) return;
 
     // SmartArt and embedded objects still aren't rendered; leave a labelled
     // space so the slide reads the way it was laid out rather than showing a
@@ -1307,7 +1379,27 @@
      */
     const incomplete = slides.filter((slide) => slide.missing.length);
     const kinds = [...new Set(incomplete.flatMap((slide) => slide.missing))];
-    return { width, height, slides, incomplete: incomplete.length, kinds };
+
+    /*
+     * The same summary broken down, because "which kinds are missing" does not
+     * say whether the hole is one expensive feature or four cheap ones. Deciding
+     * what to build next needs the count, and the count of slides spoilt by it —
+     * ten metafiles on one slide cost one slide, not ten.
+     */
+    const counts = {};
+    for (const slide of slides) {
+      const seenHere = new Set();
+      for (const kind of slide.missing) {
+        const entry = counts[kind] || (counts[kind] = { occurrences: 0, slides: 0 });
+        entry.occurrences += 1;
+        if (!seenHere.has(kind)) {
+          entry.slides += 1;
+          seenHere.add(kind);
+        }
+      }
+    }
+
+    return { width, height, slides, incomplete: incomplete.length, kinds, counts };
   }
 
   return { render, approximateMeasure };
