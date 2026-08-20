@@ -550,11 +550,17 @@ sharing relay as ordinary images because that's what they've become.
 
 What comes through: slide order and size, backgrounds, text with its font,
 size, weight, colour, alignment, wrapping and bullets, pictures, shapes with
-fills and outlines, connectors, grouped shapes, and tables.
+fills and outlines, connectors, grouped shapes, tables, charts, SmartArt, and
+the Windows metafiles behind most embedded charts and Visio drawings.
 
-What doesn't: animations and transitions, charts and SmartArt (drawn as a
-labelled placeholder so the layout still reads), 3-D effects, and WordArt.
-Gradients are approximated by their first colour stop.
+What doesn't: animations and transitions, 3-D effects, WordArt, WMF (the older
+metafile format), and embedded objects that carry no cached preview. Gradients
+are approximated by their first colour stop, and a title placeholder does not
+yet inherit its size and colour from the master's text styles.
+
+Measured across 32 real corporate decks — 1,126 slides — **98% render with
+nothing missing**. See `docs/rendering-gap.md` for how that was measured and
+what it cost to get there.
 
 Two things follow from rendering rather than screenshotting. Decks stay sharp
 at any size and stream as a few KB per slide instead of a full-resolution
@@ -591,18 +597,22 @@ diamond, parallelogram, trapezoid, pentagon, hexagon, octagon and plus, along
 with elbow connectors. A flipped shape mirrors its outline but not its text,
 which is what PowerPoint does. Anything else still falls back to a rectangle.
 
-**Not rendered:** SmartArt, and embedded objects whose preview is an EMF or WMF
-metafile — both leave a labelled placeholder so the slide still reads the way it
-was laid out. Rendering a metafile faithfully means implementing a Windows
-drawing interpreter, which is a poor trade for the number of slides it affects.
+**SmartArt** is drawn from the finished shapes PowerPoint caches alongside the
+diagram, so no layout engine is needed. **EMF** — the format behind most embedded
+charts and Visio drawings — is played back record by record from the published
+specification by `public/emf.js`.
+
+**Still not rendered:** WMF, the older metafile format, and embedded objects that
+carry no cached preview. Both leave a labelled placeholder so the slide still
+reads the way it was laid out. Between them they account for 16 slides in 1,126.
 
 ### When a deck does not come through whole
 
 The renderer counts what it could not draw and says so, naming the fix:
 
-> **13 of 35 slides in "IT Arch Mobilization" did not come through.** They
-> contain an embedded object, an embedded drawing and a Windows metafile, which
-> Vinboo cannot draw — those slides show a marked box where it should be.
+> **2 of 41 slides in "Quarterly Review" did not come through.** They contain a
+> Windows metafile, which Vinboo cannot draw — those slides show a marked box
+> where it should be.
 >
 > For an exact copy, open the deck in PowerPoint and choose **File → Export →
 > PNG** ("All Slides"), then drop that folder in here instead.
@@ -612,7 +622,14 @@ PowerPoint draws the slides itself, so SmartArt, embedded Visio and metafiles al
 come through exactly. Vinboo then plays them as ordinary photos, and the
 numeric-aware sort puts `Slide2` before `Slide10` where a plain sort would not.
 
-The warning appears only when something was actually lost — four of the five real
+The warning appears only when something was actually lost — which, on the decks
+measured, is now rare. Note what it cannot tell you: it counts what the renderer
+knowingly skipped, and is blind to anything drawn *wrongly*. Two decks scored
+100% clean while being unusable, once because text was laid out at zero size and
+once because hidden template furniture was drawn over every slide. Both are
+fixed; the lesson is that the count is not a substitute for looking.
+
+Four of the five real
 decks tested here render whole and say nothing. A warning that cries wolf is
 worse than no warning, so it counts *slides a presenter has to do something
 about*, not objects.

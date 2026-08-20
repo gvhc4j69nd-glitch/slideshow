@@ -32,7 +32,7 @@ clean and the code is small — 2,243 lines across the server and its libraries.
 | 1 | Cannot run more than one instance | Blocking | Days |
 | 2 | 200-session cap breached by Year 3 model | Blocking | Hours, after 1 |
 | 3 | Every deploy destroys every running show | Blocking | Days |
-| 4 | Conversion tier would stall the relay | Blocking, pre-emptive | Design decision |
+| 4 | Conversion tier would stall the relay | Standing constraint; tier no longer planned | Design decision |
 | 5 | Socket volume and denial-of-service surface | Serious | Days |
 | 6 | Per-session cache budget is 64 MB | Moderate | Hours |
 
@@ -113,9 +113,17 @@ young product needs.
 
 ### Finding 4 — Server-side conversion must not run on the relay process
 
-This is pre-emptive rather than a defect in the current build, and it is
-important because server-side document conversion is the item the funding is
-sought for.
+**Superseded in practice, kept as a standing constraint.** When this was written,
+server-side conversion was the item the funding was sought for. It is no longer
+planned: the browser renderer now draws 98% of slides across 32 real corporate
+decks, so the fidelity that justified a converter is reached without one. See
+`rendering-gap.md`.
+
+The constraint below still binds the day anything CPU-bound is added — PDF input
+being the most likely candidate — so it stays on the list rather than being
+deleted.
+
+This was pre-emptive rather than a defect in the current build.
 
 LibreOffice conversion costs seconds of CPU per deck. Node is single-threaded,
 and the relay is thousands of parked connections on one event loop. A single
@@ -205,9 +213,11 @@ one it can, and it decouples deployment from user-visible breakage.
 The photo bytes should remain ephemeral. That is the product's central claim and
 it should not be traded away for operational convenience.
 
-### Separate the conversion tier before building it
+### Separate any conversion tier before building it
 
-A queue and a distinct worker service, sized independently of the relay.
+No longer on the roadmap — the browser renderer removed the need — but if PDF
+input or anything else CPU-bound arrives, it needs a queue and a distinct worker
+service, sized independently of the relay.
 
 ### Sequencing
 
@@ -216,7 +226,7 @@ A queue and a distinct worker service, sized independently of the relay.
 | 1 | Persist session records | Unblocks safe deploys; independent of the rest |
 | 2 | Shard by code, raise the cap per instance | Removes the hard ceiling |
 | 3 | Per-IP connection limits, shared rate limiting | Only meaningful once multi-instance |
-| 4 | Conversion worker tier | The funded item, safe to build after 1–3 |
+| 4 | ~~Conversion worker tier~~ | No longer planned — see Finding 4 |
 
 Items 1 to 3 are prerequisites to the adoption curve the business plan projects,
 not optimisations. They are days of work rather than months.

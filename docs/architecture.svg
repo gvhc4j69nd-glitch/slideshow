@@ -32,7 +32,7 @@
   <text x="40" y="102" font-size="13" font-weight="700" fill="#6B6480" letter-spacing="1.2">WHILE THE PRESENTER IS THERE</text>
 
   <!-- Presenter -->
-  <rect x="40" y="115" width="300" height="345" rx="18" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
+  <rect x="40" y="115" width="300" height="368" rx="18" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>
   <rect x="40" y="115" width="300" height="5" rx="2.5" fill="#FF8382"/>
   <text x="62" y="149" font-size="16" font-weight="700" fill="#2A2440">Presenter's browser</text>
   <text x="62" y="169" font-size="12.5" fill="#6B6480">phone · laptop · tablet</text>
@@ -41,7 +41,7 @@
   <text x="76" y="204" font-size="12.5" font-weight="600" fill="#C8362F">Photos and .pptx files</text>
   <text x="76" y="221" font-size="11.5" fill="#C8362F">read straight off the device</text>
 
-  <text x="62" y="255" font-size="12" fill="#2A2440">• Renders PowerPoint into SVG slides</text>
+  <text x="62" y="255" font-size="12" fill="#2A2440">• Draws PowerPoint, charts and SmartArt</text>
   <text x="62" y="275" font-size="12" fill="#2A2440">• Holds the playlist and running order</text>
   <text x="62" y="295" font-size="12" fill="#2A2440">• Answers requests for single slides</text>
 
@@ -52,8 +52,9 @@
   <text x="76" y="384" font-size="11.5" fill="#1F7884">takes a copy, and then it need not.</text>
 
   <text x="62" y="418" font-size="11.5" fill="#6B6480">Everything here happens in the browser:</text>
-  <text x="62" y="434" font-size="11.5" fill="#6B6480">files are read locally, and a .pptx is</text>
-  <text x="62" y="450" font-size="11.5" fill="#6B6480">unzipped and drawn with no round trip.</text>
+  <text x="62" y="434" font-size="11.5" fill="#6B6480">a .pptx — with its charts, SmartArt and</text>
+  <text x="62" y="450" font-size="11.5" fill="#6B6480">metafiles — is unzipped and drawn here.</text>
+  <text x="62" y="466" font-size="11.5" font-weight="600" fill="#1F7884">98% of slides in 32 real decks come through.</text>
 
   <!-- Server -->
   <rect x="550" y="115" width="300" height="345" rx="18" fill="#FFFFFF" stroke="rgba(42,36,64,.12)"/>

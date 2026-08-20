@@ -17,7 +17,7 @@ account needed to watch.
 **The model.** Free, funded by three ad placements — the landing page, the
 signed-in library, and the viewer page. Paid tiers remove the ads and add what
 the free architecture cannot do: **Plus** ($3.99) for a show that survives
-everyone going offline, **Pro** ($15) for exact PowerPoint fidelity and the tools
+everyone going offline, **Pro** ($15) for the tools
 a professional presenter needs, **Private** ($8.99) for end-to-end encryption,
 and **Event** ($19 once) for a weekend. Pro and Private are alternatives rather
 than rungs — a server cannot both render your deck and be unable to read it.
@@ -41,7 +41,9 @@ and is the single highest-value engineering task in this document.
 **Where the money most likely is.** Sized bottom-up in §2: **6,413 business
 presenters would out-earn 250,000 consumer ones — 39× fewer people for 2.7× the
 revenue.** The business segment is worth ~$115M/year serviceable in the US alone,
-and it is the one currently blocked by deck fidelity rather than by demand.
+and it is no longer blocked by deck fidelity — the browser renderer now draws
+98% of slides across 32 real corporate decks — so what gates it is demand, which
+has not been tested.
 
 **The pleasant surprise.** Premium is *cheaper to serve than free*. Object
 storage costs $0.015/GB-month with free egress on both Railway and Cloudflare
@@ -118,7 +120,8 @@ doing $38M in an adjacent category.
 That single line argues the product should point at the business presenter, and
 that the party use case the landing page leads with is commercially the weakest
 of the three. It is also the segment currently blocked by the thing §5 prices:
-**37% of a real enterprise deck renders as grey boxes** until Pro exists.
+**this no longer holds** — see §4. The browser renderer now draws 98% of slides
+across 32 real corporate decks, so fidelity is no longer what gates the segment.
 
 **The counterweight, which does not go away.** Microsoft retired Present Live for
 low usage — the closest analogue to the core feature, with a billion-seat
@@ -212,12 +215,16 @@ presents for a living, expenses the tool, and compares it against **Mentimeter a
 $11.99–24.99** and **Sync at $12.50** rather than against Pixo. $15 sits inside
 that band and is unambiguously a different product from a $3.99 consumer plan.
 
-- **Exact deck fidelity.** The deck is converted server-side by LibreOffice, so
-  SmartArt, embedded Visio and Windows metafiles all come through. On the one
-  real enterprise deck tested in this repository that is the difference between
-  **13 of 35 slides showing a grey box** and none.
-- **PDF as an input** — nearly free once a converter exists, and PDF is what most
-  people already have to hand.
+- ~~**Exact deck fidelity** via server-side conversion.~~ **Removed.** This was
+  Pro's lead feature and the justification for the whole conversion programme.
+  It rested on one deck rendering 13 of 35 slides as grey boxes. Measured across
+  32 real corporate decks the browser renderer now draws **98% of slides**, with
+  SmartArt, embedded Visio and Windows metafiles all coming through — and with
+  nothing uploaded. See `rendering-gap.md`. Fidelity is now a property of the
+  free tier and a competitive advantage over every uploader, not a paywall.
+- **PDF as an input.** Still wanted, and now the strongest remaining argument for
+  a converter, because PDF is what most people have to hand and it needs no
+  fidelity claim to justify it.
 - **Speaker notes and a presenter view.** Verified missing today, and a real gap
   for anyone presenting professionally.
 - **A saved deck library.** A sales rep shows the same deck every week; today
@@ -231,17 +238,25 @@ that band and is unambiguously a different product from a $3.99 consumer plan.
 - **Team seats.** One champion at a company brings a team rather than a friend,
   which is where expansion revenue comes from.
 
-*Why the bundle matters:* exact rendering alone is not worth $15/month. The
-combination of fidelity, notes, a reusable library and branding is.
+*Why the bundle matters:* exact rendering alone was never worth $15/month, and
+it is no longer on the list at all. What is left — notes and presenter view, a
+saved library, branding, attendance, team seats — is a coherent professional
+bundle, but **it is a weaker bundle than the one that was priced, and $15 should
+be re-tested against it rather than assumed.** That is a commercial decision this
+document cannot make for you.
 
-**Build it by buying it first.** A conversion API costs roughly a fraction of a
-cent per deck against **$36–81/month of always-on capacity** self-hosted (§5), and
-it avoids the part that should worry you most: **LibreOffice parsing untrusted
+**And if a converter is built anyway — buy it first.** It would now be for PDF
+input rather than fidelity. A conversion API costs roughly a fraction of a cent
+per deck against **$36–81/month of always-on capacity** self-hosted (§5), and it
+avoids the part that should worry you most: **LibreOffice parsing untrusted
 uploads is a classic remote-code-execution surface.** Self-hosting it properly
 means a sandboxed container with no network, hard memory and time limits and
-dropped privileges. Move in-house when volume justifies it — or when a
-procurement team objects to the deck touching a third party, which is a better
-objection to answer with "our server, deleted after" than with a vendor name.
+dropped privileges.
+
+The stronger point is that none of that has to be spent now. Every argument for
+putting a document converter on a server also puts an asterisk on the promise
+the rest of the product makes, and the fidelity that justified paying that price
+turned out to be reachable in the browser.
 
 ### Vinboo Private — $8.99/month or $79/year
 
@@ -396,9 +411,13 @@ it is closed, this section has to be rewritten before it ships, not after.
 
 ### What server-side conversion costs
 
-The Pro tier's anchor feature is the only part of the product that needs real
-compute. The arithmetic is unusual: the work itself is free, and the *readiness*
-to do it is not.
+**Kept for the decision it now supports, which is not the one it was written
+for.** Conversion was Pro's anchor feature; it is not any more, because the
+browser renderer reaches 98% of slides on real decks. What remains below is what
+a converter would cost *if* PDF input or some future need justifies one — and
+the shape of the arithmetic is the reason to be slow about it.
+
+The work itself is free, and the *readiness* to do it is not.
 
 | | Cost |
 |---|---|
@@ -409,7 +428,8 @@ to do it is not.
 
 So it is a **fixed floor of roughly $60/month** rather than a per-unit cost, and
 **five subscribers at $15 cover it**. Conversions themselves never become the
-expense; idle headroom is.
+expense; idle headroom is — which is a poor thing to be paying for before a
+feature has a buyer, and there is now no fidelity argument forcing the issue.
 
 Which is the argument for **not building it first**. A conversion API costs on the
 order of a fraction of a cent per deck with a ~$9/month floor [sourced], so a
@@ -587,12 +607,15 @@ Carried from the competitive analysis, with financial consequences attached.
    placement as an experiment and measure it separately.
 4. **Vinboo Plus.** Server-stored shows, longer life, no ads. This is the first
    real revenue and it answers Pixo directly.
-5. **Vinboo Pro**, if the business segment validates. Buy the conversion rather
-   than building it, and lead with exact fidelity plus a saved deck library.
+5. **Vinboo Pro**, if the business segment validates. Lead with the saved deck
+   library, notes and branding: exact fidelity is no longer a Pro feature
+   because the free renderer already reaches 98% of slides. Re-test the $15
+   price against the smaller bundle before committing to it.
 6. **Vinboo Event.** Cheap to build once Plus exists — it is Plus with a clock.
 7. **Vinboo Private.** The E2EE tier. Highest engineering cost, strongest
    position, and the only feature here that no competitor can answer quickly.
-   Note that it forecloses Pro's rendering for anyone who takes it.
+   The conflict with server-side rendering that used to make this awkward has
+   gone: rendering happens in the browser, so encryption costs the deck nothing.
 8. **Video.** Free tier, parity, only if the party use case is being taken
    seriously.
 

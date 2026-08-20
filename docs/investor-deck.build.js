@@ -287,9 +287,9 @@ const IMG = __dirname + '/';
 
   const cw = (W - M * 2 - 0.5) / 3;
   [
-    { v: '234', l: 'automated tests passing across six suites', c: C.coralInk },
-    { v: '$0', l: 'of outside capital raised to date', c: C.cyanInk },
-    { v: '~$227', l: 'monthly infrastructure at first-year volumes', c: C.amberInk },
+    { v: '98%', l: 'of slides in 32 real corporate decks render with nothing missing — in the browser, nothing uploaded', c: C.coralInk },
+    { v: '267', l: 'automated tests passing across seven suites', c: C.cyanInk },
+    { v: '$0', l: 'of outside capital raised to date', c: C.amberInk },
   ].forEach((t, i) => {
     const x = M + i * (cw + 0.25);
     card(s, { x, y: y0, w: cw, h: 1.75, fill: C.white });
@@ -304,7 +304,8 @@ const IMG = __dirname + '/';
   bullets(s, [
     'Live relay: photos and PowerPoint to unlimited screens',
     'Hand-off mode — the show survives the presenter leaving',
-    'PowerPoint rendered to vector graphics in the browser',
+    'PowerPoint, SmartArt, charts and Visio drawn in the browser',
+    'Deck fidelity measured on 32 real decks, not assumed',
     'QR joining, accounts, multiple concurrent shows, feedback',
   ], { x: M + 0.4, y: y0 + 2.72, w: 5.6, h: 1.6, size: 13 });
 
@@ -314,7 +315,7 @@ const IMG = __dirname + '/';
   });
   bullets(s, [
     'Payment processing and subscription management',
-    'Exact server-side rendering of complex decks',
+    'WMF metafiles and a few objects with no preview',
     'End-to-end encryption (the Private tier)',
     'Horizontal scale — one process holds all state today',
   ], { x: M + 6.5, y: y0 + 2.72, w: 5.6, h: 1.6, size: 13, color: C.inkSoft });
@@ -445,7 +446,7 @@ const IMG = __dirname + '/';
 
   const tiers = [
     { n: 'Free', p: 'Ad supported', d: 'The funnel and the advertising floor. Full live sharing, limited hand-off.', ink: C.inkSoft, fill: C.white },
-    { n: 'Pro', p: '$180 / year', d: 'The business presenter. Exact deck fidelity, longer hand-off, unlimited screens.', ink: C.coralInk, fill: C.coralSoft },
+    { n: 'Pro', p: '$180 / year', d: 'The business presenter. Saved deck library, presenter notes, branding, unlimited screens.', ink: C.coralInk, fill: C.coralSoft },
     { n: 'Events', p: '$19 / event', d: 'One-time pass sold through wedding and event vendors.', ink: C.amberInk, fill: C.amberSoft },
     { n: 'Private', p: 'Premium', d: 'End-to-end encrypted. Designed, not yet built.', ink: C.cyanInk, fill: C.cyanSoft },
   ];
@@ -487,12 +488,12 @@ const IMG = __dirname + '/';
 /* ── 11. Roadmap ──────────────────────────────────────────────────────────── */
 {
   const s = darkSlide();
-  const y0 = heading(s, 'Where it goes next', 'Four pieces of engineering, in dependency order. The first three are prerequisites to the adoption curve; the fourth is the moat.', true);
+  const y0 = heading(s, 'Where it goes next', 'One of these is already done. Of what is left, two are prerequisites to the adoption curve and one is the moat.', true);
 
   const phases = [
     { n: '1', t: 'Survive its own deploys', d: 'Persist the session record so a restart stops ending every live show. Days of work.', ink: C.cyan },
     { n: '2', t: 'Scale past one machine', d: 'Shard on the show code so requests for a show always meet in one process. Removes a hard 200-show ceiling.', ink: C.cyan },
-    { n: '3', t: 'Exact deck fidelity', d: 'Server-side conversion. 37% of a real enterprise deck currently renders as placeholders. This gates the entire business tier.', ink: C.amber },
+    { n: '3', t: 'Deck fidelity — done', d: 'Measured at 98% of slides across 32 real corporate decks, in the browser, with nothing uploaded. This was the gate on the business tier.', ink: C.amber },
     { n: '4', t: 'Vinboo Private', d: 'End-to-end encryption. The strongest differentiator, and the one no competitor offers.', ink: C.coral },
   ];
   const cw = (W - M * 2 - 0.75) / 4;
@@ -558,7 +559,7 @@ const IMG = __dirname + '/';
   });
 
   card(s, { x: M, y: 5.55, w: W - M * 2, h: 1.0, fill: C.white });
-  s.addText('The tension worth naming: encryption and server-side conversion are mutually exclusive. If the server cannot read the deck, it cannot convert it — so Private trades exact fidelity for secrecy. That is a deliberate, disclosed choice, not an oversight.',
+  s.addText('A tension that used to sit here has gone. Encryption and server-side conversion are mutually exclusive — a server cannot convert a deck it cannot read — which once meant Private would cost exact fidelity. Rendering now happens in the browser, so encryption costs the deck nothing.',
     { x: M + 0.4, y: 5.72, w: W - M * 2 - 0.8, h: 0.7, fontFace: F.body, fontSize: 12.5, italic: true, color: C.ink, margin: 0, valign: 'top' });
   s.addNotes('Investors with security backgrounds will ask about the JavaScript delivery problem. Answering it before they raise it is worth more than the claim itself.');
 }
@@ -571,7 +572,7 @@ const IMG = __dirname + '/';
 
   const risks = [
     { r: 'Nobody wants the feature', m: 'Microsoft retired Present Live for low usage — the closest analogue, with a billion-seat channel.', a: 'Re-pitch on control, not participation. Validate with real sales professionals before building further.' },
-    { r: 'Deck fidelity blocks the business tier', m: '37% of a real enterprise deck renders as placeholders today.', a: 'Server-side conversion. Costed, scoped, and first in the funded roadmap.' },
+    { r: 'Deck fidelity blocked the business tier', m: 'It did: 37% of one enterprise deck rendered as placeholders.', a: 'Answered. 98% of slides across 32 real decks, measured, in the browser.' },
     { r: 'The architecture will not scale', m: 'All state is in one process; a hard ceiling of 200 concurrent shows, breached by the Year 3 model.', a: 'Shard by show code. Days of work, not a rewrite. Documented in full.' },
     { r: 'No proven acquisition channel', m: 'The plan has no data on how customers are reached, and this is the weakest part of it.', a: 'Event vendors first: one DJ serves forty weddings a year where a couple serves one.' },
   ];
