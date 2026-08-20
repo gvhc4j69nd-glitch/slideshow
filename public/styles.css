@@ -333,6 +333,19 @@ a { color: var(--coral-ink); }
 /* Hide the chrome while playing until something happens. */
 #player.idle .controls, #player.idle .progress,
 #viewer.idle .controls { opacity: 0; pointer-events: none; }
+
+/* Fallback fullscreen, for televisions and iOS where the Fullscreen API is
+   missing or refused. The browser's own toolbar has to stay; ours goes — except
+   the button that gets back out, which would otherwise strand anyone without a
+   keyboard. It still fades with everything else once idle. */
+#player.cinema .progress, #viewer.cinema .progress { display: none; }
+#player.cinema .controls-left, #viewer.cinema .controls-left,
+#player.cinema .controls-center, #viewer.cinema .controls-mid { display: none; }
+#player.cinema .controls-right > :not(#fullscreenBtn),
+#viewer.cinema .controls-right > :not(#viewFullscreenBtn) { display: none; }
+#player.cinema .controls, #viewer.cinema .controls {
+  background: transparent; border-top: 0; justify-content: flex-end;
+}
 #player.idle, #viewer.idle { cursor: none; }
 
 /* ── Sign in / watch gate ────────────────────────────────────────────────── */

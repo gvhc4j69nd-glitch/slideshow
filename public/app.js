@@ -1573,7 +1573,7 @@ function stopSlideshow() {
   el.player.hidden = true;
   el.library.hidden = false;
   el.player.classList.remove('idle');
-  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  playerFs.reset();
 }
 
 /** Cross-fade between the two <img> layers so slides don't flash. */
@@ -1731,10 +1731,12 @@ el.shareNowBtn.addEventListener('click', () => {
   else openShareOptions();
 });
 
-el.fullscreenBtn.addEventListener('click', () => {
-  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-  else el.player.requestFullscreen().catch(() => {});
-});
+/*
+ * Fullscreen. Same treatment as the viewer's: see fullscreen.js for why the
+ * plain `requestFullscreen()` this used to call did nothing on Safari, on iOS,
+ * or on a television.
+ */
+const playerFs = Fullscreen.attach({ screen: el.player, button: el.fullscreenBtn });
 
 // Click the image area to pause/resume.
 el.stage.addEventListener('click', togglePlay);
@@ -1760,7 +1762,14 @@ document.addEventListener('keydown', (event) => {
     case ' ': event.preventDefault(); togglePlay(); break;
     case 'ArrowRight': event.preventDefault(); next(false); break;
     case 'ArrowLeft': event.preventDefault(); prev(); break;
-    case 'Escape': event.preventDefault(); stopSlideshow(); break;
+    /* Escape backs out one step at a time: the stand-in fullscreen first, and
+       only then does it mean "stop the slideshow". The browser's own fullscreen
+       it closes itself, before this ever runs. */
+    case 'Escape':
+      event.preventDefault();
+      if (playerFs.inCinema()) playerFs.setCinema(false);
+      else stopSlideshow();
+      break;
     case 'r': case 'R': restart(); break;
     case 'f': case 'F': el.fullscreenBtn.click(); break;
     case 's': case 'S': el.shuffleBtn.click(); break;

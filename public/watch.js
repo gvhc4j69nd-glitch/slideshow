@@ -663,14 +663,23 @@ document.addEventListener('keydown', (event) => {
     case 'ArrowRight': event.preventDefault(); stepLocal(1); break;
     case 'ArrowLeft': event.preventDefault(); stepLocal(-1); break;
     case 'r': case 'R': el.viewRestartBtn.click(); break;
-    case 'f': case 'F': el.viewFullscreenBtn.click(); break;
+    /* F is handled once, further down, for every kind of show. Answering it
+       here as well toggled fullscreen on and straight back off again. */
     default: break;
   }
 });
 
-el.viewFullscreenBtn.addEventListener('click', () => {
-  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-  else el.viewer.requestFullscreen().catch(() => {});
+/*
+ * Fullscreen. The awkward parts — prefixes, browsers with no API at all, and
+ * browsers that accept the request and never finish it — live in fullscreen.js,
+ * because the presenter's player needs exactly the same treatment.
+ */
+const viewerFs = Fullscreen.attach({ screen: el.viewer, button: el.viewFullscreenBtn });
+
+/* In the fallback the controls are gone, so the picture itself is the way out.
+   A television remote's select button arrives here as a click. */
+el.stage.addEventListener('click', () => {
+  if (viewerFs.inCinema()) viewerFs.setCinema(false);
 });
 
 /*
@@ -697,15 +706,20 @@ el.leaveBtn.addEventListener('click', () => {
   releaseAll();
   el.slideA.removeAttribute('src');
   el.slideB.removeAttribute('src');
-  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  viewerFs.reset();
   el.viewer.hidden = true;
   el.join.hidden = false;
 });
 
 document.addEventListener('keydown', (event) => {
   if (el.viewer.hidden) return;
-  if (event.key === 'f' || event.key === 'F') el.viewFullscreenBtn.click();
-  if (event.key === 'Escape' && !document.fullscreenElement) el.leaveBtn.click();
+  if (event.key === 'f' || event.key === 'F') viewerFs.toggle();
+  /* Escape backs out one step at a time: real fullscreen is the browser's to
+     close, the fallback is ours, and only then does it mean "leave the show". */
+  if (event.key === 'Escape' && !Fullscreen.active()) {
+    if (viewerFs.inCinema()) viewerFs.setCinema(false);
+    else el.leaveBtn.click();
+  }
 });
 
 /* ── Arriving by link ─────────────────────────────────────────────────────── */
