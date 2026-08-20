@@ -89,6 +89,12 @@ const STATIC_TYPES = {
   '.ico': 'image/x-icon',
 };
 
+/*
+ * What a deploy changes. Every restart is a new build, so the process start is
+ * enough to tell one from the last, and it needs no build step to produce.
+ */
+const ASSET_STAMP = Date.now().toString(36);
+
 const store = new Store();
 let broadcast = null;
 
@@ -526,8 +532,33 @@ async function serveStatic(req, res, urlPath) {
   }
   if (!stat.isFile()) return sendError(res, 404, 'Not found.');
 
+  const type = STATIC_TYPES[path.extname(abs).toLowerCase()] || 'application/octet-stream';
+
+  /*
+   * Stamp the scripts and stylesheets a page asks for.
+   *
+   * This server sends "no-cache", but the platform's edge rewrites that to four
+   * hours, so a returning browser keeps running whatever JavaScript it already
+   * had and a fix does not reach anybody who visited earlier that day. A
+   * different query string is a different resource to every cache there is, so
+   * a deploy invalidates them all at once. Only the HTML has to be re-read for
+   * this — it is small, and the browser is told not to keep it.
+   */
+  if (type.startsWith('text/html')) {
+    let html = await fsp.readFile(abs, 'utf8');
+    html = html.replace(/(\s(?:src|href)=")(\/[^"?]+\.(?:js|css))(")/g,
+      (_, before, url, after) => `${before}${url}?v=${ASSET_STAMP}${after}`);
+    const body = Buffer.from(html, 'utf8');
+    res.writeHead(200, {
+      'Content-Type': type,
+      'Content-Length': body.length,
+      'Cache-Control': 'no-cache',
+    });
+    return res.end(req.method === 'HEAD' ? undefined : body);
+  }
+
   res.writeHead(200, {
-    'Content-Type': STATIC_TYPES[path.extname(abs).toLowerCase()] || 'application/octet-stream',
+    'Content-Type': type,
     'Content-Length': stat.size,
     'Cache-Control': 'no-cache',
   });
