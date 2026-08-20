@@ -17,10 +17,16 @@ account needed to watch.
 **The model.** Free, funded by three ad placements — the landing page, the
 signed-in library, and the viewer page. Paid tiers remove the ads and add what
 the free architecture cannot do: **Plus** ($3.99) for a show that survives
-everyone going offline, **Pro** ($15) for the tools
-a professional presenter needs, **Private** ($8.99) for end-to-end encryption,
-and **Event** ($19 once) for a weekend. Pro and Private are alternatives rather
-than rungs — a server cannot both render your deck and be unable to read it.
+everyone going offline, **Pro** ($15) for **sharing a PowerPoint deck** and the
+tools a professional presenter needs, and **Event** ($19 once) for a weekend.
+**Private** ($8.99) is an add-on to Plus or Pro rather than a tier of its own,
+adding end-to-end encryption to whichever the customer already has.
+
+**Anyone can open and play a PowerPoint locally, free and signed out.** Pro is
+required to *share* one to other screens. Opening a deck happens entirely in the
+browser and costs nothing to serve, so gating it would be unenforceable and would
+throw away the best demonstration the product has; sharing is where both the cost
+and the value sit, and it is the point the server actually controls.
 
 **The finding that matters most.** Ads are not the business. At a realistic
 consumer display RPM, ads produce roughly a third of revenue at scale and cover
@@ -91,6 +97,11 @@ sales representatives plus **303,200** in technical and scientific products —
 about **1.6 million** [sourced]. Assume 40% carry a deck into a client meeting
 [assumed]: a serviceable market of ~641,000 people, or **$115M/year** at Pro's
 $180.
+
+Note that this sizing and the product now agree. It was always built on people
+who *carry a deck*, while Pro was sold on rendering that deck faithfully — a
+near-enough proxy. With PowerPoint sharing as the line between Plus and Pro, the
+feature and the population are the same set.
 
 | Penetration | Users | Revenue |
 |---|---|---|
@@ -185,9 +196,14 @@ Priced against the anchors above, and limited to things the free architecture
 genuinely cannot do — a paid tier that only removes an artificial limit invites
 resentment.
 
-**These are not four rungs of one ladder.** Plus is the consumer tier. Pro and
-Private branch off it in opposite directions and a customer picks one, because
-they cannot coexist — see the note under Private.
+**Two tiers and one add-on.** Plus is the consumer tier and Pro is the business
+one; Private is an **add-on to either**, not a rung of its own. It used to be a
+branch that could not coexist with Pro — a server cannot convert a deck it cannot
+read — and that conflict has gone now that rendering happens in the browser.
+
+**The line between Plus and Pro is PowerPoint.** Sharing a deck is the business
+tier; photos are everyone's. This is the intended direction and is being tested
+now — the split is provisional until that finishes, and §9 says what to watch.
 
 ### Vinboo Plus — $3.99/month or $29/year
 
@@ -200,6 +216,8 @@ analysis and directly answers Pixo.
 - **Longer life**: 7 days instead of 48 hours, and more than three standing shows.
 - **No photo cap** on hand-off (free is 150).
 - **No ads**, anywhere.
+- **Photos.** Sharing a PowerPoint deck is Pro; see below for why the line falls
+  there and what it can and cannot be enforced with.
 - *(QR-code joining was listed here and has instead shipped free for everyone —
   it is table stakes, and paywalling table stakes is how a free tier gets a
   reputation for being crippled.)*
@@ -215,13 +233,16 @@ presents for a living, expenses the tool, and compares it against **Mentimeter a
 $11.99–24.99** and **Sync at $12.50** rather than against Pixo. $15 sits inside
 that band and is unambiguously a different product from a $3.99 consumer plan.
 
-- ~~**Exact deck fidelity** via server-side conversion.~~ **Removed.** This was
-  Pro's lead feature and the justification for the whole conversion programme.
-  It rested on one deck rendering 13 of 35 slides as grey boxes. Measured across
-  32 real corporate decks the browser renderer now draws **98% of slides**, with
-  SmartArt, embedded Visio and Windows metafiles all coming through — and with
-  nothing uploaded. See `rendering-gap.md`. Fidelity is now a property of the
-  free tier and a competitive advantage over every uploader, not a paywall.
+- **Sharing a PowerPoint deck.** This is the tier's defining feature and the
+  line between Plus and Pro. Measured across 32 real corporate decks the
+  renderer draws **98% of slides** — SmartArt, charts, embedded Visio and
+  Windows metafiles all coming through, in the browser, with nothing uploaded.
+  See `rendering-gap.md`.
+
+  The feature that used to sit here was *exact fidelity via server-side
+  conversion*, justified by one deck rendering 13 of 35 slides as grey boxes.
+  That is no longer the argument: fidelity is reached without a server, so what
+  Pro sells is the capability itself rather than a better version of it.
 - **PDF as an input.** Still wanted, and now the strongest remaining argument for
   a converter, because PDF is what most people have to hand and it needs no
   fidelity claim to justify it.
@@ -238,12 +259,45 @@ that band and is unambiguously a different product from a $3.99 consumer plan.
 - **Team seats.** One champion at a company brings a team rather than a friend,
   which is where expansion revenue comes from.
 
-*Why the bundle matters:* exact rendering alone was never worth $15/month, and
-it is no longer on the list at all. What is left — notes and presenter view, a
-saved library, branding, attendance, team seats — is a coherent professional
-bundle, but **it is a weaker bundle than the one that was priced, and $15 should
-be re-tested against it rather than assumed.** That is a commercial decision this
-document cannot make for you.
+*Why the bundle matters:* deck sharing is the reason someone upgrades; notes, a
+saved library, branding, attendance and team seats are why they stay. Exact
+rendering was never worth $15 on its own and is no longer sold separately.
+
+**The line is drawn at sharing, not at opening.** Anyone may upload a deck and
+play it on their own screen, free and without an account — that is settled, and
+it is the right call for three reasons. It is unenforceable anyway: a deck is
+unzipped and drawn entirely in the browser from a local file, so the server is
+never involved and there is nothing to check a licence against. It costs nothing
+to serve. And it is the best demonstration the product has — someone opens their
+own deck, watches it render properly, and meets the wall at the moment they want
+it on the screens in the room.
+
+**It also lets a buyer check their own deck before paying, which is the point
+that matters most.** Fidelity is 98% across a corpus, not 100% on every file, and
+the 2% is not evenly spread — a deck full of WMF or of objects with no cached
+preview will do worse than the average, and no honest sales page can promise
+otherwise. Free local playback turns that from a risk the customer carries into
+a step they complete: they open the actual deck they present, see exactly how it
+renders, and read the renderer's own account of anything it could not draw before
+any money changes hands.
+
+That converts the weakness into a fairness argument. It also removes the worst
+refund case there is — a professional who pays $15 to put a deck on a client's
+screens and discovers on the night that it does not render. Nobody buys Pro
+without already knowing what their deck looks like.
+
+*Sharing* is the enforceable point, and it is where both the relay cost and the
+value sit. It needs one thing that does not exist yet: the server is told only
+`{ title, photoCount, mode, ttlMs, interval }` when a show starts, so **it cannot
+currently tell a deck show from a photo show** — slides arrive as ordinary
+images either way. The client must declare the source and the server check
+entitlement on it.
+
+That is declare-and-trust: honest customers are gated, and someone determined can
+edit readable JavaScript. Worth naming as a choice rather than discovering later.
+The architecture that makes the product valuable — the server sees nothing — is
+the same thing that makes a browser-side feature hard to police, and no amount of
+client-side checking changes that.
 
 **And if a converter is built anyway — buy it first.** It would now be for PDF
 input rather than fidelity. A conversion API costs roughly a fraction of a cent
@@ -258,32 +312,39 @@ putting a document converter on a server also puts an asterisk on the promise
 the rest of the product makes, and the fidelity that justified paying that price
 turned out to be reachable in the browser.
 
-### Vinboo Private — $8.99/month or $79/year
+### Vinboo Private — an add-on, $8.99/month or $79/year
 
-End-to-end encryption. The competitive analysis is explicit that **no competitor
-in the set offers it**, and the design already exists in
-[architecture-e2ee.svg](architecture-e2ee.svg).
+**Not a tier. An add-on to Plus or to Pro**, bought alongside either and
+changing only what the server is able to read. End-to-end encryption; the
+competitive analysis is explicit that **no competitor in the set offers it**, and
+the design already exists in [architecture-e2ee.svg](architecture-e2ee.svg).
 
-Sell it as Plus plus a promise: *we hold your slideshow and we cannot open it.*
-It also resolves the contradiction in §3.4 — Private carries no ads and no
-third-party tags at all.
+Sell it as a promise on top of whatever the customer already has: *we hold your
+slideshow and we cannot open it.* It also resolves the contradiction in §3.4 —
+Private carries no ads and no third-party tags at all.
 
-**Private and Pro are mutually exclusive, and this is not a packaging choice.**
-A server has to read a deck in order to convert it. If the slides arrive
-encrypted, LibreOffice has nothing to work with, so Private cannot offer exact
-fidelity, server-side rendering, or a preview of anything. It is deliberately
-*less* capable than Pro, which is why it is cheaper:
+**This used to be a branch, and it no longer is.** The old plan had Private and
+Pro mutually exclusive for a hard technical reason: a server must read a deck in
+order to convert it, so encrypted slides could not also be rendered faithfully. A
+customer had to choose between "my deck will look right" and "my photos cannot be
+read".
 
-| | Pro — $15 | Private — $8.99 |
-|---|---|---|
-| The fear it answers | "my deck will look wrong" | "my photos will be read" |
-| Server can read your files | **yes**, and deletes them after | **no**, ever |
-| Exact PowerPoint fidelity | yes | no — own renderer, and the warning when a deck loses something |
-| Stored shows survive offline | yes | yes, as ciphertext |
+That conflict has gone. Rendering happens in the presenter's browser, before
+anything is encrypted and before anything is sent, so **encryption costs the deck
+nothing**. Private now composes with both tiers:
 
-A customer picks one per show. Selling both to the same person on the same
-slideshow is not possible, and any marketing that implies otherwise will be found
-out on first use.
+| | Plus | Plus + Private | Pro | Pro + Private |
+|---|---|---|---|---|
+| Photos to unlimited screens | yes | yes | yes | yes |
+| Sharing a PowerPoint deck | no | no | **yes** | **yes** |
+| Deck fidelity | — | — | 98% of slides | 98% of slides |
+| Stored shows survive offline | yes | yes, as ciphertext | yes | yes, as ciphertext |
+| Server can read your files | yes, deleted after | **no, ever** | yes, deleted after | **no, ever** |
+| Ads | none | none | none | none |
+
+Pricing it as an add-on rather than a tier also removes the awkwardness of a
+cheaper product being deliberately *less* capable, which is what the old table
+had to explain away.
 
 ### Vinboo Event — $19 one-off, 7 days
 
@@ -531,8 +592,13 @@ offer.
 
 Assumes 2 shows per presenter per month, 4 screens per show, 40 slides, $2.50
 RPM, **2.5% free-to-paid conversion** (published consumer freemium median is
-2.1–5% [sourced]), $3.99/month blended subscription, **and Finding 1 fixed** —
-the italic row shows the same scenario if it is not.
+2.1–5% [sourced]), **$3.99/month — the Plus price, not a blend**, and Finding 1
+fixed; the italic row shows the same scenario if it is not.
+
+**Every subscriber below is a Plus subscriber.** The scenario contains no Pro at
+all, which since PowerPoint sharing became Pro-only makes it a floor rather than
+a forecast: any deck sharer who converts converts at $15, not $3.99. See the
+sensitivity under the table.
 
 | | Year 1 | Year 2 | Year 3 |
 |---|---|---|---|
@@ -553,6 +619,35 @@ Compute is held flat at $200/month because the relay is I/O-bound long-polling,
 not CPU-bound: what matters is concurrent open connections, not total volume, and
 a single Node process handles thousands. Even tripled for redundancy this stays
 under $600/month at Year 3 — trivial beside egress.
+
+### What a Pro mix does to Year 3
+
+The table above prices all 6,250 Year 3 subscribers at Plus. Pro is 3.8× that
+price, so the mix matters more than any other assumption in this section:
+
+| Share on Pro | Subscribers | Subscription revenue | **Total Year 3** |
+|---|---|---|---|
+| 0% (the table above) | 6,250 Plus | $24,938/mo | **$434k** |
+| 10% | 625 Pro + 5,625 Plus | $31,819/mo | **$517k** |
+| 20% | 1,250 Pro + 5,000 Plus | $38,700/mo | **$599k** |
+| 30% | 1,875 Pro + 4,375 Plus | $45,581/mo | **$682k** |
+
+None of those percentages is measured; they are there to show the slope. What
+can be said is which direction the change pushes:
+
+**Upward, on conversion among deck carriers.** There is no longer a degraded free
+path for sharing a deck — before, a free user could share one and merely see
+imperfect rendering. Now the wall is hard, and the population meeting it is
+exactly the one §2 sized at 641,000. [assumed]
+
+**Downward, on top of funnel.** The free tier loses its most differentiated
+capability, so fewer people will meet the product through a deck. Keeping
+*local* deck playback free is what limits that damage — it costs nothing to
+serve, cannot be enforced anyway, and is the demonstration that sells Pro. If
+that were ever paywalled too, this row would get much worse. [assumed]
+
+The two pull against each other and the net is untested. That is what the current
+testing is for.
 
 **Read the shape, not the numbers.** Year 1 revenue does not pay a salary. This
 is a business that works at 50,000+ monthly presenters and is a hobby below that.
@@ -607,15 +702,17 @@ Carried from the competitive analysis, with financial consequences attached.
    placement as an experiment and measure it separately.
 4. **Vinboo Plus.** Server-stored shows, longer life, no ads. This is the first
    real revenue and it answers Pixo directly.
-5. **Vinboo Pro**, if the business segment validates. Lead with the saved deck
-   library, notes and branding: exact fidelity is no longer a Pro feature
-   because the free renderer already reaches 98% of slides. Re-test the $15
-   price against the smaller bundle before committing to it.
+5. **Vinboo Pro**, if the business segment validates. **Sharing a PowerPoint
+   deck is the tier**, with the library, notes and branding behind it. Local
+   deck playback stays free for everyone. The work is one entitlement check at
+   the point a show is created, plus a source field the client sends — the
+   server cannot currently tell a deck show from a photo show.
 6. **Vinboo Event.** Cheap to build once Plus exists — it is Plus with a clock.
-7. **Vinboo Private.** The E2EE tier. Highest engineering cost, strongest
-   position, and the only feature here that no competitor can answer quickly.
-   The conflict with server-side rendering that used to make this awkward has
-   gone: rendering happens in the browser, so encryption costs the deck nothing.
+7. **Vinboo Private.** The E2EE add-on, sold on top of Plus or Pro. Highest
+   engineering cost, strongest position, and the only thing here that no
+   competitor can answer quickly. The conflict with server-side rendering that
+   used to force a choice has gone: rendering happens in the browser, so
+   encryption costs the deck nothing.
 8. **Video.** Free tier, parity, only if the party use case is being taken
    seriously.
 
@@ -629,7 +726,8 @@ they are.
 **Measured in this repository:** wire format 2560px/JPEG q0.9; 145 KB median for
 12 real photographs at 2048px WebP q82; ~2.9 KB session bookkeeping per show;
 relay cache of 6 frames dropped after 5 minutes idle; live-mode client cache of 6
-slides.
+slides; **98% of 1,126 slides across 32 real corporate decks render with nothing
+missing** (`rendering-gap.md`).
 
 **Sourced:** Railway, Cloudflare R2, GitHub and Mentimeter pricing; Mentimeter's
 270M/14M participant-to-presenter figures and $38M revenue; AdSense RPM ranges;
@@ -638,13 +736,23 @@ consumer freemium conversion benchmarks; Present Live's retirement.
 **Assumed, and least reliable:** that 40% of sales representatives carry a deck
 into a client meeting — the segment sizing in §2 scales directly with it, and it
 is a guess rather than a measurement; that a 35-slide conversion takes about 15
-seconds in 1 GB — plausible for headless LibreOffice but unmeasured here, and the
-capacity floor moves with it; 350 KB per slide on the wire — the egress
+seconds in 1 GB — plausible for headless LibreOffice but unmeasured here, and
+now hypothetical, since no converter is planned; 350 KB per slide on the wire — the egress
 thresholds in §5 move in direct proportion to it, so it is the single number most
 worth replacing with a real measurement of real photographs; $2.50 blended RPM;
 2.5% conversion; 4 screens per show; 40 slides per show; 2 shows per presenter per
 month; $200/month compute; and every user-count figure in §7 — those are
 scenarios chosen to show the shape of the model, not forecasts.
+
+**New with the Plus/Pro split, and entirely untested:** that making deck sharing
+Pro-only *raises* conversion among the 641,000 deck carriers, because there is no
+longer a degraded free path; that it *lowers* top of funnel, because the free
+tier loses its most differentiated capability; and that free local playback is
+enough to offset the second. The two effects pull against each other, the net is
+unknown, and §7's Year 3 figure assumes **no Pro subscribers at all** — making it
+a floor rather than a forecast. The sensitivity table under §7 shows what a Pro
+mix of 10–30% would do. This is what the current testing is for, and it is the
+single most consequential set of assumptions in the document.
 
 **Unknown and material:** customer acquisition cost, retention, and whether
 anyone wants this at all. Nothing in this plan addresses distribution, and

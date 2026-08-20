@@ -562,6 +562,12 @@ Measured across 32 real corporate decks — 1,126 slides — **98% render with
 nothing missing**. See `docs/rendering-gap.md` for how that was measured and
 what it cost to get there.
 
+**Opening and playing a deck is free, and always will be.** Sharing one to other
+screens is the paid tier. That is not only because opening happens entirely in
+your browser and cannot be metered — it is so you can check the deck you actually
+present, and read the renderer's own account of anything it could not draw,
+before deciding whether the sharing is worth paying for.
+
 Two things follow from rendering rather than screenshotting. Decks stay sharp
 at any size and stream as a few KB per slide instead of a full-resolution
 image. But the deck's fonts usually aren't installed on the machine showing it,

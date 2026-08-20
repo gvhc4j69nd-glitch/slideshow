@@ -442,21 +442,22 @@ const IMG = __dirname + '/';
 {
   const s = lightSlide();
   const y0 = heading(s, 'How it makes money',
-    'A free tier that funds itself on advertising, and subscriptions where the revenue actually is.');
+    'Photos are free. Sharing a PowerPoint is the business tier — and anyone can open and play their own deck first, to see how it renders before paying.');
 
   const tiers = [
-    { n: 'Free', p: 'Ad supported', d: 'The funnel and the advertising floor. Full live sharing, limited hand-off.', ink: C.inkSoft, fill: C.white },
-    { n: 'Pro', p: '$180 / year', d: 'The business presenter. Saved deck library, presenter notes, branding, unlimited screens.', ink: C.coralInk, fill: C.coralSoft },
+    { n: 'Free', p: 'Ad supported', d: 'Photos to every screen. Open and play a deck locally — sharing one is Pro.', ink: C.inkSoft, fill: C.white },
+    { n: 'Plus', p: '$48 / year', d: 'Photos, no ads, and a show that survives everyone going offline.', ink: C.cyanInk, fill: C.white },
+    { n: 'Pro', p: '$180 / year', d: 'Sharing a PowerPoint deck. Plus a saved library, presenter notes and branding.', ink: C.coralInk, fill: C.coralSoft },
     { n: 'Events', p: '$19 / event', d: 'One-time pass sold through wedding and event vendors.', ink: C.amberInk, fill: C.amberSoft },
-    { n: 'Private', p: 'Premium', d: 'End-to-end encrypted. Designed, not yet built.', ink: C.cyanInk, fill: C.cyanSoft },
+    { n: 'Private', p: 'Add-on', d: 'End-to-end encryption, added to Plus or Pro. Designed, not yet built.', ink: C.cyanInk, fill: C.cyanSoft },
   ];
-  const cw = (W - M * 2 - 0.75) / 4;
+  const cw = (W - M * 2 - 0.8) / 5;
   tiers.forEach((t, i) => {
-    const x = M + i * (cw + 0.25);
+    const x = M + i * (cw + 0.2);
     card(s, { x, y: y0, w: cw, h: 2.15, fill: t.fill, stroke: t.fill });
-    s.addText(t.n, { x: x + 0.3, y: y0 + 0.22, w: cw - 0.6, h: 0.38, fontFace: F.head, fontSize: 18, bold: true, color: t.ink, margin: 0 });
-    s.addText(t.p, { x: x + 0.3, y: y0 + 0.63, w: cw - 0.6, h: 0.34, fontFace: F.body, fontSize: 13, bold: true, color: C.ink, margin: 0 });
-    s.addText(t.d, { x: x + 0.3, y: y0 + 1.02, w: cw - 0.6, h: 1.0, fontFace: F.body, fontSize: 11.5, color: C.inkSoft, margin: 0, valign: 'top' });
+    s.addText(t.n, { x: x + 0.24, y: y0 + 0.2, w: cw - 0.48, h: 0.36, fontFace: F.head, fontSize: 16, bold: true, color: t.ink, margin: 0 });
+    s.addText(t.p, { x: x + 0.24, y: y0 + 0.58, w: cw - 0.48, h: 0.32, fontFace: F.body, fontSize: 12, bold: true, color: C.ink, margin: 0 });
+    s.addText(t.d, { x: x + 0.24, y: y0 + 0.94, w: cw - 0.48, h: 1.1, fontFace: F.body, fontSize: 10.5, color: C.inkSoft, margin: 0, valign: 'top' });
   });
 
   s.addChart(pres.ChartType.bar, [{
@@ -466,8 +467,8 @@ const IMG = __dirname + '/';
   }], {
     x: M, y: y0 + 2.45, w: 7.2, h: 3.0,
     barDir: 'col', chartColors: [C.coral, C.coral, C.coral, C.cyan],
-    showTitle: true, title: 'Revenue path ($ thousands)', titleFontFace: F.head,
-    titleFontSize: 14, titleColor: C.ink,
+    showTitle: true, title: 'Revenue path ($ thousands) — every subscriber priced at Plus', titleFontFace: F.head,
+    titleFontSize: 12, titleColor: C.ink,
     showValue: true, dataLabelPosition: 'outEnd', dataLabelFontSize: 11,
     dataLabelColor: C.ink, dataLabelFontFace: F.body,
     showLegend: false,
