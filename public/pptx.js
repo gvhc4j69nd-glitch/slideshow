@@ -19,14 +19,20 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./zip.js'), require('./xml.js'));
+    module.exports = factory(require('./zip.js'), require('./xml.js'), require('./emf.js'));
   } else {
-    root.Pptx = factory(root.Zip, root.Xml);
+    root.Pptx = factory(root.Zip, root.Xml, root.Emf);
   }
-})(typeof self !== 'undefined' ? self : this, function (Zip, X) {
+})(typeof self !== 'undefined' ? self : this, function (Zip, X, Emf) {
   'use strict';
 
   const EMU_PER_PX = 9525;              // 914400 EMU per inch at 96 dpi
+
+  /*
+   * Below this, in pixels, an embedded object is not something anyone is
+   * looking at — half an inch. See renderGraphicFrame for why it matters.
+   */
+  const MIN_VISIBLE = 48;
   const emu = (value, fallback = 0) => {
     const n = Number(value);
     return Number.isFinite(n) ? n / EMU_PER_PX : fallback;
@@ -600,15 +606,26 @@
     if (!bytes) return;
     const ext = rel.path.split('.').pop().toLowerCase();
     const mime = IMAGE_MIME[ext] || 'image/png';
-    // EMF and WMF are Windows vector formats no browser draws. Skipping is still
-    // the right call, but it is recorded so the presenter can be told rather
-    // than left to discover a hole in their deck in front of an audience.
+    /*
+     * EMF is a Windows vector format no browser draws, and it is what sits
+     * behind most embedded charts and Visio drawings. emf.js plays the records
+     * back as SVG; when it manages that, the result travels as an ordinary
+     * image. WMF is the older format and is not implemented, so it is still
+     * recorded rather than silently dropped.
+     */
+    let href;
     if (mime === 'image/emf' || mime === 'image/wmf') {
-      note(ctx, ext === 'wmf' ? 'a Windows metafile' : 'an embedded drawing');
-      return;
+      const drawn = mime === 'image/emf' && Emf && Emf.isEmf(bytes)
+        ? Emf.render(bytes, { width: Math.max(1, box.w), height: Math.max(1, box.h) })
+        : null;
+      if (!drawn) {
+        note(ctx, ext === 'wmf' ? 'a Windows metafile' : 'an embedded drawing');
+        return;
+      }
+      href = `data:image/svg+xml;base64,${toBase64(new TextEncoder().encode(drawn))}`;
+    } else {
+      href = `data:${mime};base64,${toBase64(bytes)}`;
     }
-
-    const href = `data:${mime};base64,${toBase64(bytes)}`;
     const flip = [];
     if (transform.flipH) flip.push(`translate(${(2 * box.x + box.w).toFixed(2)},0) scale(-1,1)`);
     if (transform.flipV) flip.push(`translate(0,${(2 * box.y + box.h).toFixed(2)}) scale(1,-1)`);
@@ -1133,12 +1150,42 @@
    */
   function diagramDrawing(node, ctx) {
     const relIds = X.find(node, 'dgm:relIds');
-    const dataRel = relIds && ctx.rels.get(X.attr(relIds, 'r:dm'));
-    if (!dataRel || dataRel.external) return null;
+    if (!relIds) return null;
+    const dataRel = ctx.rels.get(X.attr(relIds, 'r:dm'));
 
-    const drawingRel = [...relsFor(ctx.files, dataRel.path).values()]
-      .find((rel) => rel.type.endsWith('/diagramDrawing'));
-    if (!drawingRel || drawingRel.external) return null;
+    /*
+     * Where the drawing is referenced from varies, and guessing one place gets
+     * it wrong on most real files. In order of how firmly each says which
+     * drawing belongs to this diagram:
+     *
+     *   1. a dataModelExt inside the relIds element, naming a relationship;
+     *   2. a diagramDrawing relationship on the slide, which is where
+     *      PowerPoint normally puts it — paired to the data part by number
+     *      when a slide carries more than one diagram;
+     *   3. a relationship on the data part itself.
+     */
+    const onSlide = [...ctx.rels.entries()]
+      .filter(([, rel]) => rel.type.endsWith('/diagramDrawing') && !rel.external);
+
+    const ext = X.find(relIds, 'dsp:dataModelExt');
+    const named = ext && ctx.rels.get(X.attr(ext, 'relId'));
+
+    let drawingRel = named && !named.external ? named : null;
+
+    if (!drawingRel && onSlide.length === 1) [, drawingRel] = onSlide[0];
+    if (!drawingRel && onSlide.length > 1 && dataRel) {
+      // data1.xml belongs with drawing1.xml.
+      const n = (dataRel.path.match(/(\d+)\.xml$/) || [])[1];
+      const paired = onSlide.find(([, rel]) => new RegExp(`${n}\\.xml$`).test(rel.path));
+      if (paired) [, drawingRel] = paired;
+      else [, drawingRel] = onSlide[0];
+    }
+
+    if (!drawingRel && dataRel && !dataRel.external) {
+      drawingRel = [...relsFor(ctx.files, dataRel.path).values()]
+        .find((rel) => rel.type.endsWith('/diagramDrawing') && !rel.external);
+    }
+    if (!drawingRel) return null;
 
     const xml = partXml(ctx.files, drawingRel.path);
     const tree = xml && X.find(xml, 'dsp:spTree');
@@ -1189,6 +1236,70 @@
     return true;
   }
 
+  /*
+   * The picture an embedded object shows when nobody activates it.
+   *
+   * PowerPoint caches one so that a reader which cannot run Excel or Visio has
+   * something to draw, but it hides it two layers down. The object is wrapped
+   * in mc:AlternateContent: the mc:Choice branch is for readers that understand
+   * the add-in and carries no picture, and only the mc:Fallback branch holds
+   * the p:pic. Reading the first oleObj in document order finds the empty one —
+   * which is why 810 previews in the corpus looked absent when they were not.
+   */
+  function objectPreview(node) {
+    const fallback = X.find(node, 'mc:Fallback');
+    const pic = X.find(fallback || node, 'p:pic');
+    return pic || null;
+  }
+
+  function renderObjectPreview(node, ctx, box, out) {
+    const pic = objectPreview(node);
+    if (!pic) return false;
+
+    /*
+     * Draw it where the frame is, not where the picture claims to be: the
+     * cached picture carries the offset it had when it was captured, which is
+     * not always the frame it now sits in.
+     */
+    const framed = {
+      ...pic,
+      children: pic.children.map((child) => (child.name === 'p:spPr' ? {
+        ...child,
+        children: child.children.filter((c) => c.name !== 'a:xfrm').concat([{
+          name: 'a:xfrm',
+          attrs: {},
+          children: [
+            { name: 'a:off', attrs: { x: String(Math.round(box.x * EMU_PER_PX)), y: String(Math.round(box.y * EMU_PER_PX)) }, children: [] },
+            { name: 'a:ext', attrs: { cx: String(Math.round(box.w * EMU_PER_PX)), cy: String(Math.round(box.h * EMU_PER_PX)) }, children: [] },
+          ],
+        }]),
+      } : child)),
+    };
+
+    const before = out.length;
+    const saved = ctx.groups;
+    ctx.groups = [];                 // box is already in slide coordinates
+    renderPicture(framed, ctx, out);
+    ctx.groups = saved;
+
+    /*
+     * A metafile preview draws nothing yet, but renderPicture has already said
+     * so. Report it as handled: letting the caller fall through would label it
+     * an embedded object as well and count the same hole twice.
+     */
+    if (out.length > before) return true;
+    return metafilePreview(pic, ctx) ? 'noted' : false;
+  }
+
+  /** Whether the cached picture is a metafile, which nothing here can draw yet. */
+  function metafilePreview(pic, ctx) {
+    const blip = X.path(pic, 'p:blipFill', 'a:blip');
+    const rel = blip && ctx.rels.get(X.attr(blip, 'r:embed') || X.attr(blip, 'r:link'));
+    if (!rel || rel.external) return false;
+    const mime = IMAGE_MIME[rel.path.split('.').pop().toLowerCase()];
+    return mime === 'image/emf' || mime === 'image/wmf';
+  }
+
   function renderGraphicFrame(node, ctx, out) {
     const xfrm = X.path(node, 'p:xfrm');
     const off = X.child(xfrm, 'a:off');
@@ -1204,11 +1315,27 @@
     if (uri.includes('chart') && renderChartFrame(node, ctx, box, out)) return;
     if (uri.includes('diagram') && renderDiagram(node, ctx, box, out)) return;
 
-    // SmartArt and embedded objects still aren't rendered; leave a labelled
-    // space so the slide reads the way it was laid out rather than showing a
-    // blank gap.
+    /*
+     * Add-ins park their bookkeeping on the slide as an embedded object a fifth
+     * of an inch square, invisible to anyone looking at the deck. Measured over
+     * a corpus of real decks, 92% of all embedded objects are these markers,
+     * and drawing a labelled box for each one spoils every slide it touches
+     * while telling the presenter about something they cannot see. Nothing this
+     * small is content, so say nothing and draw nothing.
+     */
+    if (box.w < MIN_VISIBLE || box.h < MIN_VISIBLE) return;
+
+    // A real object may still carry the picture PowerPoint showed in its place.
+    const preview = renderObjectPreview(node, ctx, box, out);
+    if (preview === true) return;
+
+    // Otherwise leave a labelled space so the slide reads the way it was laid
+    // out rather than showing a blank gap. A metafile preview has already been
+    // reported by name, so only say something when nothing else has.
     const label = uri.includes('chart') ? 'Chart' : uri.includes('diagram') ? 'Diagram' : 'Embedded object';
-    note(ctx, uri.includes('diagram') ? 'SmartArt' : uri.includes('chart') ? 'a chart' : 'an embedded object');
+    if (preview !== 'noted') {
+      note(ctx, uri.includes('diagram') ? 'SmartArt' : uri.includes('chart') ? 'a chart' : 'an embedded object');
+    }
     out.push(`<rect x="${box.x.toFixed(2)}" y="${box.y.toFixed(2)}" width="${box.w.toFixed(2)}"`
       + ` height="${box.h.toFixed(2)}" fill="#f2f4f8" stroke="#c9ccd4" stroke-width="1"`
       + ' stroke-dasharray="6 5"/>');

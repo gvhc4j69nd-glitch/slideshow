@@ -6,8 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "migrate": "node scripts/migrate.js",
-    "test": "node test/deck.js && node test/auth.js && node test/qr.js && node test/broadcast.js && node test/db.js && node test/e2e.js",
+    "test": "node test/deck.js && node test/emf.js && node test/auth.js && node test/qr.js && node test/broadcast.js && node test/db.js && node test/e2e.js",
     "test:deck": "node test/deck.js",
+    "test:emf": "node test/emf.js",
     "test:broadcast": "node test/broadcast.js",
     "test:db": "node test/db.js",
     "test:e2e": "node test/e2e.js",

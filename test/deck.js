@@ -124,7 +124,8 @@ function makeDeck() {
       + '<p:sldIdLst><p:sldId id="256" r:id="rId1"/><p:sldId id="257" r:id="rId2"/>'
       + '<p:sldId id="258" r:id="rId3"/><p:sldId id="259" r:id="rId4"/>'
       + '<p:sldId id="260" r:id="rId5"/><p:sldId id="261" r:id="rId6"/>'
-      + '<p:sldId id="262" r:id="rId7"/><p:sldId id="263" r:id="rId8"/></p:sldIdLst>'
+      + '<p:sldId id="262" r:id="rId7"/><p:sldId id="263" r:id="rId8"/>'
+      + '<p:sldId id="264" r:id="rId10"/></p:sldIdLst>'
       + '<p:sldSz cx="9144000" cy="5143500"/>'
       + '</p:presentation>',
 
@@ -137,6 +138,7 @@ function makeDeck() {
       + `<Relationship Id="rId6" Type="${OFFICE_REL}/slide" Target="slides/slide6.xml"/>`
       + `<Relationship Id="rId7" Type="${OFFICE_REL}/slide" Target="slides/slide7.xml"/>`
       + `<Relationship Id="rId8" Type="${OFFICE_REL}/slide" Target="slides/slide8.xml"/>`
+      + `<Relationship Id="rId10" Type="${OFFICE_REL}/slide" Target="slides/slide9.xml"/>`
       + `<Relationship Id="rId9" Type="${OFFICE_REL}/theme" Target="theme/theme1.xml"/>`
       + '</Relationships>',
 
@@ -327,6 +329,24 @@ function makeDeck() {
 
     'ppt/diagrams/bare.xml': '<?xml version="1.0"?><dgm:dataModel xmlns:dgm="dgm"/>',
 
+    // Slide 9: the arrangement PowerPoint actually writes — the drawing is a
+    // relationship of the *slide*, not of the data part it belongs to.
+    'ppt/slides/slide9.xml': '<?xml version="1.0"?>'
+      + '<p:sld xmlns:p="p" xmlns:a="a" xmlns:r="r" xmlns:dgm="dgm">'
+      + '<p:cSld><p:spTree>'
+      + '<p:graphicFrame><p:xfrm><a:off x="914400" y="457200"/><a:ext cx="4000000" cy="2000000"/></p:xfrm>'
+      + '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/diagram">'
+      + '<dgm:relIds r:dm="rIdD" r:lo="rIdL" r:qs="rIdQ" r:cs="rIdC"/>'
+      + '</a:graphicData></a:graphic></p:graphicFrame>'
+      + '</p:spTree></p:cSld></p:sld>',
+
+    'ppt/slides/_rels/slide9.xml.rels': `<Relationships xmlns="${RELS_NS}">`
+      + `<Relationship Id="rIdD" Type="${OFFICE_REL}/diagramData" Target="../diagrams/data1.xml"/>`
+      + '<Relationship Id="rIdDr2"'
+      + ' Type="http://schemas.microsoft.com/office/2007/relationships/diagramDrawing"'
+      + ' Target="../diagrams/drawing1.xml"/>'
+      + '</Relationships>',
+
     'ppt/media/diagram.wmf': 'not something a browser can draw',
 
     // Slide 3: text that cannot possibly fit, plus markup that must stay inert.
@@ -447,7 +467,7 @@ function svgText(svg) {
 
   const deck = makeDeck();
   const rendered = await Pptx.render(deck.buffer.slice(deck.byteOffset, deck.byteOffset + deck.byteLength));
-  const [slide1, slide2, slide3, slide4, slide5, slide6, slide7, slide8] = rendered.slides;
+  const [slide1, slide2, slide3, slide4, slide5, slide6, slide7, slide8, slide9] = rendered.slides;
 
   check('reads the slide size', () => {
     assert.strictEqual(Math.round(rendered.width), 960);
@@ -455,7 +475,7 @@ function svgText(svg) {
   });
 
   check('renders every slide in presentation order', () => {
-    assert.strictEqual(rendered.slides.length, 8);
+    assert.strictEqual(rendered.slides.length, 9);
     assert.ok(svgText(slide1.svg).includes('Hello & welcome'));
     assert.ok(svgText(slide2.svg).includes('narrow shape'));
   });
@@ -710,6 +730,15 @@ check('its shapes land inside the frame, not at the slide origin', () => {
   // The second node sits half the frame across and half of it down.
   const second = xs.find((p) => p.x > frameX + frameW / 4);
   assert.ok(second, `no shape offset into the frame: ${JSON.stringify(xs)}`);
+});
+
+check('the drawing is found when the slide owns the relationship', () => {
+  // This is how PowerPoint writes it, and looking only at the data part's own
+  // relationships — which is where the standard implies it lives — missed
+  // every SmartArt diagram in a corpus of real decks.
+  assert.deepStrictEqual(slide9.missing, [], JSON.stringify(slide9.missing));
+  assert.ok(slide9.svg.includes('>Plan<') && slide9.svg.includes('>Build<'), 'nodes not drawn');
+  assert.ok(!/Diagram<\/text>/.test(slide9.svg), 'a placeholder was drawn instead');
 });
 
 check('a diagram with no drawing part still says so', () => {
