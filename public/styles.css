@@ -110,6 +110,21 @@ a { color: var(--coral-ink); }
 .btn-primary { background: var(--coral); border-color: transparent; color: var(--ink); }
 .btn-primary:hover:not(:disabled) { background: #FF9291; }
 
+/*
+ * The other way in. Same shape and size as the sign-in button beside it, in the
+ * second brand colour rather than a second coral: the two are alternatives, not
+ * a first and a second choice, and colouring both alike would make the page ask
+ * the visitor to pick a winner.
+ */
+.btn-watch {
+  background: var(--cyan); border-color: transparent; color: var(--ink);
+  display: block; text-align: center; text-decoration: none;
+  /* No line-height override here: the sign-in button inherits the body's 1.55
+     through `font: inherit`, and matching it is what makes the two the same
+     height rather than merely the same width. */
+}
+.btn-watch:hover:not(:disabled) { background: #6FDCEC; }
+
 .btn-icon { min-width: 44px; text-align: center; padding: 9px 14px; }
 .btn-toggle[aria-pressed="true"] { background: var(--cyan); border-color: transparent; color: var(--ink); }
 .btn-danger { background: var(--coral-soft); border-color: rgba(200, 54, 47, .28); color: var(--coral-ink); }

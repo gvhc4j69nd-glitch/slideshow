@@ -254,7 +254,9 @@
       <p class="dialog-error" id="gateError" hidden></p>
       <button type="submit" class="btn btn-primary" id="gateSubmit">Sign in</button>
 
-      <p class="gate-foot">Just watching? <a href="/watch">Enter a share code</a>.</p>
+      <!-- Watching needs no account, so it gets equal billing rather than a
+           footnote: half the people arriving here have a code, not a login. -->
+      <a class="btn btn-watch" href="/watch">Watch a show</a>
       <p class="gate-foot">
         Something wrong, or an idea?
         <button type="button" class="linkish" id="feedbackOpenGate">Tell us</button>.
