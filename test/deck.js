@@ -125,7 +125,7 @@ function makeDeck() {
       + '<p:sldId id="258" r:id="rId3"/><p:sldId id="259" r:id="rId4"/>'
       + '<p:sldId id="260" r:id="rId5"/><p:sldId id="261" r:id="rId6"/>'
       + '<p:sldId id="262" r:id="rId7"/><p:sldId id="263" r:id="rId8"/>'
-      + '<p:sldId id="264" r:id="rId10"/></p:sldIdLst>'
+      + '<p:sldId id="264" r:id="rId10"/><p:sldId id="265" r:id="rId11"/></p:sldIdLst>'
       + '<p:sldSz cx="9144000" cy="5143500"/>'
       + '</p:presentation>',
 
@@ -139,6 +139,7 @@ function makeDeck() {
       + `<Relationship Id="rId7" Type="${OFFICE_REL}/slide" Target="slides/slide7.xml"/>`
       + `<Relationship Id="rId8" Type="${OFFICE_REL}/slide" Target="slides/slide8.xml"/>`
       + `<Relationship Id="rId10" Type="${OFFICE_REL}/slide" Target="slides/slide9.xml"/>`
+      + `<Relationship Id="rId11" Type="${OFFICE_REL}/slide" Target="slides/slide10.xml"/>`
       + `<Relationship Id="rId9" Type="${OFFICE_REL}/theme" Target="theme/theme1.xml"/>`
       + '</Relationships>',
 
@@ -329,6 +330,23 @@ function makeDeck() {
 
     'ppt/diagrams/bare.xml': '<?xml version="1.0"?><dgm:dataModel xmlns:dgm="dgm"/>',
 
+    // Slide 10: a word far too long for its box, and a centred line with a
+    // trailing space — the two ways print used to hang off the edge of a shape.
+    'ppt/slides/slide10.xml': '<?xml version="1.0"?><p:sld xmlns:p="p" xmlns:a="a">'
+      + '<p:cSld><p:spTree>'
+      + '<p:sp><p:nvSpPr><p:cNvPr id="40" name="Narrow"/></p:nvSpPr>'
+      + '<p:spPr><a:xfrm><a:off x="457200" y="457200"/><a:ext cx="914400" cy="1828800"/></a:xfrm>'
+      + '<a:prstGeom prst="rect"/><a:noFill/></p:spPr>'
+      + '<p:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="1800"/>'
+      + '<a:t>Unconscionable_supercalifragilistic_identifier_0123456789</a:t>'
+      + '</a:r></a:p></p:txBody></p:sp>'
+      + '<p:sp><p:nvSpPr><p:cNvPr id="41" name="Centred"/></p:nvSpPr>'
+      + '<p:spPr><a:xfrm><a:off x="2286000" y="457200"/><a:ext cx="3657600" cy="914400"/></a:xfrm>'
+      + '<a:prstGeom prst="rect"/><a:noFill/></p:spPr>'
+      + '<p:txBody><a:bodyPr/><a:p><a:pPr algn="ctr"/>'
+      + '<a:r><a:rPr sz="1400"/><a:t>Centred </a:t></a:r></a:p></p:txBody></p:sp>'
+      + '</p:spTree></p:cSld></p:sld>',
+
     // Slide 9: the arrangement PowerPoint actually writes — the drawing is a
     // relationship of the *slide*, not of the data part it belongs to.
     'ppt/slides/slide9.xml': '<?xml version="1.0"?>'
@@ -467,7 +485,7 @@ function svgText(svg) {
 
   const deck = makeDeck();
   const rendered = await Pptx.render(deck.buffer.slice(deck.byteOffset, deck.byteOffset + deck.byteLength));
-  const [slide1, slide2, slide3, slide4, slide5, slide6, slide7, slide8, slide9] = rendered.slides;
+  const [slide1, slide2, slide3, slide4, slide5, slide6, slide7, slide8, slide9, slide10] = rendered.slides;
 
   check('reads the slide size', () => {
     assert.strictEqual(Math.round(rendered.width), 960);
@@ -475,7 +493,7 @@ function svgText(svg) {
   });
 
   check('renders every slide in presentation order', () => {
-    assert.strictEqual(rendered.slides.length, 9);
+    assert.strictEqual(rendered.slides.length, 10);
     assert.ok(svgText(slide1.svg).includes('Hello & welcome'));
     assert.ok(svgText(slide2.svg).includes('narrow shape'));
   });
@@ -694,6 +712,42 @@ check('the breakdown says how much each kind costs', () => {
     assert.ok(entry.slides <= entry.occurrences, kind);
     assert.ok(entry.slides >= 1, kind);
   }
+});
+
+console.log('\n— keeping print inside its box —');
+
+check('a word too long for the shape is broken, not hung off the edge', () => {
+  // Wrapping between words cannot help a single word wider than its box.
+  // Placing it anyway is what pushed print out over whatever sat beside it.
+  const lines = slide10.svg.match(/<text[^>]*>/g) || [];
+  assert.ok(lines.length >= 3, `expected the long word to break, got ${lines.length} line(s)`);
+
+  const xs = [...slide10.svg.matchAll(/<text x="([\d.]+)"/g)].map((m) => Number(m[1]));
+  const boxLeft = 457200 / 9525;
+  const boxRight = boxLeft + 914400 / 9525;
+  const inBox = xs.filter((x) => x >= boxLeft - 1 && x <= boxRight + 1);
+  assert.ok(inBox.length >= 3, `lines started outside the shape: ${JSON.stringify(xs)}`);
+});
+
+check('every piece of the broken word actually fits', () => {
+  // Reconstructing the word from the pieces proves nothing was dropped.
+  const text = (slide10.svg.match(/<tspan[^>]*>([^<]*)<\/tspan>/g) || [])
+    .map((t) => t.replace(/<[^>]*>/g, '')).join('');
+  assert.ok(text.includes('Unconscionable'), text);
+  assert.ok(text.includes('0123456789'), `the tail of the word was lost: ${text}`);
+});
+
+check('a trailing space does not shift centred text', () => {
+  // The space draws nothing, so counting its width nudged the line off centre.
+  const xs = [...slide10.svg.matchAll(/<text x="([\d.]+)"/g)].map((m) => Number(m[1]));
+  const centreBox = 2286000 / 9525;
+  const centreW = 3657600 / 9525;
+  const centred = xs.find((x) => x > centreBox && x < centreBox + centreW);
+  assert.ok(centred !== undefined, JSON.stringify(xs));
+  // "Centred" is about 50px at 14pt; its left edge should sit near the middle.
+  const middle = centreBox + centreW / 2;
+  assert.ok(Math.abs(centred - (middle - 25)) < 22,
+    `centred line starts at ${centred}, expected near ${middle - 25}`);
 });
 
 console.log('\n— SmartArt —');

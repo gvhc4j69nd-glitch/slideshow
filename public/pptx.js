@@ -297,12 +297,53 @@
     return tokens;
   }
 
+  /*
+   * Split a run too wide to sit on a line of its own.
+   *
+   * Wrapping between words cannot help a single word wider than its box — a
+   * long identifier, a URL, a column of digits — and putting it on a line
+   * anyway is what pushes text out past the shape and over whatever is beside
+   * it. PowerPoint breaks mid-word rather than spill, so this does too.
+   *
+   * The first guess is proportional, which lands within a character or two, and
+   * then it is nudged: measuring every prefix of a long run is needlessly slow.
+   */
+  function breakToken(token, maxWidth, measure) {
+    const pieces = [];
+    let rest = token.text;
+
+    while (rest) {
+      const full = measure(rest, token.style);
+      if (full <= maxWidth) { pieces.push({ ...token, text: rest, w: full }); break; }
+
+      let take = Math.max(1, Math.min(rest.length - 1,
+        Math.floor((rest.length * maxWidth) / full)));
+      while (take > 1 && measure(rest.slice(0, take), token.style) > maxWidth) take -= 1;
+      while (take < rest.length - 1
+        && measure(rest.slice(0, take + 1), token.style) <= maxWidth) take += 1;
+
+      pieces.push({ ...token, text: rest.slice(0, take), w: measure(rest.slice(0, take), token.style) });
+      rest = rest.slice(take);
+    }
+    return pieces;
+  }
+
   function wrapTokens(tokens, maxWidth, measure) {
     const lines = [];
     let line = [];
     let width = 0;
 
-    const flush = () => { lines.push(line); line = []; width = 0; };
+    /*
+     * A space at the end of a line draws nothing, so counting its width wraps
+     * the next word a little too early and shifts centred and right-aligned
+     * text left by the width of a space. Drop it when the line closes.
+     */
+    const flush = () => {
+      while (line.length && line[line.length - 1].space) line.pop();
+      lines.push(line);
+      line = [];
+      width = 0;
+    };
 
     for (const token of tokens) {
       if (token.br) { flush(); continue; }
@@ -311,6 +352,19 @@
         if (line.length) { line.push({ ...token, w }); width += w; }
         continue;
       }
+
+      /* Wider than a whole line: break it rather than let it hang off the box. */
+      if (w > maxWidth && token.text.length > 1) {
+        if (line.length) flush();
+        const pieces = breakToken(token, maxWidth, measure);
+        pieces.forEach((piece, i) => {
+          line.push(piece);
+          width += piece.w;
+          if (i < pieces.length - 1) flush();
+        });
+        continue;
+      }
+
       if (width + w > maxWidth && line.length) flush();
       line.push({ ...token, w });
       width += w;

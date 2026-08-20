@@ -85,7 +85,42 @@ of how firmly each says which drawing belongs to which diagram:
 
 **Result: SmartArt failures fell from 20 slides to none.**
 
-## 5. What is left
+## 5. Print hanging off the edge of its shape
+
+Counting a slide as "clean" only says nothing was left undrawn. It says nothing
+about whether what was drawn stayed inside its box, and it did not: **6.7% of
+every line laid out across the corpus — 18,524 of 277,648 — was wider than the
+shape holding it.**
+
+Two causes, both in the line wrapper.
+
+**A run too wide to fit on any line was placed anyway.** Wrapping between words
+cannot help a single word wider than its box, so the wrapper put it down and
+carried on, and every following word piled onto that already-oversized line.
+PowerPoint breaks mid-word rather than spill. Now so does this: the break point
+is guessed proportionally and then nudged, so a long run costs a couple of
+measurements rather than one per character.
+
+**A trailing space was counted in the line's width.** It draws nothing, but it
+wrapped the next word slightly too early and shifted every centred and
+right-aligned line left by the width of a space. Dropped when the line closes.
+
+| | lines wider than their shape |
+|---|---|
+| Before | 18,524 (6.67%) |
+| After breaking over-long runs | 8,558 (2.99%) |
+| After dropping trailing spaces | **117 (0.04%)** |
+
+What remains is single characters wider than their own box, which nothing can
+break further.
+
+Vertical overflow was measured at the same time and is a different story: 3% of
+text shapes, of which the ones that *ask* to be shrunk to fit — `normAutofit` —
+never overflow at all. The rest are shapes the deck marks as "do not shrink", or
+shapes with no stated height, where letting print run past the box is what
+PowerPoint does too. That was left alone deliberately.
+
+## 6. What is left
 
 17 slides of 1,126 — 1.5%.
 
@@ -101,7 +136,7 @@ objects are ones with no cached preview to extract.
 None of this is worth building next. At 98% the renderer is no longer what
 limits the product.
 
-## 6. What this says about the roadmap
+## 7. What this says about the roadmap
 
 The plan of record — from `docs/business-plan.md` and the investor deck — put
 server-side LibreOffice conversion as the gate on the business tier, on the
@@ -115,7 +150,7 @@ considerably weaker than it was.
 
 Both documents still carry the old ordering and should be revised.
 
-## 7. How much to trust this
+## 8. How much to trust this
 
 Better than the previous version of this document, which rested on one deck, but
 still one genre: corporate strategy and architecture decks from a consultancy,
@@ -130,7 +165,7 @@ The honest headline is therefore: **98% of slides in 32 real corporate decks**.
 Any figure quoted to a customer or an investor should name the corpus it came
 from.
 
-## 8. Reproducing this
+## 9. Reproducing this
 
 ```
 node scripts/deck-report.js <deck.pptx>            # counts, and which slides
