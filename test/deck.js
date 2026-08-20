@@ -125,7 +125,8 @@ function makeDeck() {
       + '<p:sldId id="258" r:id="rId3"/><p:sldId id="259" r:id="rId4"/>'
       + '<p:sldId id="260" r:id="rId5"/><p:sldId id="261" r:id="rId6"/>'
       + '<p:sldId id="262" r:id="rId7"/><p:sldId id="263" r:id="rId8"/>'
-      + '<p:sldId id="264" r:id="rId10"/><p:sldId id="265" r:id="rId11"/></p:sldIdLst>'
+      + '<p:sldId id="264" r:id="rId10"/><p:sldId id="265" r:id="rId11"/>'
+      + '<p:sldId id="266" r:id="rId12"/></p:sldIdLst>'
       + '<p:sldSz cx="9144000" cy="5143500"/>'
       + '</p:presentation>',
 
@@ -140,6 +141,7 @@ function makeDeck() {
       + `<Relationship Id="rId8" Type="${OFFICE_REL}/slide" Target="slides/slide8.xml"/>`
       + `<Relationship Id="rId10" Type="${OFFICE_REL}/slide" Target="slides/slide9.xml"/>`
       + `<Relationship Id="rId11" Type="${OFFICE_REL}/slide" Target="slides/slide10.xml"/>`
+      + `<Relationship Id="rId12" Type="${OFFICE_REL}/slide" Target="slides/slide11.xml"/>`
       + `<Relationship Id="rId9" Type="${OFFICE_REL}/theme" Target="theme/theme1.xml"/>`
       + '</Relationships>',
 
@@ -330,6 +332,23 @@ function makeDeck() {
 
     'ppt/diagrams/bare.xml': '<?xml version="1.0"?><dgm:dataModel xmlns:dgm="dgm"/>',
 
+    // Slide 11: a run with no styling of any kind, and template furniture the
+    // designer switched off — the two ways an older deck came back blank.
+    'ppt/slides/slide11.xml': '<?xml version="1.0"?><p:sld xmlns:p="p" xmlns:a="a">'
+      + '<p:cSld><p:spTree>'
+      + '<p:sp><p:nvSpPr><p:cNvPr id="50" name="Bare"/></p:nvSpPr>'
+      + '<p:spPr><a:xfrm><a:off x="457200" y="457200"/><a:ext cx="4572000" cy="914400"/></a:xfrm>'
+      + '<a:prstGeom prst="rect"/><a:noFill/></p:spPr>'
+      // no a:rPr, no a:defRPr, no a:endParaRPr — nothing to inherit from
+      + '<p:txBody><a:bodyPr/><a:p><a:r><a:t>Inherited size please</a:t></a:r></a:p></p:txBody>'
+      + '</p:sp>'
+      + '<p:sp><p:nvSpPr><p:cNvPr id="51" name="LegendBoxes" hidden="1"/></p:nvSpPr>'
+      + '<p:spPr><a:xfrm><a:off x="5486400" y="457200"/><a:ext cx="1828800" cy="457200"/></a:xfrm>'
+      + '<a:prstGeom prst="rect"/><a:solidFill><a:srgbClr val="FF00FF"/></a:solidFill></p:spPr>'
+      + '<p:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="1400"/><a:t>SwitchedOffLegend</a:t></a:r></a:p>'
+      + '</p:txBody></p:sp>'
+      + '</p:spTree></p:cSld></p:sld>',
+
     // Slide 10: a word far too long for its box, and a centred line with a
     // trailing space — the two ways print used to hang off the edge of a shape.
     'ppt/slides/slide10.xml': '<?xml version="1.0"?><p:sld xmlns:p="p" xmlns:a="a">'
@@ -485,7 +504,8 @@ function svgText(svg) {
 
   const deck = makeDeck();
   const rendered = await Pptx.render(deck.buffer.slice(deck.byteOffset, deck.byteOffset + deck.byteLength));
-  const [slide1, slide2, slide3, slide4, slide5, slide6, slide7, slide8, slide9, slide10] = rendered.slides;
+  const [slide1, slide2, slide3, slide4, slide5, slide6, slide7, slide8, slide9, slide10,
+    slide11] = rendered.slides;
 
   check('reads the slide size', () => {
     assert.strictEqual(Math.round(rendered.width), 960);
@@ -493,7 +513,7 @@ function svgText(svg) {
   });
 
   check('renders every slide in presentation order', () => {
-    assert.strictEqual(rendered.slides.length, 10);
+    assert.strictEqual(rendered.slides.length, 11);
     assert.ok(svgText(slide1.svg).includes('Hello & welcome'));
     assert.ok(svgText(slide2.svg).includes('narrow shape'));
   });
@@ -771,6 +791,27 @@ check('a trailing space does not shift centred text', () => {
   const middle = centreBox + centreW / 2;
   assert.ok(Math.abs(centred - (middle - 25)) < 22,
     `centred line starts at ${centred}, expected near ${middle - 25}`);
+});
+
+check('a run with nothing to inherit from still has a size', () => {
+  // Number(null) is 0, and 0 is finite, so an absent size used to resolve to
+  // nothing instead of falling back. A paragraph with no a:defRPr and no
+  // a:endParaRPr — which older decks write routinely — then laid every run out
+  // at zero: the text was in the file, in the SVG, and invisible on the screen.
+  // Runs are split per word into their own tspans, so look for a word.
+  assert.ok(slide11.svg.includes('Inherited'), 'the text was dropped entirely');
+  assert.ok(!/font-size="0(\.0+)?"/.test(slide11.svg), 'text was laid out at zero size');
+
+  const sizes = [...slide11.svg.matchAll(/font-size="([\d.]+)"/g)].map((m) => Number(m[1]));
+  assert.ok(sizes.length > 0 && sizes.every((s) => s > 1), JSON.stringify(sizes));
+});
+
+check('furniture the designer switched off is not drawn', () => {
+  // A house-style master parks a legend and an on-page tracker on every layout
+  // and marks them hidden. PowerPoint does not draw them; drawing them puts
+  // "Legend" across the top of all sixty-six slides of a deck.
+  assert.ok(!slide11.svg.includes('SwitchedOffLegend'), 'hidden text was drawn');
+  assert.ok(!slide11.svg.includes('#FF00FF'), 'the hidden shape itself was drawn');
 });
 
 console.log('\n— SmartArt —');

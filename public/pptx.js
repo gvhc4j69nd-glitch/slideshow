@@ -37,9 +37,19 @@
     const n = Number(value);
     return Number.isFinite(n) ? n / EMU_PER_PX : fallback;
   };
+  /*
+   * A point size, in hundredths, or the inherited one.
+   *
+   * The guard matters more than it looks: Number(null) is 0, and 0 is a finite
+   * number, so an absent size used to resolve to nothing rather than fall back.
+   * A paragraph with no a:defRPr and no a:endParaRPr — which older decks write
+   * routinely — then laid every one of its runs out at zero and the slide came
+   * back blank with the text present but invisible.
+   */
   const pt = (hundredths, fallback) => {
+    if (hundredths === null || hundredths === undefined || hundredths === '') return fallback;
     const n = Number(hundredths);
-    return Number.isFinite(n) ? (n / 100) * (96 / 72) : fallback;
+    return Number.isFinite(n) && n > 0 ? (n / 100) * (96 / 72) : fallback;
   };
 
   const DEFAULT_INSETS = { l: 91440, t: 45720, r: 91440, b: 45720 };
@@ -264,7 +274,7 @@
     const latin = rPr && X.child(rPr, 'a:latin');
     const fill = rPr ? readFill(rPr, theme) : null;
     return {
-      size: pt(rPr && X.attr(rPr, 'sz'), inherited.size),
+      size: pt(rPr ? X.attr(rPr, 'sz') : undefined, inherited.size),
       bold: rPr ? X.attr(rPr, 'b') === '1' : inherited.bold,
       italic: rPr ? X.attr(rPr, 'i') === '1' : inherited.italic,
       underline: rPr ? (X.attr(rPr, 'u', 'none') !== 'none') : inherited.underline,
@@ -1398,8 +1408,28 @@
       + `${esc(label)}</text>`);
   }
 
+  /*
+   * Template furniture the designer switched off.
+   *
+   * A master or layout usually carries a set of guides the house style keeps to
+   * hand — an on-page tracker, a legend, a unit-of-measure caption — parked on
+   * the slide and marked hidden. PowerPoint does not draw them, and drawing
+   * them puts "Legend" and "Unit of measure" across the top of every slide in
+   * the deck. The flag sits on the cNvPr inside whichever non-visual properties
+   * element the shape happens to use, so find it by shape rather than by name.
+   */
+  function isHidden(node) {
+    for (const child of node.children) {
+      if (!child.name.startsWith('p:nv')) continue;
+      const cNvPr = X.child(child, 'p:cNvPr');
+      if (cNvPr && X.attr(cNvPr, 'hidden') === '1') return true;
+    }
+    return false;
+  }
+
   function renderTree(tree, ctx, out) {
     for (const node of tree.children) {
+      if (isHidden(node)) continue;
       switch (node.name) {
         case 'p:sp':
           renderShape(node, ctx, out);

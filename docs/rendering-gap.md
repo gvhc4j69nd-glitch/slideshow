@@ -148,7 +148,30 @@ never overflow at all. The rest are shapes the deck marks as "do not shrink", or
 shapes with no stated height, where letting print run past the box is what
 PowerPoint does too. That was left alone deliberately.
 
-## 6. What is left
+## 6. Two faults that "clean" could never have caught
+
+Both were found by looking at a deck, not by counting what was undrawn, and
+both made slides come back blank while the report called them clean.
+
+**Text laid out at zero size.** `Number(null)` is 0, and 0 is a finite number,
+so an absent font size resolved to nothing instead of falling back to the
+inherited one. Any paragraph with no `a:defRPr` and no `a:endParaRPr` — which
+older decks write routinely — laid every one of its runs out at zero. The text
+was in the file, and in the SVG, and invisible on the screen. One 66-slide deck
+had **4,108** such runs; it now has none.
+
+**Template furniture the designer switched off.** A house-style master parks a
+set of guides on every layout — an on-page tracker, a legend, a unit-of-measure
+caption — and marks them `hidden="1"`. PowerPoint does not draw them. This did,
+so "Legend" and "TRACKER" sat across the top of all sixty-six slides, over the
+logo. The flag was simply not being read.
+
+The lesson is the same one as §2, sharper: **the clean/incomplete count measures
+what the renderer knows it skipped, and cannot see what it drew wrongly.** Both
+of these decks scored 100% clean while being unusable. Anything that matters has
+to be looked at.
+
+## 7. What is left
 
 17 slides of 1,126 — 1.5%.
 
@@ -164,7 +187,7 @@ objects are ones with no cached preview to extract.
 None of this is worth building next. At 98% the renderer is no longer what
 limits the product.
 
-## 7. What this says about the roadmap
+## 8. What this says about the roadmap
 
 The plan of record — from `docs/business-plan.md` and the investor deck — put
 server-side LibreOffice conversion as the gate on the business tier, on the
@@ -178,7 +201,7 @@ considerably weaker than it was.
 
 Both documents still carry the old ordering and should be revised.
 
-## 8. How much to trust this
+## 9. How much to trust this
 
 Better than the previous version of this document, which rested on one deck, but
 still one genre: corporate strategy and architecture decks from a consultancy,
@@ -193,7 +216,7 @@ The honest headline is therefore: **98% of slides in 32 real corporate decks**.
 Any figure quoted to a customer or an investor should name the corpus it came
 from.
 
-## 9. Reproducing this
+## 10. Reproducing this
 
 ```
 node scripts/deck-report.js <deck.pptx>            # counts, and which slides
