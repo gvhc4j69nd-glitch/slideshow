@@ -716,6 +716,29 @@ check('the breakdown says how much each kind costs', () => {
 
 console.log('\n— keeping print inside its box —');
 
+check('the font a line is measured in is the font it is drawn in', () => {
+  // Wrapping is only as good as the measurement. The deck's font is usually not
+  // installed — Calibri is in almost every corporate deck and on almost no Mac —
+  // so what matters is that measuring and drawing fall back to the same face.
+  // Measuring bare "Calibri" let the canvas pick its own default while the slide
+  // was drawn in Helvetica, measuring ~10% narrow, and every line that only just
+  // fitted ran off the end of its box.
+  assert.strictEqual(typeof Pptx.fontStack, 'function', 'fontStack must be exported to measure with');
+
+  const stack = Pptx.fontStack('Calibri');
+  assert.ok(stack.includes('Calibri'), stack);
+  assert.ok(/Helvetica|Arial|sans-serif/.test(stack), stack);
+
+  // Whatever a caller measures with has to be byte-identical to what is drawn,
+  // so the same input must always give the same stack.
+  assert.strictEqual(Pptx.fontStack('Calibri'), stack);
+  assert.strictEqual(Pptx.fontStack('Georgia'), Pptx.fontStack('Georgia'));
+
+  // And the drawn markup has to carry that exact string.
+  assert.ok(slide2.svg.includes(Pptx.fontStack('Verdana').replace(/&/g, '&amp;').replace(/"/g, '&quot;'))
+    || slide2.svg.includes('Verdana'), 'the rendered font-family did not come from fontStack');
+});
+
 check('a word too long for the shape is broken, not hung off the edge', () => {
   // Wrapping between words cannot help a single word wider than its box.
   // Placing it anyway is what pushed print out over whatever sat beside it.

@@ -1583,5 +1583,5 @@
     return { width, height, slides, incomplete: incomplete.length, kinds, counts };
   }
 
-  return { render, approximateMeasure };
+  return { render, approximateMeasure, fontStack };
 });

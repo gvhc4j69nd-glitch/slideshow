@@ -192,11 +192,20 @@ const MAX_LOCAL_FILES = 20000;
 const MAX_LOCAL_DEPTH = 6;
 let localCoverUrls = [];
 
-/** Measure text with a real canvas so deck text wraps where PowerPoint wraps it. */
+/**
+ * Measure text with a real canvas so deck text wraps where PowerPoint wraps it.
+ *
+ * The font asked for is usually not installed — Calibri is in almost every
+ * corporate deck and on almost no Mac — so what matters is that the measurement
+ * falls back to the *same* face the slide will be drawn in. Measuring bare
+ * "Calibri" lets the canvas pick its own default while the SVG picks Helvetica,
+ * and text measured in a narrow font and drawn in a wider one runs off the end
+ * of its box. Ask for the identical stack both times.
+ */
 const measureCanvas = document.createElement('canvas').getContext('2d');
 function measureText(text, style) {
   measureCanvas.font = `${style.italic ? 'italic ' : ''}${style.bold ? 'bold ' : ''}`
-    + `${style.size}px ${style.font || 'Helvetica'}`;
+    + `${style.size}px ${Pptx.fontStack(style.font)}`;
   return measureCanvas.measureText(text).width;
 }
 

@@ -114,6 +114,34 @@ right-aligned line left by the width of a space. Dropped when the line closes.
 What remains is single characters wider than their own box, which nothing can
 break further.
 
+**A third cause, and the one that actually reached users.** The two above were
+found by measuring in Node, where the same approximation is used to lay out and
+to check. In the browser the app measures with a real canvas, and it was asking
+for the wrong font.
+
+The deck's font is usually not installed — Calibri is in almost every corporate
+deck and on almost no Mac. The layout measured bare `Calibri`, which let the
+canvas fall back to its own default; the slide was then drawn with the full
+stack, which falls back to Helvetica. Measured in one face, drawn in a wider
+one:
+
+| Sample line | Measured | Drawn | Error |
+|---|---|---|---|
+| "Market projected to reach $198B…" | 305.4px | 339.8px | −10.1% |
+| "National Security Priority" | 186.0px | 198.6px | −6.4% |
+| "quantum as a sovereign technology…" | 315.8px | 350.8px | −10.0% |
+
+Every line was measured about a tenth narrower than it draws, so any line that
+only just fitted ran off the end of its box — and none of it showed up in a Node
+measurement, because there the approximation is used consistently for both.
+
+`fontStack` is now exported and the app measures with the identical string it
+draws with. Measurement error against the same three samples is **0%**.
+
+The general lesson is worth keeping: a layout engine is only as good as its
+measurement, and a measurement taken in a different font from the drawing is not
+a measurement of anything.
+
 Vertical overflow was measured at the same time and is a different story: 3% of
 text shapes, of which the ones that *ask* to be shrunk to fit — `normAutofit` —
 never overflow at all. The rest are shapes the deck marks as "do not shrink", or
