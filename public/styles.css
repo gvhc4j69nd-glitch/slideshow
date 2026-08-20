@@ -258,9 +258,17 @@ a { color: var(--coral-ink); }
   background: var(--stage);
   color: var(--stage-text);
   display: flex; flex-direction: column;
+  /* The chrome is the only thing left in the flow, so send it to the bottom. */
+  justify-content: flex-end;
 }
 
-.stage { position: relative; flex: 1; overflow: hidden; }
+/*
+ * The photo gets the whole screen and the chrome floats over it. Sharing the
+ * height instead would letterbox the picture even while the controls are faded
+ * out, because opacity leaves the space behind — a band of empty stage along
+ * the bottom for the whole show.
+ */
+.stage { position: absolute; inset: 0; overflow: hidden; }
 
 .slide {
   position: absolute; inset: 0;
@@ -277,7 +285,13 @@ a { color: var(--coral-ink); }
   color: var(--stage-muted); text-align: center; padding: 24px;
 }
 
-.progress { height: 4px; background: rgba(255, 255, 255, .1); flex: 0 0 auto; }
+/* Sits over the photo now, so the empty part of the track needs its own
+   backing — on a bright picture a white-on-white track disappears. */
+.progress {
+  height: 4px; flex: 0 0 auto;
+  position: relative; z-index: 2;
+  background: rgba(18, 16, 28, .55);
+}
 .progress-bar {
   height: 100%; width: 0;
   background: linear-gradient(90deg, var(--coral), var(--amber));
@@ -287,12 +301,16 @@ a { color: var(--coral-ink); }
   flex: 0 0 auto;
   display: flex; align-items: center; justify-content: space-between;
   gap: 16px; flex-wrap: wrap;
-  padding: 14px 18px;
+  /* Extra room at the top for the scrim to fade in over the photo. */
+  padding: 30px 18px 14px;
   padding-bottom: max(14px, env(safe-area-inset-bottom));
   padding-left: max(18px, env(safe-area-inset-left));
   padding-right: max(18px, env(safe-area-inset-right));
-  background: var(--stage-bar);
-  border-top: 1px solid var(--stage-line);
+  position: relative; z-index: 2;
+  /* A scrim rather than a solid bar: the picture still shows through, and the
+     text stays legible whatever is behind it. */
+  background: linear-gradient(to top,
+    rgba(18, 16, 28, .94) 0%, rgba(18, 16, 28, .82) 55%, rgba(18, 16, 28, 0) 100%);
   transition: opacity .3s ease;
 }
 .controls-left, .controls-center, .controls-mid, .controls-right {
@@ -344,7 +362,7 @@ a { color: var(--coral-ink); }
 #player.cinema .controls-right > :not(#fullscreenBtn),
 #viewer.cinema .controls-right > :not(#viewFullscreenBtn) { display: none; }
 #player.cinema .controls, #viewer.cinema .controls {
-  background: transparent; border-top: 0; justify-content: flex-end;
+  background: none; justify-content: flex-end;
 }
 #player.idle, #viewer.idle { cursor: none; }
 
