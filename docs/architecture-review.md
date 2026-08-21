@@ -190,20 +190,10 @@ there is more than one instance.
 
 ## 5. Remediation
 
-### Shard by show code at the edge
+### Persist the session record, not the bytes — first
 
-The six-character show code is a natural partition key. Consistent-hash it in
-front of the fleet so that every request for a given show reaches the same
-instance. The in-memory design then works unchanged across any number of
-instances, and `MAX_SESSIONS` becomes a per-instance figure rather than a global
-one.
-
-The alternative — moving session state into Redis with pub/sub — is the
-conventional answer and is the wrong one here. It adds a network hop to the byte
-path and discards the property that makes the relay fast. Route the traffic
-instead of centralising the state.
-
-### Persist the session record, not the bytes
+**Everything else depends on this one.** It is the only step that costs users
+a running show, and until it is done every later deploy costs them one too.
 
 Screens hold their own copies and can seed one another, so durability is only
 needed for the show's metadata: code, mode, expiry, owner, slide count. Writing
@@ -212,6 +202,105 @@ one it can, and it decouples deployment from user-visible breakage.
 
 The photo bytes should remain ephemeral. That is the product's central claim and
 it should not be traded away for operational convenience.
+
+### Shard by show code at the edge
+
+The six-character show code is a natural partition key, and the routing that
+follows from it is why this is a change of plumbing rather than a rewrite. The
+code sits at a fixed position in the URL path on every request that touches an
+existing show:
+
+```
+/api/watch/{CODE}/state          /api/broadcast/{CODE}/extend
+/api/watch/{CODE}/photo/:i       /api/broadcast/{CODE}/progress
+/api/watch/{CODE}/requests       /api/broadcast/{CODE}/join-code
+/api/watch/{CODE}/frame/:id
+```
+
+That is the whole hot path — every long-poll and every slide byte. A router can
+choose an instance by reading one path segment, with no body parsing and no
+state of its own. `MAX_SESSIONS` then becomes a per-instance figure rather than
+a global one, and the ceiling multiplies by the size of the fleet.
+
+The alternative — moving session state into Redis with pub/sub — is the
+conventional answer and is the wrong one here. It adds a network hop to the byte
+path and discards the property that makes the relay fast. Route the traffic
+instead of centralising the state.
+
+#### Record the owner; do not hash it
+
+**This corrects the first version of this document, which said to consistent-hash
+the code.** Write `code → instance` to Postgres when the show is created and have
+the router read that table instead.
+
+The difference shows up the moment capacity changes. Hashing reshuffles some
+proportion of keys whenever the fleet grows or shrinks, and a reshuffled key is a
+*live show* whose state is in another process's memory. A recorded owner never
+moves an existing show: adding an instance affects only shows created afterwards.
+Codes are immutable and short-lived, so the router can cache the table hard.
+
+#### Three requests that do not carry the code in the path
+
+Each needs its own answer and each is easy to miss.
+
+**`POST /api/watch/join`** takes the code in the JSON **body**
+(`server.js`, `handleWatchJoin`), so a path-based router cannot see it. Move it
+to `/api/watch/{CODE}/join` — a small change on both sides — or accept the join
+anywhere and redirect.
+
+**`POST /api/broadcast`** creates a show, so there is no code yet; the server
+generates one. Whichever instance serves that request has to end up owning it,
+which a recorded owner handles naturally: the instance writes itself into the
+table as it generates the code.
+
+**`GET /api/broadcast/mine`** calls `listForUser`, which scans `this.sessions` in
+**one process** (`lib/broadcast.js`). Once a user's shows can live on different
+instances this silently returns a partial list — their own shows begin
+disappearing from their library, with no error anywhere. Persisting the session
+record fixes it for free, which is another reason persistence comes first.
+
+### Is any of this seamless for users?
+
+**In the steady state, yes — invisibly so.** Same URLs, same protocol, same
+behaviour; a show lives entirely on one instance exactly as it does today.
+
+**Getting there is not, and the order decides how much anyone notices.** The
+reason is Finding 3: with no persistence, the deploy that introduces any of this
+destroys every live and handed-off show. Hand-off TTLs run to 48 hours, so there
+is no quiet window to wait for — the system is never empty.
+
+What makes the rest of it painless is a property the protocol already has:
+**long-polling is self-healing.** A viewer whose connection is cut re-polls
+within 25 to 30 seconds and cannot distinguish a dropped connection from a slow
+one. Once session records survive a restart, a restart stops being a failure and
+becomes a pause of at most one poll interval. Parked requests and the frame cache
+are lost with the process, and should be — they are ephemeral by design.
+
+| Step | What users see |
+|---|---|
+| 1. Persist the session record | Every running show ends — **the last time this happens** |
+| 2. Move `join` into the path, record ownership | Nothing |
+| 3. Router in front of a *single* instance | A stall of up to one poll interval |
+| 4. Add instances | Nothing — recorded ownership leaves existing shows alone |
+| Steady state | Nothing; one instance restarting stalls 1/N of shows for one poll |
+
+Step 3 is deliberately a deploy that changes no behaviour: it proves the routing
+path with only one place for traffic to go.
+
+#### Where seamless genuinely stops
+
+Two limits worth stating rather than discovering.
+
+**An instance dying takes its shows with it** until something reassigns them. The
+records survive in Postgres, but a new owner has to claim them and the router has
+to learn the change. Viewers stall rather than lose the show — but the length of
+that stall is however long health-checking and reassignment take, and that is
+real work rather than a free consequence of sharding.
+
+**A show cannot move while it is running.** The presenter's parked long-poll is
+in one process's memory. An instance can be drained by refusing new shows and
+waiting for the existing ones to expire, but with 48-hour hand-off TTLs that is
+measured in days.
 
 ### Separate any conversion tier before building it
 
@@ -223,8 +312,9 @@ service, sized independently of the relay.
 
 | Order | Work | Why first |
 |---|---|---|
-| 1 | Persist session records | Unblocks safe deploys; independent of the rest |
-| 2 | Shard by code, raise the cap per instance | Removes the hard ceiling |
+| 1 | Persist session records | Unblocks safe deploys, fixes `mine` across instances, and is the only step users lose shows to |
+| 2 | Move `join` into the path; record `code → instance` | No behaviour change; makes the code routable |
+| 2b | Router in front of one instance, then add more | Removes the hard ceiling; invisible after the first stall |
 | 3 | Per-IP connection limits, shared rate limiting | Only meaningful once multi-instance |
 | 4 | ~~Conversion worker tier~~ | No longer planned — see Finding 4 |
 
