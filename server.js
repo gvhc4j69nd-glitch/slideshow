@@ -44,6 +44,7 @@ const {
 const { Store } = require('./lib/store');
 const dbase = require('./lib/db');
 const migrate = require('./lib/migrate');
+const shows = require('./lib/shows');
 const {
   Broadcast, HANDOFF_MAX_PHOTOS, HANDOFF_MIN_TTL_MS, HANDOFF_MAX_TTL_MS, QR_TICKET_TTL_MS,
 } = require('./lib/broadcast');
@@ -781,7 +782,8 @@ server.keepAliveTimeout = 72 * 1000;
   await store.init();
   await store.importLegacyUsers(DATA_ROOT);
 
-  broadcast = new Broadcast({ secret: store.secret });
+  broadcast = new Broadcast({ secret: store.secret, store: shows });
+  const restored = await broadcast.restore();
 
   const accounts = await store.userCount();
 
@@ -790,6 +792,7 @@ server.keepAliveTimeout = 72 * 1000;
     console.log('  Vinboo is running');
     console.log(`  →  http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
     console.log(`  Accounts:      ${accounts}`);
+    if (restored) console.log(`  Shows:         ${restored} carried over the restart`);
     console.log(`  Sign-up code:  ${SIGNUP_CODE ? 'required' : 'not set (anyone can register)'}`);
     if (!SIGNUP_CODE && process.env.RAILWAY_ENVIRONMENT) {
       console.warn('  WARNING: no SIGNUP_CODE set — anyone with the URL can create an account.');

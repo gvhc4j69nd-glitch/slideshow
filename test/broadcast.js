@@ -343,5 +343,121 @@ check('a handed-off show hands out the clock, not a slide index', () => {
   assert.ok(Number.isFinite(state.now));
 });
 
+console.log('\n— shows that outlive the process —');
+
+/* A store that records what it was told, so the relay can be tested without a
+   database. This is exactly the shape server.js hands in. */
+function fakeStore(initial = []) {
+  return {
+    saved: [], touched: [], removed: [], rows: initial,
+    save(session) { this.saved.push(session.code); },
+    touch(code, expiresAt) { this.touched.push({ code, expiresAt }); },
+    remove(code) { this.removed.push(code); },
+    async loadAll() { return this.rows; },
+  };
+}
+
+check('with no store the relay behaves exactly as it always did', () => {
+  // The injection has to be optional, or every existing caller changes.
+  const b = relay();
+  const session = start(b);
+  assert.ok(b.sessions.has(session.code));
+  assert.strictEqual(b.store, null);
+  assert.doesNotThrow(() => b.end(session.code));
+});
+
+check('starting, extending and ending a show are each written down', () => {
+  const store = fakeStore();
+  const b = new Broadcast({ secret: 'test-secret', store });
+  const session = start(b, { mode: 'handoff', ttlMs: 2 * HOUR });
+  assert.deepStrictEqual(store.saved, [session.code]);
+
+  b.extend(session, 3 * HOUR);
+  assert.strictEqual(store.touched.length, 1);
+  assert.strictEqual(store.touched[0].code, session.code);
+  assert.strictEqual(store.touched[0].expiresAt, session.expiresAt);
+
+  b.end(session.code);
+  assert.deepStrictEqual(store.removed, [session.code]);
+});
+
+check('a show comes back after the process did not', async () => {
+  const original = { code: 'KEPT01', salt: 'aa', passwordHash: Buffer.alloc(32, 7),
+    nonce: 'n', userId: 1, username: 'p', title: 'Kept', photoCount: 9,
+    mode: 'handoff', interval: 5000,
+    createdAt: Date.now() - 60_000, expiresAt: Date.now() + HOUR };
+
+  const b = new Broadcast({ secret: 'test-secret', store: fakeStore([original]) });
+  assert.strictEqual(await b.restore(), 1);
+
+  const session = b.get('KEPT01');
+  assert.ok(session, 'the show did not come back');
+  assert.strictEqual(session.photoCount, 9);
+  assert.strictEqual(session.mode, 'handoff');
+
+  // The clock is the whole point: a handed-off screen works out which slide to
+  // show from when the show started, so restoring it to "now" would jump it
+  // back to the beginning.
+  assert.strictEqual(session.createdAt, original.createdAt);
+  assert.strictEqual(b.publicState(session).startedAt, original.createdAt);
+});
+
+check('a restored show still checks the password it was made with', async () => {
+  const b0 = new Broadcast({ secret: 'test-secret' });
+  const { session: made, password } = b0.create({
+    userId: 1, username: 'p', title: 'x', photoCount: 3, mode: 'handoff', ttlMs: HOUR,
+  });
+
+  const b = new Broadcast({ secret: 'test-secret', store: fakeStore([{ ...made }]) });
+  await b.restore();
+  const back = b.get(made.code);
+
+  assert.ok(b.verifyPassword(back, password), 'the right password was refused');
+  assert.ok(!b.verifyPassword(back, 'WRON-GPAS-SWRD'), 'the wrong password was accepted');
+});
+
+check('nothing about who was watching survives, and it should not', async () => {
+  // Viewers, parked polls and cached bytes all describe connections that died
+  // with the old process. Each repairs itself within a poll.
+  const b = new Broadcast({ secret: 'test-secret', store: fakeStore([{
+    code: 'FRESH1', salt: 'aa', passwordHash: Buffer.alloc(32, 1), nonce: 'n',
+    userId: 1, username: 'p', title: 'x', photoCount: 4, mode: 'handoff',
+    interval: 5000, createdAt: Date.now(), expiresAt: Date.now() + HOUR,
+  }]) });
+  await b.restore();
+  const s = b.get('FRESH1');
+
+  assert.strictEqual(s.viewers.size, 0);
+  assert.strictEqual(s.cache.size, 0);
+  assert.strictEqual(s.cacheBytes, 0);
+  assert.strictEqual(s.hostWaiters.length, 0);
+  assert.strictEqual(s.stateWaiters.length, 0);
+  assert.strictEqual(s.seedWaiters.length, 0);
+  assert.strictEqual(s.pending.size, 0);
+});
+
+check('an expired show is not brought back to life', async () => {
+  const b = new Broadcast({ secret: 'test-secret', store: fakeStore([{
+    code: 'DEAD01', salt: 'aa', passwordHash: Buffer.alloc(32, 1), nonce: 'n',
+    userId: 1, username: 'p', title: 'x', photoCount: 4, mode: 'handoff',
+    interval: 5000, createdAt: Date.now() - 2 * HOUR, expiresAt: Date.now() - HOUR,
+  }]) });
+  assert.strictEqual(await b.restore(), 0);
+  assert.strictEqual(b.get('DEAD01'), undefined);
+});
+
+check('a live show is given the presenter time to come back', async () => {
+  // Restoring with hostSeenAt in the past would have the sweeper end the show
+  // on its first tick, before the presenter's tab has reconnected.
+  const b = new Broadcast({ secret: 'test-secret', store: fakeStore([{
+    code: 'LIVE01', salt: 'aa', passwordHash: Buffer.alloc(32, 1), nonce: 'n',
+    userId: 1, username: 'p', title: 'x', photoCount: 4, mode: 'live',
+    interval: 5000, createdAt: Date.now() - HOUR, expiresAt: Date.now() + HOUR,
+  }]) });
+  await b.restore();
+  b.sweep();
+  assert.ok(b.get('LIVE01'), 'the sweeper ended a show the presenter could still return to');
+});
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

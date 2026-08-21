@@ -14,6 +14,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const db = require('../lib/db');
+const shows = require('../lib/shows');
 const migrate = require('../lib/migrate');
 const { Store } = require('../lib/store');
 
@@ -56,7 +57,7 @@ function guardTargetDatabase() {
 
 // feedback references users, so it has to go in the same statement — Postgres
 // refuses to truncate one side of a foreign key on its own.
-const wipe = () => db.query('TRUNCATE users, app_settings, feedback RESTART IDENTITY');
+const wipe = () => db.query('TRUNCATE users, app_settings, feedback, shows RESTART IDENTITY CASCADE');
 
 (async () => {
   guardTargetDatabase();
@@ -381,6 +382,86 @@ const wipe = () => db.query('TRUNCATE users, app_settings, feedback RESTART IDEN
     const recent = await store.recentFeedback(2);
     assert.strictEqual(recent[0].subject, 'Newer');
     assert.strictEqual(recent[1].subject, 'Older');
+  });
+
+  console.log('\n— shows that outlive the process —');
+
+  await check('a show written down comes back the same', async () => {
+    const owner = await store.addUser({ username: 'showowner@example.com', passwordHash: 'x' });
+    const session = {
+      code: 'ABC123',
+      salt: 'deadbeef',
+      // A real hash is raw bytes, most of which are not valid UTF-8. Storing one
+      // straight into a text column is rejected by Postgres, so this asserts the
+      // encoding survives rather than that a string does.
+      passwordHash: crypto.createHmac('sha256', 'secret').update('x').digest(),
+      nonce: 'nonce-abc',
+      userId: owner.id,
+      username: 'showowner',
+      title: 'A show',
+      photoCount: 12,
+      mode: 'handoff',
+      interval: 5000,
+      createdAt: Date.now() - 60_000,
+      expiresAt: Date.now() + 3_600_000,
+    };
+    await shows.save(session);
+
+    const [back] = await shows.loadAll();
+    assert.ok(back, 'nothing came back');
+    assert.strictEqual(back.code, 'ABC123');
+    assert.strictEqual(back.mode, 'handoff');
+    assert.strictEqual(back.photoCount, 12);
+    assert.strictEqual(back.interval, 5000);
+    assert.strictEqual(back.username, 'showowner');
+
+    // Byte-identical, or timingSafeEqual throws instead of returning false.
+    assert.ok(Buffer.isBuffer(back.passwordHash), 'the hash came back as text');
+    assert.ok(crypto.timingSafeEqual(back.passwordHash, session.passwordHash));
+
+    // The clock is what restores a handed-off show to the right slide.
+    assert.strictEqual(back.createdAt, session.createdAt);
+    assert.strictEqual(back.expiresAt, session.expiresAt);
+  });
+
+  await check('extending a show moves only its deadline', async () => {
+    const later = Date.now() + 7_200_000;
+    await shows.touch('ABC123', later);
+    const [back] = await shows.loadAll();
+    assert.strictEqual(back.expiresAt, later);
+    assert.strictEqual(back.photoCount, 12, 'something other than the deadline moved');
+  });
+
+  await check('a show that ended is forgotten', async () => {
+    await shows.remove('ABC123');
+    assert.deepStrictEqual(await shows.loadAll(), []);
+  });
+
+  await check('an expired show is never handed back, and is swept up', async () => {
+    const owner = await store.addUser({ username: 'expired@example.com', passwordHash: 'x' });
+    await shows.save({
+      code: 'OLD123', salt: 'aa', passwordHash: Buffer.alloc(32, 1), nonce: 'n',
+      userId: owner.id, username: 'expired', title: 'Gone', photoCount: 3,
+      mode: 'handoff', interval: 5000,
+      createdAt: Date.now() - 7_200_000,
+      expiresAt: Date.now() - 60_000,      // a minute ago
+    });
+    assert.deepStrictEqual(await shows.loadAll(), []);
+    const left = await db.query('SELECT count(*)::int AS n FROM shows');
+    assert.strictEqual(left.rows[0].n, 0, 'the expired row was left behind');
+  });
+
+  await check('deleting an account takes its shows with it', async () => {
+    const owner = await store.addUser({ username: 'leaving@example.com', passwordHash: 'x' });
+    await shows.save({
+      code: 'BYE123', salt: 'bb', passwordHash: Buffer.alloc(32, 2), nonce: 'n',
+      userId: owner.id, username: 'leaving', title: 'Theirs', photoCount: 2,
+      mode: 'live', interval: 5000,
+      createdAt: Date.now(), expiresAt: Date.now() + 3_600_000,
+    });
+    assert.strictEqual((await shows.loadAll()).length, 1);
+    await db.query('DELETE FROM users WHERE id = $1', [owner.id]);
+    assert.deepStrictEqual(await shows.loadAll(), [], 'an orphaned show was left running');
   });
 
   await db.close();
