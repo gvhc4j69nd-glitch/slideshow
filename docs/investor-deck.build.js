@@ -446,7 +446,7 @@ const IMG = __dirname + '/';
 
   const tiers = [
     { n: 'Free', p: 'Ad supported', d: 'Photos to every screen. Open and play a deck locally — sharing one is Pro.', ink: C.inkSoft, fill: C.white },
-    { n: 'Plus', p: '$48 / year', d: 'Photos, no ads, and a show that survives everyone going offline.', ink: C.cyanInk, fill: C.white },
+    { n: 'Plus', p: '$48 / year', d: 'Photos, no ads, longer life, and a show that outlives the server restarting.', ink: C.cyanInk, fill: C.white },
     { n: 'Pro', p: '$180 / year', d: 'Sharing a PowerPoint deck. Plus a saved library, presenter notes and branding.', ink: C.coralInk, fill: C.coralSoft },
     { n: 'Events', p: '$19 / event', d: 'One-time pass sold through wedding and event vendors.', ink: C.amberInk, fill: C.amberSoft },
     { n: 'Private', p: 'Add-on', d: 'End-to-end encryption, added to Plus or Pro. Designed, not yet built.', ink: C.cyanInk, fill: C.cyanSoft },

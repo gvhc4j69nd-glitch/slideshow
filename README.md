@@ -106,7 +106,7 @@ Vinboo loses as well as where it wins.
 [docs/business-plan.md](docs/business-plan.md) — also as
 [a Word file](docs/business-plan.docx), regenerated with
 `node scripts/md-to-docx.js docs/business-plan.md` — turns that into a plan: a free
-tier funded by three ad placements, premium tiers for stored shows and end-to-end
+tier funded by three ad placements, premium tiers for longer-lived shows and end-to-end
 encryption, and the infrastructure arithmetic at current Railway and object-storage
 rates, and sizes each segment bottom-up from headcounts. Its sharpest finding is
 that **6,413 business presenters would out-earn 250,000 consumer ones** — 39×

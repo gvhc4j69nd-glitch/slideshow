@@ -16,8 +16,9 @@ account needed to watch.
 
 **The model.** Free, funded by three ad placements — the landing page, the
 signed-in library, and the viewer page. Paid tiers remove the ads and add what
-the free architecture cannot do: **Plus** ($3.99) for a show that survives
-everyone going offline, **Pro** ($15) for **sharing a PowerPoint deck** and the
+the free architecture cannot do: **Plus** ($3.99) for a show whose code outlives
+the server restarting, longer life and no ads, **Pro** ($15) for
+**sharing a PowerPoint deck** and the
 tools a professional presenter needs, and **Event** ($19 once) for a weekend.
 **Private** ($8.99) is an add-on to Plus or Pro rather than a tier of its own,
 adding end-to-end encryption to whichever the customer already has.
@@ -210,9 +211,13 @@ now — the split is provisional until that finishes, and §9 says what to watch
 The unattended tier. It closes the single biggest weakness in the competitive
 analysis and directly answers Pixo.
 
-- **Shows stored on the server** for their lifetime, so the slideshow survives
-  everyone going offline. Today a handed-off show stops being joinable when the
-  last screen with a copy switches off.
+- **The show's code stays alive for its whole life.** A show survives the server
+  restarting, and the presenter can reconnect from their own device and resume
+  it — same code, same password, no reissuing anything to the room. Today a
+  restart ends every running show outright.
+
+  *This replaces an earlier promise that the show would "survive everyone going
+  offline", which was withdrawn rather than delivered. See below.*
 - **Longer life**: 7 days instead of 48 hours, and more than three standing shows.
 - **No photo cap** on hand-off (free is 150).
 - **No ads**, anywhere.
@@ -221,6 +226,33 @@ analysis and directly answers Pixo.
 - *(QR-code joining was listed here and has instead shipped free for everyone —
   it is table stakes, and paywalling table stakes is how a free tier gets a
   reputation for being crippled.)*
+
+**What was cut, and why.** The original Plus was built on *shows stored on the
+server, so the slideshow survives everyone going offline*. Delivering that means
+the server holding the pictures — which is uploading, and "nothing is ever
+uploaded" is the one claim the whole product rests on and the one thing no
+competitor can copy without rebuilding. A tier that quietly broke it would have
+to be disclosed prominently, and the disclosure would weaken the pitch for
+everyone, including the free users who are not paying for it.
+
+So the promise goes and the capability underneath it stays. Persisting the
+*session record* — code, mode, owner, expiry, slide count, and no pictures —
+gives a show an identity that outlives the process. That is a real feature, it is
+honest, and it is days of work rather than a storage tier.
+
+**If true offline survival is ever wanted, it belongs to Private, not Plus.** The
+only version of server-side storage that does not contradict the claim is the
+encrypted one: the server can hold ciphertext it cannot read and still say
+nothing readable was uploaded. That makes "the show survives with nobody online"
+a natural feature of the encryption add-on rather than a hole in the consumer
+tier.
+
+**The honest cost of this.** Plus is a thinner proposition than it was. Against
+the *free* tier it now offers no ads, a seven-day life, more standing shows and
+no photo cap — good, but less than "your show cannot die". Hand-off already
+answers Pixo's "no need to keep the app open" pitch, and it answers it for free.
+Whether $3.99 still holds against that is worth re-testing alongside the Pro
+price.
 
 *Why this price:* Pixo is $1.49/month for **one** television and caps at six.
 Plus is unlimited screens at $3.99, which beats Pixo outright for anyone with
@@ -338,7 +370,8 @@ nothing**. Private now composes with both tiers:
 | Photos to unlimited screens | yes | yes | yes | yes |
 | Sharing a PowerPoint deck | no | no | **yes** | **yes** |
 | Deck fidelity | — | — | 98% of slides | 98% of slides |
-| Stored shows survive offline | yes | yes, as ciphertext | yes | yes, as ciphertext |
+| Show survives a restart, resumable by its owner | yes | yes | yes | yes |
+| Survives with *nobody* online | no | possible later, as ciphertext | no | possible later, as ciphertext |
 | Server can read your files | yes, deleted after | **no, ever** | yes, deleted after | **no, ever** |
 | Ads | none | none | none | none |
 
@@ -579,7 +612,10 @@ $0.05/GB. So a stored premium show costs almost nothing to serve, while a free
 relayed show costs real money every time a screen watches it.
 
 - 50 slides stored = **17 MB per show**; at the 150-photo cap, 51 MB
-- **10,000 stored shows = 167 GB = $2.50/month**, egress free
+- **10,000 stored shows = 167 GB = $2.50/month**, egress free — retained as the
+  costing for a media-storing tier *if one is ever built*. No tier stores media
+  today: Plus persists session records only (§4), and the encrypted version of
+  the idea belongs to Private.
 
 This inverts the usual freemium worry. The premium tier does not need to subsidise
 an expensive free tier — it is structurally cheaper. It also means Plus can be
@@ -700,8 +736,10 @@ Carried from the competitive analysis, with financial consequences attached.
    carries a single-use ticket, so nothing reusable is in the URL.
 3. **Ads and consent.** Landing and library placements first; treat the viewer
    placement as an experiment and measure it separately.
-4. **Vinboo Plus.** Server-stored shows, longer life, no ads. This is the first
-   real revenue and it answers Pixo directly.
+4. **Vinboo Plus.** Persisted session records, longer life, more standing shows,
+   no photo cap, no ads. The first real revenue. Note that the persistence
+   underneath it is the same work the architecture review puts first, so this
+   tier and that fix are one job seen from two ends.
 5. **Vinboo Pro**, if the business segment validates. **Sharing a PowerPoint
    deck is the tier**, with the library, notes and branding behind it. Local
    deck playback stays free for everyone. The work is one entitlement check at
