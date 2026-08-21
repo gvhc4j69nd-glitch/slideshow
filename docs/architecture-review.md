@@ -36,6 +36,12 @@ clean and the code is small — 2,243 lines across the server and its libraries.
 | 5 | Socket volume and denial-of-service surface | Serious | Days |
 | 6 | Per-session cache budget is 64 MB | Moderate | Hours |
 
+**One open question, in §6:** the routing this depends on needs a platform that
+can send a named request to a named instance. A load balancer spreading requests
+across identical replicas — the usual meaning of scaling a service — would break
+the design rather than implement it. Worth confirming before the work is planned
+rather than after.
+
 ---
 
 ## 2. What the architecture is
@@ -323,7 +329,80 @@ not optimisations. They are days of work rather than months.
 
 ---
 
-## 6. Assumptions register
+## 6. Can the platform host this?
+
+The design above says how to shard. It says nothing about whether the place this
+runs can do it, which is a gap worth closing before anyone commits to the plan.
+
+### What is deployed today
+
+One instance, one region. `railway.json` sets a Nixpacks build, `npm start`, and
+a `/healthz` check; it carries no replica or region settings, so the service runs
+at the platform default. Every response comes back from `jfk1` — US East.
+
+Source of truth is GitHub; Railway builds from it on push and holds no code. What
+is *only* on the platform is the Postgres data — accounts, the cookie-signing
+key, feedback — plus environment variables and the domain binding. That is the
+whole of the lock-in, and it is small.
+
+### The requirement sharding actually imposes
+
+A request for code `ABC123` has to reach **one particular instance**, chosen by
+reading the path. Not "an instance": that one, because the parked request and the
+presenter's poll have to meet in the same process's memory.
+
+That is request-level affinity, and it is a stronger requirement than horizontal
+scaling. A load balancer that spreads requests evenly across identical replicas —
+which is what most platforms mean by scaling a service — **breaks this design
+rather than implementing it**, because two requests for the same show land in
+different memory.
+
+> **To verify before committing:** whether Railway replicas can be addressed
+> individually, or whether its balancer chooses for you. If it chooses, raising
+> the replica count is not a smaller version of sharding; it is an outage.
+
+### If replicas cannot be addressed
+
+There is a way to stay put. Run **each shard as its own service** — `shard-1`,
+`shard-2` — and put a small router service in front of them, proxying by code
+across the platform's private network. More manual than a replica count, but
+Postgres, the domain and the deploy flow all stay where they are, and the router
+is the same component the design needs anyway.
+
+### Platforms built for this pattern
+
+Named for completeness, not as a recommendation:
+
+**Fly.io** has a `fly-replay` header — a response that says "replay this request
+on instance X". It exists for key-routed workloads and would carry this design
+directly.
+
+**Cloudflare Durable Objects** are closer still: a Durable Object is a named
+single-threaded actor addressed by ID, which is very nearly a description of a
+show session. The parked-request relay is the pattern they exist for. It is also
+a rewrite onto a different runtime, not a migration.
+
+### The recommendation is to stay, and to not decide yet
+
+Sharding is triggered by volumes that do not exist. The step that matters —
+persisting the session record — is entirely platform-independent and is worth
+doing wherever this runs. Do that first and the platform question stays open
+until something forces it.
+
+Two constraints to hold in mind meanwhile.
+
+**The edge is not fully under your control.** The platform's CDN rewrites
+`Cache-Control` on static files from the `no-cache` this server sends to four
+hours, which is why cache-busting had to be solved in the HTML rather than in a
+header. Routing would be governed by the same layer.
+
+**One region, US East.** For a product about screens in a room that is fine while
+the audience is North American. It becomes a latency question well before it
+becomes a sharding question, and the two are easy to confuse.
+
+---
+
+## 7. Assumptions register
 
 Every capacity figure above rests on the following. They are estimates, not
 measurements, and the arithmetic moves proportionally with them.
